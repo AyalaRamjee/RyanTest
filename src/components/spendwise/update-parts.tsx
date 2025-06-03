@@ -68,20 +68,32 @@ export default function UpdatePartsTab({
     setParts(prevParts => 
       prevParts.map(p => {
         if (p.id === partId) {
-          let numericValue = value;
+          let processedValue = value;
           if (field === 'price' || field === 'annualDemand') {
-            numericValue = parseFloat(value as string);
-            if (isNaN(numericValue)) numericValue = 0;
+            const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+            processedValue = isNaN(numericValue) ? 0 : numericValue;
           } else if (field === 'freightOhdCost') {
-            numericValue = parseFloat(value as string) / 100;
-             if (isNaN(numericValue) || numericValue < 0) numericValue = 0;
-             if (numericValue > 1) numericValue = 1; // Cap at 100%
+            const numericValue = typeof value === 'string' ? parseFloat(value) / 100 : value / 100;
+             processedValue = (isNaN(numericValue) || numericValue < 0) ? 0 : Math.min(numericValue, 1);
           }
-          return { ...p, [field]: numericValue };
+          return { ...p, [field]: processedValue };
         }
         return p;
       })
     );
+  };
+
+  const handleAnnualDemandChange = (partId: string, rawValue: string) => {
+    const cleanedValue = rawValue.replace(/,/g, '');
+    if (cleanedValue === '') {
+      handlePartInputChange(partId, 'annualDemand', 0);
+      return;
+    }
+    const numericValue = parseInt(cleanedValue, 10);
+    if (!isNaN(numericValue)) {
+      handlePartInputChange(partId, 'annualDemand', numericValue);
+    }
+    // If input is invalid (e.g. "abc"), state doesn't change, input will show last valid formatted number
   };
 
   const handlePartNameChange = (partId: string, value: string) => {
@@ -189,12 +201,11 @@ export default function UpdatePartsTab({
                       />
                     </div>
                      <Input
-                        type="number"
-                        value={part.annualDemand}
-                        onChange={(e) => handlePartInputChange(part.id, 'annualDemand', e.target.value)}
+                        type="text"
+                        value={formatNumber(part.annualDemand)}
+                        onChange={(e) => handleAnnualDemandChange(part.id, e.target.value)}
                         className="h-8 text-xs w-28 text-right"
                         placeholder="0"
-                        step="1"
                       />
                      <div className="relative w-28">
                       <Input
@@ -368,5 +379,7 @@ export default function UpdatePartsTab({
     </Card>
   );
 }
+
+    
 
     
