@@ -1,32 +1,14 @@
+
+import type { Part, Supplier } from '@/types/spendwise';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Building, ArrowRightLeft, GripVertical } from "lucide-react";
 
-interface Part {
-  id: string;
-  partNumber: string;
-  name: string;
+interface PartSupplierMappingTabProps {
+  parts: Part[];
+  suppliers: Supplier[];
 }
 
-interface Supplier {
-  id: string;
-  supplierId: string;
-  name: string;
-}
-
-const sampleParts: Part[] = [
-  { id: "p1", partNumber: "P001", name: "Heavy Duty Bolt" },
-  { id: "p2", partNumber: "P002", name: "Stainless Steel Nut" },
-  { id: "p3", partNumber: "P003", name: "Titanium Screw" },
-];
-
-const sampleSuppliers: Supplier[] = [
-  { id: "s1", supplierId: "S001", name: "Acme Corp" },
-  { id: "s2", supplierId: "S002", name: "Bolt World Inc." },
-  { id: "s3", supplierId: "S003", name: "Precision Parts Ltd." },
-];
-
-
-export default function PartSupplierMappingTab() {
+export default function PartSupplierMappingTab({ parts, suppliers }: PartSupplierMappingTabProps) {
   return (
     <Card>
       <CardHeader>
@@ -37,7 +19,8 @@ export default function PartSupplierMappingTab() {
         <section>
           <h3 className="text-lg font-semibold mb-3 flex items-center"><Package className="mr-2 h-5 w-5 text-primary" /> Available Parts</h3>
           <div className="space-y-3 p-3 bg-muted/50 rounded-lg min-h-[200px]">
-            {sampleParts.map((part) => (
+            {parts.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">No parts available.</p>}
+            {parts.map((part) => (
               <Card key={part.id} className="p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <div>
@@ -54,7 +37,8 @@ export default function PartSupplierMappingTab() {
         <section>
           <h3 className="text-lg font-semibold mb-3 flex items-center"><Building className="mr-2 h-5 w-5 text-primary" /> Available Suppliers</h3>
           <div className="space-y-3 p-3 bg-muted/50 rounded-lg min-h-[200px]">
-            {sampleSuppliers.map((supplier) => (
+            {suppliers.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">No suppliers available.</p>}
+            {suppliers.map((supplier) => (
               <Card key={supplier.id} className="p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow">
                  <div className="flex items-center justify-between">
                   <div>
