@@ -1,3 +1,4 @@
+
 "use client"; 
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -33,6 +34,12 @@ export interface CountDataPoint {
 const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
+
+// Approximate height of the header (h-16 = 4rem = 64px)
+const HEADER_HEIGHT_PX = 64;
+// Approximate height of the summary stats section (cards + py-4 padding = ~90px + 32px = ~122px)
+const SUMMARY_STATS_HEIGHT_PX = 122; 
+const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX; // 64 + 122 = 186px
 
 export default function SpendWiseCentralPage() {
   const { theme, setTheme } = useTheme();
@@ -577,7 +584,7 @@ export default function SpendWiseCentralPage() {
       </header>
 
       <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16"> {/* Added pb-16 for footer */}
-        <section aria-labelledby="summary-stats-title" className="mb-6">
+        <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background py-4 shadow-sm`}>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {summaryStats.map(stat => (
               <Card key={stat.label} className="shadow-md">
@@ -593,8 +600,8 @@ export default function SpendWiseCentralPage() {
           </div>
         </section>
 
-        <Tabs defaultValue="update-parts" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 mb-6 text-xs">
+        <Tabs defaultValue="update-parts" className="w-full mt-4"> {/* Added mt-4 to prevent overlap with sticky TabsList */}
+          <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
             <TabsTrigger value="update-parts" className="flex items-center gap-1">
               <Package className="h-3.5 w-3.5" /> 1. Parts
             </TabsTrigger>
@@ -615,7 +622,7 @@ export default function SpendWiseCentralPage() {
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="update-parts">
+          <TabsContent value="update-parts" className="mt-4"> {/* Added mt-4 */}
             <UpdatePartsTab 
               parts={parts} 
               onAddPart={handleAddPart} 
@@ -624,13 +631,13 @@ export default function SpendWiseCentralPage() {
               partsPerCategoryData={partsPerCategoryData}
             />
           </TabsContent>
-          <TabsContent value="update-suppliers">
+          <TabsContent value="update-suppliers" className="mt-4"> {/* Added mt-4 */}
             <UpdateSuppliersTab suppliers={suppliers} onAddSupplier={handleAddSupplier} />
           </TabsContent>
-          <TabsContent value="part-supplier-mapping">
+          <TabsContent value="part-supplier-mapping" className="mt-4"> {/* Added mt-4 */}
             <PartSupplierMappingTab parts={parts} suppliers={suppliers} />
           </TabsContent>
-          <TabsContent value="upload-part-category">
+          <TabsContent value="upload-part-category" className="mt-4"> {/* Added mt-4 */}
             <UploadPartCategoryTab 
               parts={parts} 
               partCategoryMappings={partCategoryMappings} 
@@ -639,7 +646,7 @@ export default function SpendWiseCentralPage() {
               onOpenUploadDialog={() => setIsCategoryUploadDialogOpen(true)}
             />
           </TabsContent>
-          <TabsContent value="upload-part-commodity">
+          <TabsContent value="upload-part-commodity" className="mt-4"> {/* Added mt-4 */}
             <UploadPartCommodityTab 
               parts={parts} 
               partCommodityMappings={partCommodityMappings} 
@@ -647,14 +654,14 @@ export default function SpendWiseCentralPage() {
               onOpenUploadDialog={() => setIsCommodityUploadDialogOpen(true)}
             />
           </TabsContent>
-          <TabsContent value="summary">
+          <TabsContent value="summary" className="mt-4"> {/* Added mt-4 */}
             <SummaryTab suppliers={suppliers} />
           </TabsContent>
         </Tabs>
       </main>
       <footer className="fixed bottom-0 left-0 right-0 z-50 flex h-12 items-center justify-between border-t bg-card px-4 py-3 text-xs text-muted-foreground sm:px-6 lg:px-8 shadow-md">
         <div>
-          <span>Copyright TADA Cognitive 2025</span>
+          <span>&lt;Spend for Supply-Chains by Design&gt; Copyright TADA Cognitive 2025</span>
         </div>
         <div>
           <span>{formattedDateTime || "Loading time..."}</span>
@@ -683,3 +690,6 @@ export default function SpendWiseCentralPage() {
     </div>
   );
 }
+
+
+    
