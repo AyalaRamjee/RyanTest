@@ -12,7 +12,9 @@ export interface Supplier {
   supplierId: string;
   name: string;
   description: string;
-  address: string;
+  address: string; // This could be a more general address line
+  city: string;
+  country: string;
 }
 
 export interface PartCategoryMapping {

@@ -19,6 +19,8 @@ const PartSchema = z.object({
 const SupplierSchema = z.object({
   name: z.string().describe("The name of the supplier company."),
   description: z.string().describe("A brief description of the supplier."),
+  city: z.string().describe("A realistic city for the supplier's location, relevant to the domain and global in nature."),
+  country: z.string().describe("A realistic country for the supplier's location, relevant to the domain and global in nature."),
 });
 
 const GenerateSpendDataInputSchema = z.object({
@@ -32,7 +34,7 @@ export type GenerateSpendDataInput = z.infer<typeof GenerateSpendDataInputSchema
 
 const GenerateSpendDataOutputSchema = z.object({
   parts: z.array(PartSchema).describe("An array of generated parts."),
-  suppliers: z.array(SupplierSchema).describe("An array of generated suppliers."),
+  suppliers: z.array(SupplierSchema).describe("An array of generated suppliers, each with a realistic global city and country."),
   categories: z.array(z.string()).describe("An array of generated category names."),
   commodities: z.array(z.string()).describe("An array of generated commodity names."),
 });
@@ -58,6 +60,8 @@ Please generate the following:
 2.  Exactly {{{numSuppliers}}} unique suppliers. Each supplier MUST have:
     *   A 'name'.
     *   A short 'description' of their business, relevant to the domain.
+    *   A realistic 'city' for their main operations.
+    *   A realistic 'country' for their main operations. Aim for a global distribution of supplier locations.
 3.  Exactly {{{numCategories}}} unique part category names relevant to the domain. These should be general classifications for parts.
 4.  Exactly {{{numCommodities}}} unique commodity names relevant to the domain. These should be raw materials or basic production items.
 
@@ -76,15 +80,12 @@ const spendDataGenerationFlow = ai.defineFlow(
     if (!output) {
       throw new Error("AI failed to generate valid data.");
     }
-    // Basic validation for part number format, though Zod schema doesn't enforce regex directly in this setup.
-    // More complex validation could be added here if needed.
+    // Basic validation for part number format
     output.parts.forEach(part => {
       if (!/^\d{3}[A-Z]{3}\d{4}$/.test(part.partNumber)) {
         console.warn(`Generated part number ${part.partNumber} does not match format ###AAA####. AI may need prompt adjustment.`);
-        // For now, we'll let it pass but ideally, we'd correct or regenerate.
       }
     });
     return output;
   }
 );
-

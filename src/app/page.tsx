@@ -1,8 +1,9 @@
 
 "use client"; 
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import SummaryTab from "@/components/spendwise/summary-tab";
 import UpdatePartsTab from "@/components/spendwise/update-parts";
 import UpdateSuppliersTab from "@/components/spendwise/update-suppliers";
 import PartSupplierMappingTab from "@/components/spendwise/part-supplier-mapping";
@@ -11,9 +12,10 @@ import UploadPartCommodityTab from "@/components/spendwise/upload-part-commodity
 import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import { LogoIcon } from "@/components/icons/logo-icon";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, BarChartBig, DollarSignIcon, Globe } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartCommodityMapping } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 
@@ -21,6 +23,8 @@ export interface SpendDataPoint {
   name: string;
   spend: number;
 }
+
+const XML_FILENAME = "SpendByTADADef01.xml";
 
 export default function SpendWiseCentralPage() {
   const { setTheme } = useTheme();
@@ -32,10 +36,71 @@ export default function SpendWiseCentralPage() {
   const [isGenerateDataDialogOpen, setIsGenerateDataDialogOpen] = useState(false);
   const [isGeneratingData, setIsGeneratingData] = useState(false);
   const [currentDateString, setCurrentDateString] = useState('');
+  const [xmlConfigString, setXmlConfigString] = useState<string>('');
 
   useEffect(() => {
     setCurrentDateString(new Date().getFullYear().toString());
   }, []);
+
+  const escapeXml = useCallback((unsafe: string | number): string => {
+    const str = String(unsafe);
+    return str.replace(/[<>&"']/g, (c) => {
+      switch (c) {
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '&': return '&amp;';
+        case '"': return '&quot;';
+        case "'": return '&apos;';
+        default: return c;
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    let xmlString = '<SpendData>\n';
+    xmlString += '  <Parts>\n';
+    parts.forEach(p => {
+      xmlString += `    <Part id="${escapeXml(p.id)}" partNumber="${escapeXml(p.partNumber)}" name="${escapeXml(p.name)}" price="${p.price}" annualDemand="${p.annualDemand}" />\n`;
+    });
+    xmlString += '  </Parts>\n';
+
+    xmlString += '  <Suppliers>\n';
+    suppliers.forEach(s => {
+      xmlString += `    <Supplier id="${escapeXml(s.id)}" supplierId="${escapeXml(s.supplierId)}" name="${escapeXml(s.name)}" description="${escapeXml(s.description)}" address="${escapeXml(s.address)}" city="${escapeXml(s.city)}" country="${escapeXml(s.country)}" />\n`;
+    });
+    xmlString += '  </Suppliers>\n';
+
+    xmlString += '  <PartCategoryMappings>\n';
+    partCategoryMappings.forEach(m => {
+      xmlString += `    <Mapping id="${escapeXml(m.id)}" partId="${escapeXml(m.partId)}" categoryName="${escapeXml(m.categoryName)}" />\n`;
+    });
+    xmlString += '  </PartCategoryMappings>\n';
+
+    xmlString += '  <PartCommodityMappings>\n';
+    partCommodityMappings.forEach(m => {
+      xmlString += `    <Mapping id="${escapeXml(m.id)}" partId="${escapeXml(m.partId)}" commodityName="${escapeXml(m.commodityName)}" />\n`;
+    });
+    xmlString += '  </PartCommodityMappings>\n';
+    xmlString += '</SpendData>';
+    setXmlConfigString(xmlString);
+  }, [parts, suppliers, partCategoryMappings, partCommodityMappings, escapeXml]);
+
+  const handleDownloadXml = () => {
+    if (!xmlConfigString) {
+      toast({ variant: "destructive", title: "Error", description: "No configuration data available to download." });
+      return;
+    }
+    const blob = new Blob([xmlConfigString], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = XML_FILENAME;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Success", description: `${XML_FILENAME} downloaded.` });
+  };
 
   const handleGenerateData = async (domain: string, numParts: number, numSuppliers: number, numCategories: number, numCommodities: number) => {
     setIsGeneratingData(true);
@@ -52,7 +117,7 @@ export default function SpendWiseCentralPage() {
           id: partId,
           partNumber: p.partNumber,
           name: p.name,
-          price: parseFloat((Math.random() * 1000 + 5).toFixed(2)), // Increased price range
+          price: parseFloat((Math.random() * 1000 + 5).toFixed(2)),
           annualDemand: Math.floor(Math.random() * 50000) + 1000,
         });
         if (generatedData.categories.length > 0) {
@@ -73,10 +138,12 @@ export default function SpendWiseCentralPage() {
 
       const newSuppliers: Supplier[] = generatedData.suppliers.map((s, i) => ({
         id: `s${Date.now()}${i}`,
-        supplierId: `#S${String(i + 1).padStart(2, '0')}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`, // #SAA#### format
+        supplierId: `#S${String(i + 1).padStart(2, '0')}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
         name: s.name,
         description: s.description,
-        address: `${Math.floor(Math.random() * 900) + 100} Industrial Way, Vendor City ${i + 1}`,
+        address: `${Math.floor(Math.random() * 900) + 100} Global Trade Way, ${s.city}`, // Using AI city
+        city: s.city,
+        country: s.country,
       }));
 
       setParts(newParts);
@@ -98,7 +165,7 @@ export default function SpendWiseCentralPage() {
     const newPartId = `p${Date.now()}_manual`;
     const newPart: Part = {
       id: newPartId,
-      partNumber: `P${String(parts.length + 1).padStart(3, '0')}${String(Math.floor(Math.random()*1000)).padStart(3,'0')}`, // Ensure somewhat unique part numbers
+      partNumber: `P${String(parts.length + 1).padStart(3, '0')}${String(Math.floor(Math.random()*1000)).padStart(3,'0')}`,
       name: "New Custom Part",
       price: 0,
       annualDemand: 0,
@@ -108,84 +175,55 @@ export default function SpendWiseCentralPage() {
     const defaultCategory = partCategoryMappings.length > 0 ? partCategoryMappings[0].categoryName : "Default Category";
     const defaultCommodity = partCommodityMappings.length > 0 ? partCommodityMappings[0].commodityName : "Default Commodity";
     
-    if (partCategoryMappings.length > 0 || generatedData?.categories?.length > 0 || parts.length === 0) { // Add default mapping if categories exist or its the first part
-      setPartCategoryMappings(prev => [...prev, { id: `pcm${Date.now()}_manual`, partId: newPartId, categoryName: defaultCategory}]);
+    if (parts.length === 0 || partCategoryMappings.some(m => m.partId !== newPartId)) {
+        setPartCategoryMappings(prev => [...prev, { id: `pcm${Date.now()}_manual`, partId: newPartId, categoryName: defaultCategory}]);
     }
-    if (partCommodityMappings.length > 0 || generatedData?.commodities?.length > 0 || parts.length === 0) {
-      setPartCommodityMappings(prev => [...prev, { id: `pcom${Date.now()}_manual`, partId: newPartId, commodityName: defaultCommodity}]);
+    if (parts.length === 0 || partCommodityMappings.some(m => m.partId !== newPartId)) {
+        setPartCommodityMappings(prev => [...prev, { id: `pcom${Date.now()}_manual`, partId: newPartId, commodityName: defaultCommodity}]);
     }
   };
 
   const handleAddSupplier = () => {
     const newSupplier: Supplier = {
       id: `s${Date.now()}_manual`,
-      supplierId: `#S${String(suppliers.length + 1).padStart(2, '0')}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`, // #SAA#### format
+      supplierId: `#S${String(suppliers.length + 1).padStart(2, '0')}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
       name: "New Custom Supplier",
       description: "Supplier description",
       address: "Supplier address",
+      city: "Unknown City",
+      country: "Unknown Country",
     };
     setSuppliers(prev => [...prev, newSupplier]);
   };
 
-  const escapeXml = (unsafe: string): string => {
-    return unsafe.replace(/[<>&"']/g, (c) => {
-      switch (c) {
-        case '<': return '&lt;';
-        case '>': return '&gt;';
-        case '&': return '&amp;';
-        case '"': return '&quot;';
-        case "'": return '&apos;';
-        default: return c;
-      }
-    });
+  const totalParts = useMemo(() => parts.length, [parts]);
+  const totalSuppliers = useMemo(() => suppliers.length, [suppliers]);
+  const totalCategories = useMemo(() => new Set(partCategoryMappings.map(m => m.categoryName)).size, [partCategoryMappings]);
+  const totalCommodities = useMemo(() => new Set(partCommodityMappings.map(m => m.commodityName)).size, [partCommodityMappings]);
+  const totalAnnualSpend = useMemo(() => {
+    return parts.reduce((sum, p) => sum + (p.price * p.annualDemand), 0);
+  }, [parts]);
+
+  const formatCurrencyDisplay = (value: number) => {
+    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+    return value.toFixed(0);
   };
-
-  const handleDownloadXml = () => {
-    let xmlString = '<SpendData>\n';
-
-    xmlString += '  <Parts>\n';
-    parts.forEach(p => {
-      xmlString += `    <Part id="${escapeXml(p.id)}" partNumber="${escapeXml(p.partNumber)}" name="${escapeXml(p.name)}" price="${p.price}" annualDemand="${p.annualDemand}" />\n`;
-    });
-    xmlString += '  </Parts>\n';
-
-    xmlString += '  <Suppliers>\n';
-    suppliers.forEach(s => {
-      xmlString += `    <Supplier id="${escapeXml(s.id)}" supplierId="${escapeXml(s.supplierId)}" name="${escapeXml(s.name)}" description="${escapeXml(s.description)}" address="${escapeXml(s.address)}" />\n`;
-    });
-    xmlString += '  </Suppliers>\n';
-
-    xmlString += '  <PartCategoryMappings>\n';
-    partCategoryMappings.forEach(m => {
-      xmlString += `    <Mapping id="${escapeXml(m.id)}" partId="${escapeXml(m.partId)}" categoryName="${escapeXml(m.categoryName)}" />\n`;
-    });
-    xmlString += '  </PartCategoryMappings>\n';
-
-    xmlString += '  <PartCommodityMappings>\n';
-    partCommodityMappings.forEach(m => {
-      xmlString += `    <Mapping id="${escapeXml(m.id)}" partId="${escapeXml(m.partId)}" commodityName="${escapeXml(m.commodityName)}" />\n`;
-    });
-    xmlString += '  </PartCommodityMappings>\n';
-
-    xmlString += '</SpendData>';
-
-    const blob = new Blob([xmlString], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'spend-analysis-config.xml';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast({ title: "Success", description: "Configuration XML downloaded." });
-  };
+  
+  const summaryStats = [
+    { Icon: Briefcase, label: "Total Parts", value: totalParts },
+    { Icon: Users, label: "Total Suppliers", value: totalSuppliers },
+    { Icon: FolderTree, label: "Categories", value: totalCategories },
+    { Icon: TrendingUp, label: "Commodities", value: totalCommodities },
+    { Icon: DollarSignIcon, label: "$ Spend/Year", value: formatCurrencyDisplay(totalAnnualSpend) },
+  ];
 
   const spendByPartData: SpendDataPoint[] = useMemo(() => {
     return parts.map(part => ({
-      name: part.partNumber, // Using partNumber for brevity in chart
+      name: part.partNumber,
       spend: part.price * part.annualDemand,
-    })).sort((a,b) => b.spend - a.spend).slice(0,10); // Top 10 parts by spend
+    })).sort((a,b) => b.spend - a.spend).slice(0,10);
   }, [parts]);
 
   const spendByCategoryData: SpendDataPoint[] = useMemo(() => {
@@ -246,8 +284,27 @@ export default function SpendWiseCentralPage() {
       </header>
 
       <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
-        <Tabs defaultValue="update-parts" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-6">
+        <section aria-labelledby="summary-stats-title" className="mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+            {summaryStats.map(stat => (
+              <Card key={stat.label} className="shadow-md">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
+                  <stat.Icon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <Tabs defaultValue="summary" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 mb-6">
+             <TabsTrigger value="summary" className="flex items-center gap-2">
+              <BarChartBig className="h-4 w-4" /> 0. Summary
+            </TabsTrigger>
             <TabsTrigger value="update-parts" className="flex items-center gap-2">
               <Package className="h-4 w-4" /> 1. Parts
             </TabsTrigger>
@@ -264,7 +321,10 @@ export default function SpendWiseCentralPage() {
               <TrendingUp className="h-4 w-4" /> 5. Part Commodity
             </TabsTrigger>
           </TabsList>
-
+          
+          <TabsContent value="summary">
+            <SummaryTab suppliers={suppliers} />
+          </TabsContent>
           <TabsContent value="update-parts">
             <UpdatePartsTab parts={parts} onAddPart={handleAddPart} spendData={spendByPartData} />
           </TabsContent>
