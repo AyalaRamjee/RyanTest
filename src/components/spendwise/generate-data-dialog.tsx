@@ -24,10 +24,10 @@ interface GenerateDataDialogProps {
 
 export default function GenerateDataDialog({ isOpen, onClose, onGenerate, isGenerating }: GenerateDataDialogProps) {
   const [domain, setDomain] = useState("General Manufacturing");
-  const [numParts, setNumParts] = useState(5);
-  const [numSuppliers, setNumSuppliers] = useState(3);
-  const [numCategories, setNumCategories] = useState(3);
-  const [numCommodities, setNumCommodities] = useState(3);
+  const [numParts, setNumParts] = useState(50);
+  const [numSuppliers, setNumSuppliers] = useState(12);
+  const [numCategories, setNumCategories] = useState(5);
+  const [numCommodities, setNumCommodities] = useState(6);
 
   const handleGenerateClick = () => {
     onGenerate(domain, numParts, numSuppliers, numCategories, numCommodities);
