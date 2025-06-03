@@ -123,7 +123,7 @@ export default function SpendWiseCentralPage() {
           name: p.getAttribute("name") || "Unknown Part",
           price: parseFloat(p.getAttribute("price") || "0"),
           annualDemand: parseInt(p.getAttribute("annualDemand") || "0", 10),
-          freightOhdCost: parseFloat(p.getAttribute("freightOhdCost") || "0.00"), // Default 0%
+          freightOhdCost: parseFloat(p.getAttribute("freightOhdCost") || "0.00"),
         });
       });
 
@@ -334,11 +334,26 @@ export default function SpendWiseCentralPage() {
         };
       });
 
+      const newPartSupplierAssociationsArr: PartSupplierAssociation[] = [];
+      if (generatedData.partSupplierAssociations) {
+        generatedData.partSupplierAssociations.forEach((assoc, i) => {
+          const part = newPartsArr.find(p => p.partNumber === assoc.partNumber);
+          const supplier = newSuppliersArr.find(s => s.name === assoc.supplierName);
+          if (part && supplier) {
+            newPartSupplierAssociationsArr.push({
+              id: `psa_ai_${Date.now()}_${i}`,
+              partId: part.id,
+              supplierId: supplier.id,
+            });
+          }
+        });
+      }
+      
       setParts(newPartsArr);
       setSuppliers(newSuppliersArr);
       setPartCategoryMappings(newPartCategoryMappingsArr);
       setPartCommodityMappings(newPartCommodityMappingsArr);
-      setPartSupplierAssociations([]); 
+      setPartSupplierAssociations(newPartSupplierAssociationsArr); 
       
       toast({ title: "Success", description: "Sample data generated successfully!" });
       setIsGenerateDataDialogOpen(false);
@@ -794,3 +809,5 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
+
+    
