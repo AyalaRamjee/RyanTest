@@ -18,32 +18,47 @@ import { ToyBrick } from "lucide-react";
 interface GenerateDataDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerate: (numParts: number, numSuppliers: number) => void;
+  onGenerate: (domain: string, numParts: number, numSuppliers: number, numCategories: number, numCommodities: number) => void;
+  isGenerating: boolean;
 }
 
-export default function GenerateDataDialog({ isOpen, onClose, onGenerate }: GenerateDataDialogProps) {
+export default function GenerateDataDialog({ isOpen, onClose, onGenerate, isGenerating }: GenerateDataDialogProps) {
+  const [domain, setDomain] = useState("General Manufacturing");
   const [numParts, setNumParts] = useState(5);
   const [numSuppliers, setNumSuppliers] = useState(3);
+  const [numCategories, setNumCategories] = useState(3);
+  const [numCommodities, setNumCommodities] = useState(3);
 
   const handleGenerateClick = () => {
-    onGenerate(numParts, numSuppliers);
-    onClose();
+    onGenerate(domain, numParts, numSuppliers, numCategories, numCommodities);
+    // Don't close immediately, allow parent to close after generation
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <ToyBrick className="mr-2 h-5 w-5" />
-            Generate Sample Data
+            Generate Sample Data (AI-Powered)
           </DialogTitle>
           <DialogDescription>
-            Specify the number of sample parts and suppliers to create.
-            Categories and commodities will also be generated for each part.
+            Specify the domain and number of items to generate. The AI will create contextually relevant data.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="domain" className="text-right">
+              Domain
+            </Label>
+            <Input
+              id="domain"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              className="col-span-3"
+              placeholder="e.g., Automotive, Electronics"
+            />
+          </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="numParts" className="text-right">
               Parts
@@ -52,9 +67,9 @@ export default function GenerateDataDialog({ isOpen, onClose, onGenerate }: Gene
               id="numParts"
               type="number"
               value={numParts}
-              onChange={(e) => setNumParts(Math.max(0, parseInt(e.target.value, 10) || 0))}
+              onChange={(e) => setNumParts(Math.max(1, parseInt(e.target.value, 10) || 1))}
               className="col-span-3"
-              min="0"
+              min="1"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -65,15 +80,43 @@ export default function GenerateDataDialog({ isOpen, onClose, onGenerate }: Gene
               id="numSuppliers"
               type="number"
               value={numSuppliers}
-              onChange={(e) => setNumSuppliers(Math.max(0, parseInt(e.target.value, 10) || 0))}
+              onChange={(e) => setNumSuppliers(Math.max(1, parseInt(e.target.value, 10) || 1))}
               className="col-span-3"
-              min="0"
+              min="1"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="numCategories" className="text-right">
+              Categories
+            </Label>
+            <Input
+              id="numCategories"
+              type="number"
+              value={numCategories}
+              onChange={(e) => setNumCategories(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className="col-span-3"
+              min="1"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="numCommodities" className="text-right">
+              Commodities
+            </Label>
+            <Input
+              id="numCommodities"
+              type="number"
+              value={numCommodities}
+              onChange={(e) => setNumCommodities(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className="col-span-3"
+              min="1"
             />
           </div>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" onClick={handleGenerateClick}>Generate</Button>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isGenerating}>Cancel</Button>
+          <Button type="submit" onClick={handleGenerateClick} disabled={isGenerating}>
+            {isGenerating ? "Generating..." : "Generate"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

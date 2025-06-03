@@ -12,72 +12,85 @@ import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import { LogoIcon } from "@/components/icons/logo-icon";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/context/theme-provider";
-import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, PlusCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2 } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartCommodityMapping } from '@/types/spendwise';
-
-const PREDEFINED_CATEGORIES = ["Fasteners", "Electronics", "Raw Materials", "Sub-assembly", "Machined Parts", "Software Licenses"];
-const PREDEFINED_COMMODITIES = ["Steel", "Copper", "Aluminum", "Plastic Resins", "Lumber", "Semiconductors"];
-
+import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 
 export default function SpendWiseCentralPage() {
   const { setTheme } = useTheme();
+  const { toast } = useToast();
   const [parts, setParts] = useState<Part[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [partCategoryMappings, setPartCategoryMappings] = useState<PartCategoryMapping[]>([]);
   const [partCommodityMappings, setPartCommodityMappings] = useState<PartCommodityMapping[]>([]);
   const [isGenerateDataDialogOpen, setIsGenerateDataDialogOpen] = useState(false);
+  const [isGeneratingData, setIsGeneratingData] = useState(false);
   const [currentDateString, setCurrentDateString] = useState('');
 
   useEffect(() => {
     setCurrentDateString(new Date().getFullYear().toString());
   }, []);
 
+  const handleGenerateData = async (domain: string, numParts: number, numSuppliers: number, numCategories: number, numCommodities: number) => {
+    setIsGeneratingData(true);
+    try {
+      const generatedData = await generateSpendData({ domain, numParts, numSuppliers, numCategories, numCommodities });
+      
+      const newParts: Part[] = [];
+      const newPartCategoryMappings: PartCategoryMapping[] = [];
+      const newPartCommodityMappings: PartCommodityMapping[] = [];
 
-  const handleGenerateData = (numParts: number, numSuppliers: number) => {
-    const newParts: Part[] = [];
-    const newPartCategoryMappings: PartCategoryMapping[] = [];
-    const newPartCommodityMappings: PartCommodityMapping[] = [];
+      generatedData.parts.forEach((p, i) => {
+        const partId = `p${Date.now()}${i}`;
+        newParts.push({
+          id: partId,
+          partNumber: p.partNumber,
+          name: p.name,
+          price: parseFloat((Math.random() * 100 + 0.01).toFixed(2)),
+          annualDemand: Math.floor(Math.random() * 50000) + 1000,
+        });
+        if (generatedData.categories.length > 0) {
+          newPartCategoryMappings.push({
+            id: `pcm${Date.now()}${i}`,
+            partId: partId,
+            categoryName: generatedData.categories[i % generatedData.categories.length],
+          });
+        }
+        if (generatedData.commodities.length > 0) {
+          newPartCommodityMappings.push({
+            id: `pcom${Date.now()}${i}`,
+            partId: partId,
+            commodityName: generatedData.commodities[i % generatedData.commodities.length],
+          });
+        }
+      });
 
-    for (let i = 0; i < numParts; i++) {
-      const partId = `p${Date.now()}${i}`;
-      newParts.push({
-        id: partId,
-        partNumber: `P${String(i + 1).padStart(3, '0')}`,
-        name: `Sample Part ${i + 1}`,
-        price: parseFloat((Math.random() * 100 + 0.01).toFixed(2)),
-        annualDemand: Math.floor(Math.random() * 50000) + 1000,
-      });
-      newPartCategoryMappings.push({
-        id: `pcm${Date.now()}${i}`,
-        partId: partId,
-        categoryName: PREDEFINED_CATEGORIES[i % PREDEFINED_CATEGORIES.length],
-      });
-      newPartCommodityMappings.push({
-        id: `pcom${Date.now()}${i}`,
-        partId: partId,
-        commodityName: PREDEFINED_COMMODITIES[i % PREDEFINED_COMMODITIES.length],
-      });
-    }
-
-    const newSuppliers: Supplier[] = [];
-    for (let i = 0; i < numSuppliers; i++) {
-      newSuppliers.push({
+      const newSuppliers: Supplier[] = generatedData.suppliers.map((s, i) => ({
         id: `s${Date.now()}${i}`,
-        supplierId: `S${String(i + 1).padStart(3, '0')}`,
-        name: `Sample Supplier ${i + 1}`,
-        description: `Leading provider of various components ${i + 1}`,
-        address: `${Math.floor(Math.random() * 900) + 100} Industrial Way, Vendor City ${i + 1}`,
-      });
-    }
+        supplierId: `S${String(i + 1).padStart(3, '0')}`, // Keep local supplier ID generation for now
+        name: s.name,
+        description: s.description,
+        address: `${Math.floor(Math.random() * 900) + 100} Industrial Way, Vendor City ${i + 1}`, // Keep local address generation
+      }));
 
-    setParts(newParts);
-    setSuppliers(newSuppliers);
-    setPartCategoryMappings(newPartCategoryMappings);
-    setPartCommodityMappings(newPartCommodityMappings);
+      setParts(newParts);
+      setSuppliers(newSuppliers);
+      setPartCategoryMappings(newPartCategoryMappings);
+      setPartCommodityMappings(newPartCommodityMappings);
+      
+      toast({ title: "Success", description: "Sample data generated successfully!" });
+      setIsGenerateDataDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to generate AI data:", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to generate data using AI. Please try again." });
+    } finally {
+      setIsGeneratingData(false);
+    }
   };
 
   const handleAddPart = () => {
-    const newPartId = `p${Date.now()}`;
+    const newPartId = `p${Date.now()}_manual`;
     const newPart: Part = {
       id: newPartId,
       partNumber: `P${String(parts.length + 1).padStart(3, '0')}`,
@@ -86,14 +99,17 @@ export default function SpendWiseCentralPage() {
       annualDemand: 0,
     };
     setParts(prev => [...prev, newPart]);
-    // Optionally add default category/commodity for new parts
-    setPartCategoryMappings(prev => [...prev, { id: `pcm${Date.now()}`, partId: newPartId, categoryName: PREDEFINED_CATEGORIES[0]}]);
-    setPartCommodityMappings(prev => [...prev, { id: `pcom${Date.now()}`, partId: newPartId, commodityName: PREDEFINED_COMMODITIES[0]}]);
+    // Optionally add default category/commodity for new parts if available
+    const defaultCategory = partCategoryMappings.length > 0 ? partCategoryMappings[0].categoryName : "Default Category";
+    const defaultCommodity = partCommodityMappings.length > 0 ? partCommodityMappings[0].commodityName : "Default Commodity";
+    
+    setPartCategoryMappings(prev => [...prev, { id: `pcm${Date.now()}_manual`, partId: newPartId, categoryName: defaultCategory}]);
+    setPartCommodityMappings(prev => [...prev, { id: `pcom${Date.now()}_manual`, partId: newPartId, commodityName: defaultCommodity}]);
   };
 
   const handleAddSupplier = () => {
     const newSupplier: Supplier = {
-      id: `s${Date.now()}`,
+      id: `s${Date.now()}_manual`,
       supplierId: `S${String(suppliers.length + 1).padStart(3, '0')}`,
       name: "New Custom Supplier",
       description: "Supplier description",
@@ -101,7 +117,6 @@ export default function SpendWiseCentralPage() {
     };
     setSuppliers(prev => [...prev, newSupplier]);
   };
-
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -112,8 +127,8 @@ export default function SpendWiseCentralPage() {
             SpendWise Central
           </h1>
           <div className="ml-auto flex items-center space-x-2">
-            <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} aria-label="Generate Sample Data">
-              <ToyBrick className="h-5 w-5" />
+            <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} aria-label="Generate Sample Data" disabled={isGeneratingData}>
+              {isGeneratingData ? <Loader2 className="h-5 w-5 animate-spin" /> : <ToyBrick className="h-5 w-5" />}
             </Button>
             <Button variant="outline" size="icon" onClick={() => setTheme('light')} aria-label="Light mode">
               <Sun className="h-5 w-5" />
@@ -172,6 +187,7 @@ export default function SpendWiseCentralPage() {
         isOpen={isGenerateDataDialogOpen} 
         onClose={() => setIsGenerateDataDialogOpen(false)}
         onGenerate={handleGenerateData}
+        isGenerating={isGeneratingData}
       />
     </div>
   );
