@@ -1,9 +1,11 @@
 
 import type { Supplier } from '@/types/spendwise';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { FileEdit, Fingerprint, Building, FileText, MapPin, PlusCircle, TrendingUp as TrendingUpIcon, Info } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface UpdateSuppliersTabProps {
   suppliers: Supplier[];
@@ -14,8 +16,20 @@ export default function UpdateSuppliersTab({ suppliers, onAddSupplier }: UpdateS
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center text-lg"><Building className="mr-2 h-5 w-5" /> Update Suppliers</CardTitle>
-        <CardDescription>Manage supplier information. Spend analysis by supplier requires part-supplier mappings.</CardDescription>
+        <div className="flex items-center">
+          <Building className="mr-2 h-5 w-5" />
+          <CardTitle className="text-lg">Update Suppliers</CardTitle>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="ml-2 h-5 w-5">
+                <Info className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs max-w-xs">Manage supplier information. Spend analysis by supplier requires part-supplier mappings.</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </CardHeader>
       <CardContent className="grid md:grid-cols-8 gap-6 text-xs">
         <div className="md:col-span-5 space-y-4">
@@ -29,7 +43,7 @@ export default function UpdateSuppliersTab({ suppliers, onAddSupplier }: UpdateS
             {suppliers.length === 0 ? (
               <p className="text-muted-foreground text-center py-3">No suppliers available. Generate or add some suppliers.</p>
             ) : (
-              <div className="overflow-x-auto">
+              <ScrollArea className="max-h-80 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -56,7 +70,7 @@ export default function UpdateSuppliersTab({ suppliers, onAddSupplier }: UpdateS
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+              </ScrollArea>
             )}
           </section>
         </div>
@@ -67,7 +81,14 @@ export default function UpdateSuppliersTab({ suppliers, onAddSupplier }: UpdateS
                 <TrendingUpIcon className="mr-1.5 h-4 w-4" />
                 Spend by Supplier
               </CardTitle>
-              <CardDescription className="text-xs">Aggregated spend per supplier.</CardDescription>
+               <Tooltip>
+                <TooltipTrigger asChild>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Aggregated spend <Info className="ml-1 h-3 w-3" /></span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Aggregated spend per supplier.</p>
+                </TooltipContent>
+              </Tooltip>
             </CardHeader>
             <CardContent className="pt-0 min-h-[180px] flex items-center justify-center">
               <div className="text-center text-muted-foreground p-3 border border-dashed rounded-md">

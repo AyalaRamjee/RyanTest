@@ -1,13 +1,15 @@
 
 import type { Part, PartCategoryMapping } from '@/types/spendwise';
 import type { SpendDataPoint, CountDataPoint } from '@/app/page';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, FolderTree, List, PieChartIcon, Hash } from "lucide-react";
+import { UploadCloud, FolderTree, List, PieChartIcon, Hash, Info } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pie, PieChart, Cell, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface UploadPartCategoryTabProps {
   parts: Part[];
@@ -48,8 +50,20 @@ export default function UploadPartCategoryTab({ parts, partCategoryMappings, spe
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center text-lg"><FolderTree className="mr-2 h-5 w-5" /> Part Category Management</CardTitle>
-        <CardDescription>Upload part category data (CSV) or view AI-generated mappings. Analyze spend and part distribution by category.</CardDescription>
+        <div className="flex items-center">
+          <FolderTree className="mr-2 h-5 w-5" />
+          <CardTitle className="text-lg">Part Category Management</CardTitle>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="ml-2 h-5 w-5">
+                <Info className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs max-w-xs">Upload part category data (CSV) or view AI-generated mappings. Analyze spend and part distribution by category.</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </CardHeader>
       <CardContent className="grid md:grid-cols-8 gap-6 text-xs">
         <div className="md:col-span-5 space-y-4">
@@ -65,7 +79,7 @@ export default function UploadPartCategoryTab({ parts, partCategoryMappings, spe
             {partCategoryMappings.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-3">No category mappings available. Generate data or upload a file.</p>
             ) : (
-              <div className="overflow-x-auto max-h-80">
+              <ScrollArea className="max-h-80 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -82,7 +96,7 @@ export default function UploadPartCategoryTab({ parts, partCategoryMappings, spe
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+              </ScrollArea>
             )}
           </section>
         </div>
@@ -94,7 +108,14 @@ export default function UploadPartCategoryTab({ parts, partCategoryMappings, spe
                 <PieChartIcon className="mr-1.5 h-4 w-4" />
                 $ Spend by Category
               </CardTitle>
-              <CardDescription className="text-xs">Total spend aggregated by part category.</CardDescription>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Total spend by category <Info className="ml-1 h-3 w-3" /></span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Total spend aggregated by part category.</p>
+                </TooltipContent>
+              </Tooltip>
             </CardHeader>
             <CardContent className="pt-0">
               {spendByCategoryData.length === 0 ? (
@@ -145,7 +166,14 @@ export default function UploadPartCategoryTab({ parts, partCategoryMappings, spe
                 <Hash className="mr-1.5 h-4 w-4" />
                 # Parts by Category
               </CardTitle>
-              <CardDescription className="text-xs">Number of unique parts in each category.</CardDescription>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Part count by category <Info className="ml-1 h-3 w-3" /></span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Number of unique parts in each category.</p>
+                </TooltipContent>
+              </Tooltip>
             </CardHeader>
             <CardContent className="pt-0">
               {partsPerCategoryData.length === 0 ? (

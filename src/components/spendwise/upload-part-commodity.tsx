@@ -1,12 +1,14 @@
 
 import type { Part, PartCommodityMapping } from '@/types/spendwise';
 import type { SpendDataPoint } from '@/app/page';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, TrendingUp, List } from "lucide-react";
+import { UploadCloud, TrendingUp, List, Info } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface UploadPartCommodityTabProps {
   parts: Part[];
@@ -35,8 +37,20 @@ export default function UploadPartCommodityTab({ parts, partCommodityMappings, s
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center text-lg"><TrendingUp className="mr-2 h-5 w-5" /> Part Commodity Management</CardTitle>
-        <CardDescription>Upload part commodity data (CSV) or view AI-generated mappings. Analyze spend by commodity.</CardDescription>
+        <div className="flex items-center">
+          <TrendingUp className="mr-2 h-5 w-5" />
+          <CardTitle className="text-lg">Part Commodity Management</CardTitle>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="ml-2 h-5 w-5">
+                <Info className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs max-w-xs">Upload part commodity data (CSV) or view AI-generated mappings. Analyze spend by commodity.</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </CardHeader>
       <CardContent className="grid md:grid-cols-8 gap-6 text-xs">
         <div className="md:col-span-5 space-y-4">
@@ -52,7 +66,7 @@ export default function UploadPartCommodityTab({ parts, partCommodityMappings, s
             {partCommodityMappings.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-3">No commodity mappings available. Generate data or upload a file.</p>
             ) : (
-              <div className="overflow-x-auto max-h-80">
+              <ScrollArea className="max-h-80 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -69,7 +83,7 @@ export default function UploadPartCommodityTab({ parts, partCommodityMappings, s
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+              </ScrollArea>
             )}
           </section>
         </div>
@@ -81,7 +95,14 @@ export default function UploadPartCommodityTab({ parts, partCommodityMappings, s
                 <TrendingUp className="mr-1.5 h-4 w-4" />
                 Spend by Commodity
               </CardTitle>
-              <CardDescription className="text-xs">Total spend aggregated by part commodity.</CardDescription>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Total spend by commodity <Info className="ml-1 h-3 w-3" /></span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Total spend aggregated by part commodity.</p>
+                </TooltipContent>
+              </Tooltip>
             </CardHeader>
             <CardContent className="pt-0">
               {spendData.length === 0 ? (

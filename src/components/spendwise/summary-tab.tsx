@@ -1,9 +1,12 @@
 
 import type { Supplier } from '@/types/spendwise';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Globe, Building, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface SummaryTabProps {
   suppliers: Supplier[];
@@ -13,8 +16,20 @@ export default function SummaryTab({ suppliers }: SummaryTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center"><Globe className="mr-2 h-6 w-6" /> Supplier Geo-Distribution</CardTitle>
-        <CardDescription>Global supplier locations and summary list. Dynamic map requires further integration.</CardDescription>
+        <div className="flex items-center">
+          <Globe className="mr-2 h-6 w-6" />
+          <CardTitle className="text-lg">Supplier Geo-Distribution</CardTitle>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="ml-2 h-5 w-5">
+                <Info className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs max-w-xs">Global supplier locations and summary list. Dynamic map requires further integration.</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <section>
@@ -53,21 +68,21 @@ export default function SummaryTab({ suppliers }: SummaryTabProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Supplier Name</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Country</TableHead>
-                    <TableHead>Description</TableHead>
+                    <TableHead className="text-xs">ID</TableHead>
+                    <TableHead className="text-xs">Supplier Name</TableHead>
+                    <TableHead className="text-xs">Address</TableHead>
+                    <TableHead className="text-xs">Country</TableHead>
+                    <TableHead className="text-xs">Description</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {suppliers.map((supplier) => (
                     <TableRow key={supplier.id}>
                       <TableCell className="font-mono text-xs">{supplier.supplierId}</TableCell>
-                      <TableCell className="font-medium">{supplier.name}</TableCell>
-                      <TableCell>{supplier.address}</TableCell>
-                      <TableCell>{supplier.country}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{supplier.description}</TableCell>
+                      <TableCell className="font-medium text-xs">{supplier.name}</TableCell>
+                      <TableCell className="text-xs">{supplier.address}</TableCell>
+                      <TableCell className="text-xs">{supplier.country}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{supplier.description}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

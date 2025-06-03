@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartCommodityMapping } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export interface SpendDataPoint {
   name: string;
@@ -538,158 +539,162 @@ export default function SpendWiseCentralPage() {
 
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
-        <div className="container mx-auto flex h-16 items-center space-x-4 px-4 sm:px-6 lg:px-8">
-          <LogoIcon className="h-8 w-8 text-primary" />
-          <h1 className="text-2xl font-headline font-semibold text-foreground">
-            Spend Analysis by !TADA
-          </h1>
-          <div className="ml-auto flex items-center space-x-2">
-            <span className="text-sm text-muted-foreground mr-2">Source: {currentFilename}</span>
-            <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".xml" style={{ display: 'none' }} />
-            <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
-              <UploadCloud className="h-5 w-5" />
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleDownloadXml} aria-label="Download Configuration XML">
-              <Download className="h-5 w-5" />
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} aria-label="Generate Sample Data" disabled={isGeneratingData}>
-              {isGeneratingData ? <Loader2 className="h-5 w-5 animate-spin" /> : <ToyBrick className="h-5 w-5" />}
-            </Button>
-            <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
-              <SelectTrigger className="w-[120px] text-xs" aria-label="Select Theme">
-                <SelectValue placeholder="Select Theme" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="light">
-                  <div className="flex items-center">
-                    <Sun className="mr-2 h-4 w-4" /> Light
-                  </div>
-                </SelectItem>
-                <SelectItem value="dark">
-                  <div className="flex items-center">
-                    <Moon className="mr-2 h-4 w-4" /> Dark
-                  </div>
-                </SelectItem>
-                <SelectItem value="tada">
-                  <div className="flex items-center">
-                    <Sparkles className="mr-2 h-4 w-4" /> Tada
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+    <TooltipProvider>
+      <div className="flex flex-col min-h-screen bg-background">
+        <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
+          <div className="container mx-auto flex h-16 items-center space-x-4 px-4 sm:px-6 lg:px-8">
+            <LogoIcon className="h-8 w-8 text-primary" />
+            <h1 className="text-2xl font-headline font-semibold text-foreground">
+              Spend Analysis by !TADA
+            </h1>
+            <div className="ml-auto flex items-center space-x-2">
+              <span className="text-sm text-muted-foreground mr-2">Source: {currentFilename}</span>
+              <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".xml" style={{ display: 'none' }} />
+              <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
+                <UploadCloud className="h-5 w-5" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={handleDownloadXml} aria-label="Download Configuration XML">
+                <Download className="h-5 w-5" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} aria-label="Generate Sample Data" disabled={isGeneratingData}>
+                {isGeneratingData ? <Loader2 className="h-5 w-5 animate-spin" /> : <ToyBrick className="h-5 w-5" />}
+              </Button>
+              <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
+                <SelectTrigger className="w-[120px] text-xs" aria-label="Select Theme">
+                  <SelectValue placeholder="Select Theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light">
+                    <div className="flex items-center">
+                      <Sun className="mr-2 h-4 w-4" /> Light
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="dark">
+                    <div className="flex items-center">
+                      <Moon className="mr-2 h-4 w-4" /> Dark
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="tada">
+                    <div className="flex items-center">
+                      <Sparkles className="mr-2 h-4 w-4" /> Tada
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16"> {/* Added pb-16 for footer */}
-        <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background py-4 shadow-sm`}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-            {summaryStats.map(stat => (
-              <Card key={stat.label} className="shadow-md">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
-                  <stat.Icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                </CardContent>
-              </Card>
-            ))}
+        <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16"> {/* Added pb-16 for footer */}
+          <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background py-4 shadow-sm`}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+              {summaryStats.map(stat => (
+                <Card key={stat.label} className="shadow-md">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
+                    <stat.Icon className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+
+          <Tabs defaultValue="update-parts" className="w-full mt-4"> {/* Added mt-4 to prevent overlap with sticky TabsList */}
+            <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
+              <TabsTrigger value="update-parts" className="flex items-center gap-1">
+                <Package className="h-3.5 w-3.5" /> 1. Parts
+              </TabsTrigger>
+              <TabsTrigger value="update-suppliers" className="flex items-center gap-1">
+                <Building className="h-3.5 w-3.5" /> 2. Suppliers
+              </TabsTrigger>
+              <TabsTrigger value="part-supplier-mapping" className="flex items-center gap-1">
+                <ArrowRightLeft className="h-3.5 w-3.5" /> 3. Source & Mix
+              </TabsTrigger>
+              <TabsTrigger value="upload-part-category" className="flex items-center gap-1">
+                <FolderTree className="h-3.5 w-3.5" /> 4. Part Category
+              </TabsTrigger>
+              <TabsTrigger value="upload-part-commodity" className="flex items-center gap-1">
+                <TrendingUp className="h-3.5 w-3.5" /> 5. Part Commodity
+              </TabsTrigger>
+              <TabsTrigger value="summary" className="flex items-center gap-1">
+                <Globe className="h-3.5 w-3.5" /> 6. Summary
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="update-parts" className="mt-4"> {/* Added mt-4 */}
+              <UpdatePartsTab 
+                parts={parts} 
+                onAddPart={handleAddPart} 
+                spendByPartData={spendByPartData} 
+                spendByCategoryData={spendByCategoryData}
+                partsPerCategoryData={partsPerCategoryData}
+              />
+            </TabsContent>
+            <TabsContent value="update-suppliers" className="mt-4"> {/* Added mt-4 */}
+              <UpdateSuppliersTab suppliers={suppliers} onAddSupplier={handleAddSupplier} />
+            </TabsContent>
+            <TabsContent value="part-supplier-mapping" className="mt-4"> {/* Added mt-4 */}
+              <PartSupplierMappingTab parts={parts} suppliers={suppliers} />
+            </TabsContent>
+            <TabsContent value="upload-part-category" className="mt-4"> {/* Added mt-4 */}
+              <UploadPartCategoryTab 
+                parts={parts} 
+                partCategoryMappings={partCategoryMappings} 
+                spendByCategoryData={spendByCategoryData}
+                partsPerCategoryData={partsPerCategoryData}
+                onOpenUploadDialog={() => setIsCategoryUploadDialogOpen(true)}
+              />
+            </TabsContent>
+            <TabsContent value="upload-part-commodity" className="mt-4"> {/* Added mt-4 */}
+              <UploadPartCommodityTab 
+                parts={parts} 
+                partCommodityMappings={partCommodityMappings} 
+                spendData={spendByCommodityData} 
+                onOpenUploadDialog={() => setIsCommodityUploadDialogOpen(true)}
+              />
+            </TabsContent>
+            <TabsContent value="summary" className="mt-4"> {/* Added mt-4 */}
+              <SummaryTab suppliers={suppliers} />
+            </TabsContent>
+          </Tabs>
+        </main>
+        <footer className="fixed bottom-0 left-0 right-0 z-50 flex h-12 items-center justify-between border-t bg-card px-4 py-3 text-xs text-muted-foreground sm:px-6 lg:px-8 shadow-md">
+          <div>
+            <span>&lt;Spend for Supply-Chains by Design&gt; Copyright TADA Cognitive 2025</span>
           </div>
-        </section>
-
-        <Tabs defaultValue="update-parts" className="w-full mt-4"> {/* Added mt-4 to prevent overlap with sticky TabsList */}
-          <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
-            <TabsTrigger value="update-parts" className="flex items-center gap-1">
-              <Package className="h-3.5 w-3.5" /> 1. Parts
-            </TabsTrigger>
-            <TabsTrigger value="update-suppliers" className="flex items-center gap-1">
-              <Building className="h-3.5 w-3.5" /> 2. Suppliers
-            </TabsTrigger>
-            <TabsTrigger value="part-supplier-mapping" className="flex items-center gap-1">
-              <ArrowRightLeft className="h-3.5 w-3.5" /> 3. Source & Mix
-            </TabsTrigger>
-            <TabsTrigger value="upload-part-category" className="flex items-center gap-1">
-              <FolderTree className="h-3.5 w-3.5" /> 4. Part Category
-            </TabsTrigger>
-            <TabsTrigger value="upload-part-commodity" className="flex items-center gap-1">
-              <TrendingUp className="h-3.5 w-3.5" /> 5. Part Commodity
-            </TabsTrigger>
-            <TabsTrigger value="summary" className="flex items-center gap-1">
-              <Globe className="h-3.5 w-3.5" /> 6. Summary
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="update-parts" className="mt-4"> {/* Added mt-4 */}
-            <UpdatePartsTab 
-              parts={parts} 
-              onAddPart={handleAddPart} 
-              spendByPartData={spendByPartData} 
-              spendByCategoryData={spendByCategoryData}
-              partsPerCategoryData={partsPerCategoryData}
-            />
-          </TabsContent>
-          <TabsContent value="update-suppliers" className="mt-4"> {/* Added mt-4 */}
-            <UpdateSuppliersTab suppliers={suppliers} onAddSupplier={handleAddSupplier} />
-          </TabsContent>
-          <TabsContent value="part-supplier-mapping" className="mt-4"> {/* Added mt-4 */}
-            <PartSupplierMappingTab parts={parts} suppliers={suppliers} />
-          </TabsContent>
-          <TabsContent value="upload-part-category" className="mt-4"> {/* Added mt-4 */}
-            <UploadPartCategoryTab 
-              parts={parts} 
-              partCategoryMappings={partCategoryMappings} 
-              spendByCategoryData={spendByCategoryData}
-              partsPerCategoryData={partsPerCategoryData}
-              onOpenUploadDialog={() => setIsCategoryUploadDialogOpen(true)}
-            />
-          </TabsContent>
-          <TabsContent value="upload-part-commodity" className="mt-4"> {/* Added mt-4 */}
-            <UploadPartCommodityTab 
-              parts={parts} 
-              partCommodityMappings={partCommodityMappings} 
-              spendData={spendByCommodityData} 
-              onOpenUploadDialog={() => setIsCommodityUploadDialogOpen(true)}
-            />
-          </TabsContent>
-          <TabsContent value="summary" className="mt-4"> {/* Added mt-4 */}
-            <SummaryTab suppliers={suppliers} />
-          </TabsContent>
-        </Tabs>
-      </main>
-      <footer className="fixed bottom-0 left-0 right-0 z-50 flex h-12 items-center justify-between border-t bg-card px-4 py-3 text-xs text-muted-foreground sm:px-6 lg:px-8 shadow-md">
-        <div>
-          <span>&lt;Spend for Supply-Chains by Design&gt; Copyright TADA Cognitive 2025</span>
-        </div>
-        <div>
-          <span>{formattedDateTime || "Loading time..."}</span>
-        </div>
-      </footer>
-      <GenerateDataDialog 
-        isOpen={isGenerateDataDialogOpen} 
-        onClose={() => setIsGenerateDataDialogOpen(false)}
-        onGenerate={handleGenerateData}
-        isGenerating={isGeneratingData}
-      />
-      <UploadCsvDialog
-        isOpen={isCategoryUploadDialogOpen}
-        onClose={() => setIsCategoryUploadDialogOpen(false)}
-        onUpload={handleProcessCategoryCsv}
-        uploadType="category"
-        isUploading={isUploadingCategoryCsv}
-      />
-      <UploadCsvDialog
-        isOpen={isCommodityUploadDialogOpen}
-        onClose={() => setIsCommodityUploadDialogOpen(false)}
-        onUpload={handleProcessCommodityCsv}
-        uploadType="commodity"
-        isUploading={isUploadingCommodityCsv}
-      />
-    </div>
+          <div>
+            <span>{formattedDateTime || "Loading time..."}</span>
+          </div>
+        </footer>
+        <GenerateDataDialog 
+          isOpen={isGenerateDataDialogOpen} 
+          onClose={() => setIsGenerateDataDialogOpen(false)}
+          onGenerate={handleGenerateData}
+          isGenerating={isGeneratingData}
+        />
+        <UploadCsvDialog
+          isOpen={isCategoryUploadDialogOpen}
+          onClose={() => setIsCategoryUploadDialogOpen(false)}
+          onUpload={handleProcessCategoryCsv}
+          uploadType="category"
+          isUploading={isUploadingCategoryCsv}
+        />
+        <UploadCsvDialog
+          isOpen={isCommodityUploadDialogOpen}
+          onClose={() => setIsCommodityUploadDialogOpen(false)}
+          onUpload={handleProcessCommodityCsv}
+          uploadType="commodity"
+          isUploading={isUploadingCommodityCsv}
+        />
+      </div>
+    </TooltipProvider>
   );
 }
 
+
+    
 
     

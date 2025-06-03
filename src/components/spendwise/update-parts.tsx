@@ -1,12 +1,14 @@
 
 import type { Part } from '@/types/spendwise';
 import type { SpendDataPoint, CountDataPoint } from '@/app/page';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FileEdit, ListOrdered, Package, DollarSign, BarChart3, PlusCircle, TrendingUp as TrendingUpIcon, PieChartIcon, Hash } from "lucide-react";
-import { Bar, BarChart, Pie, PieChart, Cell, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { FileEdit, ListOrdered, Package, DollarSign, BarChart3, PlusCircle, TrendingUp as TrendingUpIcon, PieChartIcon, Hash, Info } from "lucide-react";
+import { Bar, BarChart, Pie, PieChart, Cell, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface UpdatePartsTabProps {
   parts: Part[];
@@ -48,8 +50,20 @@ export default function UpdatePartsTab({ parts, onAddPart, spendByPartData, spen
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center text-lg"><Package className="mr-2 h-5 w-5" /> Update Parts</CardTitle>
-        <CardDescription>Manage individual parts, their pricing, and estimated annual demand. View spend analysis by part and category.</CardDescription>
+        <div className="flex items-center">
+          <Package className="mr-2 h-5 w-5" />
+          <CardTitle className="text-lg">Update Parts</CardTitle>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="ml-2 h-5 w-5">
+                <Info className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs max-w-xs">Manage individual parts, their pricing, and estimated annual demand. View spend analysis by part and category.</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </CardHeader>
       <CardContent className="grid md:grid-cols-8 gap-6 text-xs">
         <div className="md:col-span-5 space-y-4">
@@ -63,7 +77,7 @@ export default function UpdatePartsTab({ parts, onAddPart, spendByPartData, spen
             {parts.length === 0 ? (
               <p className="text-muted-foreground text-center py-3">No parts available. Generate or add some parts.</p>
             ) : (
-              <div className="overflow-x-auto">
+              <ScrollArea className="max-h-80 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -90,7 +104,7 @@ export default function UpdatePartsTab({ parts, onAddPart, spendByPartData, spen
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+              </ScrollArea>
             )}
           </section>
         </div>
@@ -101,7 +115,14 @@ export default function UpdatePartsTab({ parts, onAddPart, spendByPartData, spen
                 <TrendingUpIcon className="mr-1.5 h-4 w-4" />
                 Spend by Part
               </CardTitle>
-              <CardDescription className="text-xs">Top 10 parts by calculated spend (Price x Demand).</CardDescription>
+               <Tooltip>
+                <TooltipTrigger asChild>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Top 10 parts by spend <Info className="ml-1 h-3 w-3" /></span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Top 10 parts by calculated spend (Price x Demand).</p>
+                </TooltipContent>
+              </Tooltip>
             </CardHeader>
             <CardContent className="pt-0">
               {spendByPartData.length === 0 ? (
@@ -129,7 +150,14 @@ export default function UpdatePartsTab({ parts, onAddPart, spendByPartData, spen
                 <PieChartIcon className="mr-1.5 h-4 w-4" />
                 $ Spend by Category
               </CardTitle>
-              <CardDescription className="text-xs">Distribution of spend across part categories.</CardDescription>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Spend distribution <Info className="ml-1 h-3 w-3" /></span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Distribution of spend across part categories.</p>
+                </TooltipContent>
+              </Tooltip>
             </CardHeader>
             <CardContent className="pt-0">
               {spendByCategoryData.length === 0 ? (
@@ -180,7 +208,14 @@ export default function UpdatePartsTab({ parts, onAddPart, spendByPartData, spen
                 <Hash className="mr-1.5 h-4 w-4" />
                 # Parts by Category
               </CardTitle>
-              <CardDescription className="text-xs">Number of unique parts in each category.</CardDescription>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Part count distribution <Info className="ml-1 h-3 w-3" /></span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Number of unique parts in each category.</p>
+                </TooltipContent>
+              </Tooltip>
             </CardHeader>
             <CardContent className="pt-0">
               {partsPerCategoryData.length === 0 ? (
