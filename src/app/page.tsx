@@ -123,6 +123,7 @@ export default function SpendWiseCentralPage() {
           name: p.getAttribute("name") || "Unknown Part",
           price: parseFloat(p.getAttribute("price") || "0"),
           annualDemand: parseInt(p.getAttribute("annualDemand") || "0", 10),
+          freightOhdCost: parseFloat(p.getAttribute("freightOhdCost") || "0.00"), // Default 0%
         });
       });
 
@@ -133,8 +134,8 @@ export default function SpendWiseCentralPage() {
           supplierId: s.getAttribute("supplierId") || "",
           name: s.getAttribute("name") || "Unknown Supplier",
           description: s.getAttribute("description") || "",
-          address: s.getAttribute("address") || "", // Keep for backward compatibility or direct use
-          streetAddress: s.getAttribute("streetAddress") || s.getAttribute("address") || "", // Fallback for older XML
+          address: s.getAttribute("address") || "", 
+          streetAddress: s.getAttribute("streetAddress") || s.getAttribute("address") || "", 
           city: s.getAttribute("city") || "",
           stateOrProvince: s.getAttribute("stateOrProvince") || "",
           postalCode: s.getAttribute("postalCode") || "",
@@ -201,7 +202,7 @@ export default function SpendWiseCentralPage() {
     let xmlString = '<SpendData>\n';
     xmlString += '  <Parts>\n';
     parts.forEach(p => {
-      xmlString += `    <Part id="${escapeXml(p.id)}" partNumber="${escapeXml(p.partNumber)}" name="${escapeXml(p.name)}" price="${p.price}" annualDemand="${p.annualDemand}" />\n`;
+      xmlString += `    <Part id="${escapeXml(p.id)}" partNumber="${escapeXml(p.partNumber)}" name="${escapeXml(p.name)}" price="${p.price}" annualDemand="${p.annualDemand}" freightOhdCost="${p.freightOhdCost}" />\n`;
     });
     xmlString += '  </Parts>\n';
 
@@ -299,6 +300,7 @@ export default function SpendWiseCentralPage() {
           name: p.name,
           price: parseFloat((Math.random() * 1000 + 5).toFixed(2)),
           annualDemand: Math.floor(Math.random() * 50000) + 1000,
+          freightOhdCost: parseFloat((Math.random() * 0.05).toFixed(4)), // 0-5%
         });
         if (generatedData.categories.length > 0) {
           newPartCategoryMappingsArr.push({
@@ -336,7 +338,7 @@ export default function SpendWiseCentralPage() {
       setSuppliers(newSuppliersArr);
       setPartCategoryMappings(newPartCategoryMappingsArr);
       setPartCommodityMappings(newPartCommodityMappingsArr);
-      setPartSupplierAssociations([]); // Reset associations for new data
+      setPartSupplierAssociations([]); 
       
       toast({ title: "Success", description: "Sample data generated successfully!" });
       setIsGenerateDataDialogOpen(false);
@@ -356,6 +358,7 @@ export default function SpendWiseCentralPage() {
       name: "New Custom Part",
       price: 0,
       annualDemand: 0,
+      freightOhdCost: 0.00,
     };
     setParts(prev => [...prev, newPart]);
     
@@ -437,13 +440,15 @@ export default function SpendWiseCentralPage() {
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i];
                 const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
-                if (columns.length < 4) { errors.push(`Row ${i+1}: Not enough columns. Expected PartNumber,Name,Price,AnnualDemand.`); skippedCount++; continue; }
-                const [partNumber, name, priceStr, annualDemandStr] = columns;
+                // PartNumber,Name,Price,AnnualDemand,FreightOhdCost
+                if (columns.length < 5) { errors.push(`Row ${i+1}: Not enough columns. Expected PartNumber,Name,Price,AnnualDemand,FreightOhdCost.`); skippedCount++; continue; }
+                const [partNumber, name, priceStr, annualDemandStr, freightOhdCostStr] = columns;
                 const price = parseFloat(priceStr);
                 const annualDemand = parseInt(annualDemandStr, 10);
-                if (!partNumber || !name || isNaN(price) || isNaN(annualDemand)) { errors.push(`Row ${i+1}: Invalid data for PartNumber, Name, Price, or AnnualDemand.`); skippedCount++; continue; }
+                const freightOhdCost = parseFloat(freightOhdCostStr) / 100; // Assuming CSV has percentage
+                if (!partNumber || !name || isNaN(price) || isNaN(annualDemand) || isNaN(freightOhdCost)) { errors.push(`Row ${i+1}: Invalid data for PartNumber, Name, Price, AnnualDemand, or FreightOhdCost.`); skippedCount++; continue; }
                 if (parts.some(p => p.partNumber === partNumber)) { errors.push(`Row ${i+1}: PartNumber "${partNumber}" already exists. Skipped.`); skippedCount++; continue; }
-                newPartsArr.push({ id: `p_csv_${Date.now()}_${i}`, partNumber, name, price, annualDemand });
+                newPartsArr.push({ id: `p_csv_${Date.now()}_${i}`, partNumber, name, price, annualDemand, freightOhdCost });
                 processedCount++;
             }
             setParts(prev => [...prev, ...newPartsArr]);
@@ -690,6 +695,7 @@ export default function SpendWiseCentralPage() {
             <TabsContent value="update-parts" className="mt-4"> 
               <UpdatePartsTab 
                 parts={parts} 
+                setParts={setParts}
                 onAddPart={handleAddPart} 
                 spendByPartData={spendByPartData} 
                 spendByCategoryData={spendByCategoryData}

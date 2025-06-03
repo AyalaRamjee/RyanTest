@@ -5,6 +5,7 @@ export interface Part {
   name: string;
   price: number;
   annualDemand: number;
+  freightOhdCost: number; // e.g., 0.05 for 5%
 }
 
 export interface Supplier {
@@ -38,3 +39,4 @@ export interface PartSupplierAssociation {
   partId: string;
   supplierId: string;
 }
+

@@ -68,7 +68,7 @@ export default function UploadCsvDialog({ isOpen, onClose, onUpload, uploadType,
       break;
     case 'part':
       dialogTitle = "Upload Parts CSV";
-      expectedFormat = "Cols: PartNumber, Name, Price, AnnualDemand";
+      expectedFormat = "Cols: PartNumber, Name, Price, AnnualDemand, FreightOhdCost(%)";
       break;
     case 'supplier':
       dialogTitle = "Upload Suppliers CSV";
@@ -84,7 +84,7 @@ export default function UploadCsvDialog({ isOpen, onClose, onUpload, uploadType,
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       if (!open) {
-        setSelectedFile(null); // Reset file on close
+        setSelectedFile(null); 
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }

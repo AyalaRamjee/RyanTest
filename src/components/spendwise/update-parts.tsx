@@ -8,16 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { FileEdit, Package, DollarSign, BarChart3, PlusCircle, TrendingUp as TrendingUpIcon, PieChartIcon, Hash, Info, UploadCloud, Trash2, ListOrdered } from "lucide-react";
+import { FileEdit, Package, DollarSign, BarChart3, PlusCircle, TrendingUp as TrendingUpIcon, PieChartIcon, Hash, Info, UploadCloud, Trash2, ListOrdered, Sigma } from "lucide-react";
 import { Bar, BarChart, Pie, PieChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 interface UpdatePartsTabProps {
   parts: Part[];
-  setParts: React.Dispatch<React.SetStateAction<Part[]>>; // For direct updates
+  setParts: React.Dispatch<React.SetStateAction<Part[]>>; 
   onAddPart: () => void;
   spendByPartData: SpendDataPoint[];
   spendByCategoryData: SpendDataPoint[];
@@ -72,9 +72,10 @@ export default function UpdatePartsTab({
           if (field === 'price' || field === 'annualDemand') {
             numericValue = parseFloat(value as string);
             if (isNaN(numericValue)) numericValue = 0;
-          } else if (field === 'profitMargin' || field === 'freightOhdCost') {
+          } else if (field === 'freightOhdCost') {
             numericValue = parseFloat(value as string) / 100;
-             if (isNaN(numericValue)) numericValue = 0;
+             if (isNaN(numericValue) || numericValue < 0) numericValue = 0;
+             if (numericValue > 1) numericValue = 1; // Cap at 100%
           }
           return { ...p, [field]: numericValue };
         }
@@ -96,12 +97,20 @@ export default function UpdatePartsTab({
     }
   };
 
+  const totalPartsCount = useMemo(() => parts.length, [parts]);
+  const cumulativeSpend = useMemo(() => {
+    return parts.reduce((sum, p) => sum + (p.price * p.annualDemand), 0);
+  }, [parts]);
+  const cumulativeVolume = useMemo(() => {
+    return parts.reduce((sum, p) => sum + p.annualDemand, 0);
+  }, [parts]);
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center">
           <Package className="mr-2 h-5 w-5" />
-          <CardTitle className="text-lg">1A - Add/Update/Select Product</CardTitle>
+          <CardTitle className="text-lg">1A - Add/Update/Select Part</CardTitle>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="ml-2 h-5 w-5">
@@ -124,14 +133,12 @@ export default function UpdatePartsTab({
       </CardHeader>
       <CardContent className="grid md:grid-cols-8 gap-6 text-xs">
         <div className="md:col-span-5 space-y-3">
-          {/* Header Row for Labels */}
           <div className="flex items-center gap-2 px-2 py-1 text-xs font-medium text-muted-foreground">
             <div className="w-10"> {/* Spacer for radio */} </div>
             <div className="w-24 flex-shrink-0">Part #</div>
-            <div className="flex-1 min-w-[120px]">Product Name</div>
+            <div className="flex-1 min-w-[120px]">Part Name</div>
             <div className="w-24 text-right">Base Cost</div>
             <div className="w-28 text-right">Annual Volume</div>
-            <div className="w-24 text-right">Profit Margin</div>
             <div className="w-28 text-right">Freight & OHD</div>
             <div className="w-10"> {/* Spacer for delete */} </div>
           </div>
@@ -139,7 +146,7 @@ export default function UpdatePartsTab({
           {parts.length === 0 ? (
             <p className="text-muted-foreground text-center py-3">No parts available. Generate, add, or upload some parts.</p>
           ) : (
-            <ScrollArea className="max-h-[calc(80vh-280px)] min-h-[200px]"> {/* Adjust max-h as needed */}
+            <ScrollArea className="max-h-[calc(100vh-480px)] min-h-[200px]"> 
               <RadioGroup value={selectedPartId || undefined} onValueChange={setSelectedPartId} className="space-y-2 pr-2">
                 {parts.map((part) => (
                   <div key={part.id} className="flex items-center gap-2 p-2.5 rounded-md border bg-card shadow-sm hover:shadow-md transition-shadow">
@@ -154,7 +161,7 @@ export default function UpdatePartsTab({
                       value={part.name}
                       onChange={(e) => handlePartNameChange(part.id, e.target.value)}
                       className="h-8 text-xs flex-1 min-w-[120px]"
-                      placeholder="Product Name"
+                      placeholder="Part Name"
                     />
                     <div className="relative w-24">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">$</span>
@@ -175,17 +182,6 @@ export default function UpdatePartsTab({
                         placeholder="0"
                         step="1"
                       />
-                    <div className="relative w-24">
-                      <Input
-                        type="number"
-                        value={parseFloat((part.profitMargin * 100).toFixed(2))}
-                        onChange={(e) => handlePartInputChange(part.id, 'profitMargin', e.target.value)}
-                        className="h-8 text-xs pr-5 text-right"
-                        placeholder="0"
-                        step="0.01"
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                    </div>
                      <div className="relative w-28">
                       <Input
                         type="number"
@@ -194,6 +190,8 @@ export default function UpdatePartsTab({
                         className="h-8 text-xs pr-5 text-right"
                         placeholder="0"
                         step="0.01"
+                        min="0"
+                        max="100"
                       />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                     </div>
@@ -205,6 +203,23 @@ export default function UpdatePartsTab({
               </RadioGroup>
             </ScrollArea>
           )}
+          <div className="mt-4 p-3 border rounded-md bg-muted/50">
+            <h4 className="text-sm font-semibold mb-2 flex items-center"><Sigma className="h-4 w-4 mr-1.5"/>Summary</h4>
+            <div className="grid grid-cols-3 gap-3 text-xs">
+              <div>
+                <p className="text-muted-foreground">Total # Parts:</p>
+                <p className="font-medium">{formatNumber(totalPartsCount)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Cum. Spend:</p>
+                <p className="font-medium">{formatCurrency(cumulativeSpend)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Cum. Volume:</p>
+                <p className="font-medium">{formatNumber(cumulativeVolume)}</p>
+              </div>
+            </div>
+          </div>
         </div>
         <div className="md:col-span-3 space-y-4">
           <Card>
