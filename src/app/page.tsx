@@ -1,4 +1,3 @@
-
 "use client"; 
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -51,10 +50,30 @@ export default function SpendWiseCentralPage() {
   const [isCommodityUploadDialogOpen, setIsCommodityUploadDialogOpen] = useState(false);
   const [isUploadingCommodityCsv, setIsUploadingCommodityCsv] = useState(false);
 
-  const [currentDateString, setCurrentDateString] = useState('');
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
   const [currentFilename, setCurrentFilename] = useState<string>(DEFAULT_XML_FILENAME);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [formattedDateTime, setFormattedDateTime] = useState<string>('');
+
+  useEffect(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const updateDateTime = () => {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const dayName = days[now.getDay()];
+      const day = now.getDate().toString().padStart(2, '0');
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const year = now.getFullYear();
+      setFormattedDateTime(`${hours}:${minutes}, ${dayName}, ${day}/${month}/${year}`);
+    };
+
+    updateDateTime(); 
+    const intervalId = setInterval(updateDateTime, 1000); 
+
+    return () => clearInterval(intervalId); 
+  }, []);
+
 
   const escapeXml = useCallback((unsafe: string | number): string => {
     const str = String(unsafe);
@@ -141,12 +160,10 @@ export default function SpendWiseCentralPage() {
   }, [toast]);
 
   useEffect(() => {
-    setCurrentDateString(new Date().getFullYear().toString());
-
-    const lastLoadedFile = localStorage.getItem(LAST_LOADED_FILENAME_KEY);
+    const lastLoadedFile = typeof window !== 'undefined' ? localStorage.getItem(LAST_LOADED_FILENAME_KEY) : null;
     const filenameToLoad = lastLoadedFile || DEFAULT_XML_FILENAME;
     
-    const storedXmlData = localStorage.getItem(APP_CONFIG_DATA_KEY_PREFIX + filenameToLoad);
+    const storedXmlData = typeof window !== 'undefined' ? localStorage.getItem(APP_CONFIG_DATA_KEY_PREFIX + filenameToLoad) : null;
 
     if (storedXmlData) {
       parseAndSetXmlData(storedXmlData, filenameToLoad);
@@ -234,10 +251,10 @@ export default function SpendWiseCentralPage() {
     }
   };
 
-  const handleGenerateData = async (domain: string, numParts: number, numSuppliers: number, numCategories: number, numCommodities: number) => {
+  const handleGenerateData = async (domain: string, numPartsToGen: number, numSuppliersToGen: number, numCategoriesToGen: number, numCommoditiesToGen: number) => {
     setIsGeneratingData(true);
     try {
-      const generatedData = await generateSpendData({ domain, numParts, numSuppliers, numCategories, numCommodities });
+      const generatedData = await generateSpendData({ domain, numParts: numPartsToGen, numSuppliers: numSuppliersToGen, numCategories: numCategoriesToGen, numCommodities: numCommoditiesToGen });
       
       const newPartsArr: Part[] = [];
       const newPartCategoryMappingsArr: PartCategoryMapping[] = [];
@@ -435,12 +452,12 @@ export default function SpendWiseCentralPage() {
 
   const handleProcessCategoryCsv = async (file: File) => {
     await processCsvUpload(file, 'category');
-    setIsCategoryUploadDialogOpen(false); // Close dialog after processing
+    setIsCategoryUploadDialogOpen(false); 
   };
 
   const handleProcessCommodityCsv = async (file: File) => {
     await processCsvUpload(file, 'commodity');
-    setIsCommodityUploadDialogOpen(false); // Close dialog after processing
+    setIsCommodityUploadDialogOpen(false); 
   };
 
 
@@ -559,7 +576,7 @@ export default function SpendWiseCentralPage() {
         </div>
       </header>
 
-      <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
+      <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16"> {/* Added pb-16 for footer */}
         <section aria-labelledby="summary-stats-title" className="mb-6">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {summaryStats.map(stat => (
@@ -635,8 +652,13 @@ export default function SpendWiseCentralPage() {
           </TabsContent>
         </Tabs>
       </main>
-      <footer className="py-6 text-center text-sm text-muted-foreground border-t">
-        © {currentDateString || new Date().getFullYear()} Spend Analysis by !TADA. All rights reserved.
+      <footer className="fixed bottom-0 left-0 right-0 z-50 flex h-12 items-center justify-between border-t bg-card px-4 py-3 text-xs text-muted-foreground sm:px-6 lg:px-8 shadow-md">
+        <div>
+          <span>Copyright TADA Cognitive 2025</span>
+        </div>
+        <div>
+          <span>{formattedDateTime || "Loading time..."}</span>
+        </div>
       </footer>
       <GenerateDataDialog 
         isOpen={isGenerateDataDialogOpen} 
