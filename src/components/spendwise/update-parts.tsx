@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Package, DollarSign, PieChartIcon, Hash, Info, FileUp, Trash2, Sigma, PlusCircle } from "lucide-react";
-import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie } from 'recharts';
+import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie, PieChart } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -279,7 +279,7 @@ export default function UpdatePartsTab({
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center">
-                 Part Spend Analysis {/* Reverted from TrendingUpIcon for simplicity as per last successful state */}
+                 Part Spend Analysis
               </CardTitle>
                <Tooltip>
                 <TooltipTrigger asChild>
