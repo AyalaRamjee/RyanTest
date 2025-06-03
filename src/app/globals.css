@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -99,6 +100,52 @@ body {
     --sidebar-accent-foreground: 165 35% 30%;
     --sidebar-border: 217 32.6% 17.5%;
     --sidebar-ring: 207 66% 69%;
+  }
+
+  .tada {
+    --background: 300 80% 95%; /* Light Pink/Purple */
+    --foreground: 300 50% 15%; /* Dark Purple */
+
+    --muted: 300 40% 88%;
+    --muted-foreground: 300 25% 40%;
+
+    --popover: 300 90% 98%; /* Very Light Pink/Purple */
+    --popover-foreground: 300 50% 15%;
+
+    --card: 300 90% 98%;
+    --card-foreground: 300 50% 15%;
+
+    --border: 300 50% 80%;
+    --input: 300 50% 90%;
+
+    --primary: 45 100% 58%; /* Bright Orange/Yellow */
+    --primary-foreground: 45 100% 15%; /* Dark contrast for primary */
+
+    --secondary: 200 80% 93%; /* Light Blue */
+    --secondary-foreground: 200 50% 25%;
+
+    --accent: 130 70% 60%; /* Bright Green */
+    --accent-foreground: 130 40% 20%; /* Darker green for text on accent */
+
+    --destructive: 0 84.2% 60.2%; /* Standard Red */
+    --destructive-foreground: 0 0% 98%; /* Standard Light Text */
+
+    --ring: 45 100% 58%; /* Primary color for focus rings */
+
+    --chart-1: 330 90% 70%; /* Bright Pink */
+    --chart-2: 210 90% 60%; /* Bright Blue */
+    --chart-3: 60 100% 50%; /* Bright Yellow */
+    --chart-4: 150 80% 55%; /* Bright Teal */
+    --chart-5: 270 85% 65%; /* Bright Purple */
+
+    --sidebar-background: 300 80% 97%;
+    --sidebar-foreground: 300 50% 15%;
+    --sidebar-primary: 45 100% 58%;
+    --sidebar-primary-foreground: 45 100% 15%;
+    --sidebar-accent: 130 70% 60%;
+    --sidebar-accent-foreground: 130 40% 20%;
+    --sidebar-border: 300 50% 85%;
+    --sidebar-ring: 45 100% 58%;
   }
 }
 
