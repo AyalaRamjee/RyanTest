@@ -3,16 +3,17 @@ import type { Supplier } from '@/types/spendwise';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FileEdit, Fingerprint, Building, FileText, MapPin, PlusCircle, TrendingUp as TrendingUpIcon, Info } from "lucide-react";
+import { FileEdit, Fingerprint, Building, FileText, MapPin, PlusCircle, TrendingUp as TrendingUpIcon, Info, UploadCloud } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface UpdateSuppliersTabProps {
   suppliers: Supplier[];
   onAddSupplier: () => void;
+  onOpenUploadDialog: () => void;
 }
 
-export default function UpdateSuppliersTab({ suppliers, onAddSupplier }: UpdateSuppliersTabProps) {
+export default function UpdateSuppliersTab({ suppliers, onAddSupplier, onOpenUploadDialog }: UpdateSuppliersTabProps) {
   return (
     <Card>
       <CardHeader>
@@ -26,7 +27,7 @@ export default function UpdateSuppliersTab({ suppliers, onAddSupplier }: UpdateS
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-xs max-w-xs">Manage supplier information. Spend analysis by supplier requires part-supplier mappings.</p>
+              <p className="text-xs max-w-xs">Manage supplier information. Upload suppliers via CSV. Spend analysis by supplier requires part-supplier mappings.</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -34,14 +35,19 @@ export default function UpdateSuppliersTab({ suppliers, onAddSupplier }: UpdateS
       <CardContent className="grid md:grid-cols-8 gap-6 text-xs">
         <div className="md:col-span-5 space-y-4">
           <section>
-            <h3 className="text-base font-semibold mb-2">Supplier Management</h3>
-            <div className="mb-3 flex justify-end">
-              <Button onClick={onAddSupplier} size="sm" className="text-xs">
-                <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add New Supplier
-              </Button>
+            <div className="flex justify-between items-center mb-1.5">
+              <h3 className="text-base font-semibold">Supplier Management</h3>
+              <div className="flex items-center gap-2">
+                <Button onClick={onOpenUploadDialog} size="sm" variant="outline" className="text-xs">
+                  <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload Suppliers CSV
+                </Button>
+                <Button onClick={onAddSupplier} size="sm" className="text-xs">
+                  <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add New Supplier
+                </Button>
+              </div>
             </div>
             {suppliers.length === 0 ? (
-              <p className="text-muted-foreground text-center py-3">No suppliers available. Generate or add some suppliers.</p>
+              <p className="text-muted-foreground text-center py-3">No suppliers available. Generate, add, or upload some suppliers.</p>
             ) : (
               <ScrollArea className="max-h-80 overflow-x-auto">
                 <Table>
@@ -86,7 +92,7 @@ export default function UpdateSuppliersTab({ suppliers, onAddSupplier }: UpdateS
                    <span className="text-xs text-muted-foreground cursor-default flex items-center">Aggregated spend <Info className="ml-1 h-3 w-3" /></span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Aggregated spend per supplier.</p>
+                  <p className="text-xs">Aggregated spend per supplier. Requires part-supplier mappings.</p>
                 </TooltipContent>
               </Tooltip>
             </CardHeader>

@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud } from "lucide-react";
-import type { Part, Supplier, PartCategoryMapping, PartCommodityMapping } from '@/types/spendwise';
+import type { Part, Supplier, PartCategoryMapping, PartCommodityMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -36,11 +36,9 @@ const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
 
-// Approximate height of the header (h-16 = 4rem = 64px)
 const HEADER_HEIGHT_PX = 64;
-// Approximate height of the summary stats section (cards + py-4 padding = ~90px + 32px = ~122px)
 const SUMMARY_STATS_HEIGHT_PX = 122; 
-const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX; // 64 + 122 = 186px
+const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX; 
 
 export default function SpendWiseCentralPage() {
   const { theme, setTheme } = useTheme();
@@ -49,6 +47,7 @@ export default function SpendWiseCentralPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [partCategoryMappings, setPartCategoryMappings] = useState<PartCategoryMapping[]>([]);
   const [partCommodityMappings, setPartCommodityMappings] = useState<PartCommodityMapping[]>([]);
+  const [partSupplierAssociations, setPartSupplierAssociations] = useState<PartSupplierAssociation[]>([]);
   
   const [isGenerateDataDialogOpen, setIsGenerateDataDialogOpen] = useState(false);
   const [isGeneratingData, setIsGeneratingData] = useState(false);
@@ -57,6 +56,13 @@ export default function SpendWiseCentralPage() {
   const [isUploadingCategoryCsv, setIsUploadingCategoryCsv] = useState(false);
   const [isCommodityUploadDialogOpen, setIsCommodityUploadDialogOpen] = useState(false);
   const [isUploadingCommodityCsv, setIsUploadingCommodityCsv] = useState(false);
+  const [isPartsUploadDialogOpen, setIsPartsUploadDialogOpen] = useState(false);
+  const [isUploadingPartsCsv, setIsUploadingPartsCsv] = useState(false);
+  const [isSuppliersUploadDialogOpen, setIsSuppliersUploadDialogOpen] = useState(false);
+  const [isUploadingSuppliersCsv, setIsUploadingSuppliersCsv] = useState(false);
+  const [isSourceMixUploadDialogOpen, setIsSourceMixUploadDialogOpen] = useState(false);
+  const [isUploadingSourceMixCsv, setIsUploadingSourceMixCsv] = useState(false);
+
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
   const [currentFilename, setCurrentFilename] = useState<string>(DEFAULT_XML_FILENAME);
@@ -127,8 +133,8 @@ export default function SpendWiseCentralPage() {
           supplierId: s.getAttribute("supplierId") || "",
           name: s.getAttribute("name") || "Unknown Supplier",
           description: s.getAttribute("description") || "",
-          address: s.getAttribute("address") || "",
-          streetAddress: s.getAttribute("streetAddress") || "",
+          address: s.getAttribute("address") || "", // Keep for backward compatibility or direct use
+          streetAddress: s.getAttribute("streetAddress") || s.getAttribute("address") || "", // Fallback for older XML
           city: s.getAttribute("city") || "",
           stateOrProvince: s.getAttribute("stateOrProvince") || "",
           postalCode: s.getAttribute("postalCode") || "",
@@ -154,10 +160,20 @@ export default function SpendWiseCentralPage() {
         });
       });
 
+      const newPartSupplierAssociations: PartSupplierAssociation[] = [];
+      xmlDoc.querySelectorAll("PartSupplierAssociations Association").forEach(a => {
+        newPartSupplierAssociations.push({
+          id: a.getAttribute("id") || `psa_parsed_${Date.now()}_${Math.random()}`,
+          partId: a.getAttribute("partId") || "",
+          supplierId: a.getAttribute("supplierId") || "",
+        });
+      });
+
       setParts(newParts);
       setSuppliers(newSuppliers);
       setPartCategoryMappings(newPartCategoryMappings);
       setPartCommodityMappings(newPartCommodityMappings);
+      setPartSupplierAssociations(newPartSupplierAssociations);
       setCurrentFilename(filename);
       
       toast({ title: "Success", description: `Configuration from "${filename}" loaded.` });
@@ -206,6 +222,13 @@ export default function SpendWiseCentralPage() {
       xmlString += `    <Mapping id="${escapeXml(m.id)}" partId="${escapeXml(m.partId)}" commodityName="${escapeXml(m.commodityName)}" />\n`;
     });
     xmlString += '  </PartCommodityMappings>\n';
+
+    xmlString += '  <PartSupplierAssociations>\n';
+    partSupplierAssociations.forEach(a => {
+      xmlString += `    <Association id="${escapeXml(a.id)}" partId="${escapeXml(a.partId)}" supplierId="${escapeXml(a.supplierId)}" />\n`;
+    });
+    xmlString += '  </PartSupplierAssociations>\n';
+
     xmlString += '</SpendData>';
     setXmlConfigString(xmlString);
 
@@ -214,7 +237,7 @@ export default function SpendWiseCentralPage() {
         localStorage.setItem(LAST_LOADED_FILENAME_KEY, currentFilename);
     }
 
-  }, [parts, suppliers, partCategoryMappings, partCommodityMappings, escapeXml, currentFilename]);
+  }, [parts, suppliers, partCategoryMappings, partCommodityMappings, partSupplierAssociations, escapeXml, currentFilename]);
 
   const handleDownloadXml = () => {
     if (!xmlConfigString) {
@@ -313,6 +336,7 @@ export default function SpendWiseCentralPage() {
       setSuppliers(newSuppliersArr);
       setPartCategoryMappings(newPartCategoryMappingsArr);
       setPartCommodityMappings(newPartCommodityMappingsArr);
+      setPartSupplierAssociations([]); // Reset associations for new data
       
       toast({ title: "Success", description: "Sample data generated successfully!" });
       setIsGenerateDataDialogOpen(false);
@@ -363,10 +387,16 @@ export default function SpendWiseCentralPage() {
     setSuppliers(prev => [...prev, newSupplier]);
   };
 
-  const processCsvUpload = async (file: File, type: 'category' | 'commodity') => {
-    const isCategoryUpload = type === 'category';
-    if (isCategoryUpload) setIsUploadingCategoryCsv(true);
-    else setIsUploadingCommodityCsv(true);
+  const processCsvUpload = async (file: File, type: 'category' | 'commodity' | 'part' | 'supplier' | 'sourcemix') => {
+    let isProcessingSetter: React.Dispatch<React.SetStateAction<boolean>> | null = null;
+    switch(type) {
+      case 'category': isProcessingSetter = setIsUploadingCategoryCsv; break;
+      case 'commodity': isProcessingSetter = setIsUploadingCommodityCsv; break;
+      case 'part': isProcessingSetter = setIsUploadingPartsCsv; break;
+      case 'supplier': isProcessingSetter = setIsUploadingSuppliersCsv; break;
+      case 'sourcemix': isProcessingSetter = setIsUploadingSourceMixCsv; break;
+    }
+    if (isProcessingSetter) isProcessingSetter(true);
 
     return new Promise<void>((resolve, reject) => {
       const reader = new FileReader();
@@ -375,67 +405,86 @@ export default function SpendWiseCentralPage() {
           const text = e.target?.result as string;
           const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
           
-          if (lines.length <= 1) { // Header only or empty
+          if (lines.length <= 1) { 
              toast({ variant: "destructive", title: "CSV Error", description: "CSV file is empty or contains only a header." });
-             if (isCategoryUpload) setIsUploadingCategoryCsv(false); else setIsUploadingCommodityCsv(false);
              reject(new Error("CSV empty or header only"));
              return;
           }
 
-          const newMappings: (PartCategoryMapping | PartCommodityMapping)[] = [];
           const errors: string[] = [];
           let processedCount = 0;
+          let skippedCount = 0;
 
-          // Skip header row (lines[0])
-          for (let i = 1; i < lines.length; i++) {
-            const line = lines[i];
-            const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, '')); // Basic CSV parsing, handles quotes
-            
-            if (columns.length < 2) {
-              errors.push(`Row ${i+1}: Not enough columns.`);
-              continue;
+          if (type === 'category' || type === 'commodity') {
+            const newMappings: (PartCategoryMapping | PartCommodityMapping)[] = [];
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i];
+              const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+              if (columns.length < 2) { errors.push(`Row ${i+1}: Not enough columns.`); skippedCount++; continue; }
+              const partNumber = columns[0];
+              const name = columns[1];
+              if (!partNumber || !name) { errors.push(`Row ${i+1}: Missing PartNumber or Name.`); skippedCount++; continue; }
+              const part = parts.find(p => p.partNumber === partNumber);
+              if (!part) { errors.push(`Row ${i+1}: PartNumber "${partNumber}" not found.`); skippedCount++; continue; }
+              if (type === 'category') newMappings.push({ id: `pcm_csv_${Date.now()}_${i}`, partId: part.id, categoryName: name } as PartCategoryMapping);
+              else newMappings.push({ id: `pcom_csv_${Date.now()}_${i}`, partId: part.id, commodityName: name } as PartCommodityMapping);
+              processedCount++;
             }
-            const partNumber = columns[0];
-            const name = columns[1];
-
-            if (!partNumber || !name) {
-              errors.push(`Row ${i+1}: Missing PartNumber or ${isCategoryUpload ? 'CategoryName' : 'CommodityName'}.`);
-              continue;
+            if (type === 'category') setPartCategoryMappings(prev => [...prev, ...newMappings as PartCategoryMapping[]]);
+            else setPartCommodityMappings(prev => [...prev, ...newMappings as PartCommodityMapping[]]);
+          } else if (type === 'part') {
+            const newPartsArr: Part[] = [];
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+                if (columns.length < 4) { errors.push(`Row ${i+1}: Not enough columns. Expected PartNumber,Name,Price,AnnualDemand.`); skippedCount++; continue; }
+                const [partNumber, name, priceStr, annualDemandStr] = columns;
+                const price = parseFloat(priceStr);
+                const annualDemand = parseInt(annualDemandStr, 10);
+                if (!partNumber || !name || isNaN(price) || isNaN(annualDemand)) { errors.push(`Row ${i+1}: Invalid data for PartNumber, Name, Price, or AnnualDemand.`); skippedCount++; continue; }
+                if (parts.some(p => p.partNumber === partNumber)) { errors.push(`Row ${i+1}: PartNumber "${partNumber}" already exists. Skipped.`); skippedCount++; continue; }
+                newPartsArr.push({ id: `p_csv_${Date.now()}_${i}`, partNumber, name, price, annualDemand });
+                processedCount++;
             }
-
-            const part = parts.find(p => p.partNumber === partNumber);
-            if (!part) {
-              errors.push(`Row ${i+1}: PartNumber "${partNumber}" not found.`);
-              continue;
+            setParts(prev => [...prev, ...newPartsArr]);
+          } else if (type === 'supplier') {
+            const newSuppliersArr: Supplier[] = [];
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+                if (columns.length < 8) { errors.push(`Row ${i+1}: Not enough columns. Expected SupplierId, Name, Description, StreetAddress, City, StateOrProvince, PostalCode, Country.`); skippedCount++; continue; }
+                const [supplierId, name, description, streetAddress, city, stateOrProvince, postalCode, country] = columns;
+                if (!supplierId || !name) { errors.push(`Row ${i+1}: Missing SupplierId or Name.`); skippedCount++; continue; }
+                if (suppliers.some(s => s.supplierId === supplierId)) { errors.push(`Row ${i+1}: SupplierId "${supplierId}" already exists. Skipped.`); skippedCount++; continue; }
+                const fullAddress = `${streetAddress}, ${city}, ${stateOrProvince} ${postalCode}, ${country}`;
+                newSuppliersArr.push({ id: `s_csv_${Date.now()}_${i}`, supplierId, name, description, streetAddress, city, stateOrProvince, postalCode, country, address: fullAddress });
+                processedCount++;
             }
-
-            if (isCategoryUpload) {
-              newMappings.push({
-                id: `pcm_csv_${Date.now()}_${i}`,
-                partId: part.id,
-                categoryName: name,
-              } as PartCategoryMapping);
-            } else {
-              newMappings.push({
-                id: `pcom_csv_${Date.now()}_${i}`,
-                partId: part.id,
-                commodityName: name,
-              } as PartCommodityMapping);
+            setSuppliers(prev => [...prev, ...newSuppliersArr]);
+          } else if (type === 'sourcemix') {
+            const newAssociations: PartSupplierAssociation[] = [];
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+                if (columns.length < 2) { errors.push(`Row ${i+1}: Not enough columns. Expected PartNumber, SupplierId.`); skippedCount++; continue; }
+                const [partNumber, supplierIdVal] = columns;
+                if (!partNumber || !supplierIdVal) { errors.push(`Row ${i+1}: Missing PartNumber or SupplierId.`); skippedCount++; continue; }
+                const part = parts.find(p => p.partNumber === partNumber);
+                const supplier = suppliers.find(s => s.supplierId === supplierIdVal);
+                if (!part) { errors.push(`Row ${i+1}: PartNumber "${partNumber}" not found.`); skippedCount++; continue; }
+                if (!supplier) { errors.push(`Row ${i+1}: SupplierId "${supplierIdVal}" not found.`); skippedCount++; continue; }
+                if (partSupplierAssociations.some(a => a.partId === part.id && a.supplierId === supplier.id)) { errors.push(`Row ${i+1}: Association between "${partNumber}" and "${supplierIdVal}" already exists. Skipped.`); skippedCount++; continue; }
+                newAssociations.push({ id: `psa_csv_${Date.now()}_${i}`, partId: part.id, supplierId: supplier.id });
+                processedCount++;
             }
-            processedCount++;
-          }
-
-          if (isCategoryUpload) {
-            setPartCategoryMappings(prev => [...prev, ...newMappings as PartCategoryMapping[]]);
-          } else {
-            setPartCommodityMappings(prev => [...prev, ...newMappings as PartCommodityMapping[]]);
+            setPartSupplierAssociations(prev => [...prev, ...newAssociations]);
           }
           
-          let description = `${processedCount} mappings added.`;
-          if (errors.length > 0) {
-            description += ` ${errors.length} rows skipped.`;
-            console.warn("CSV Upload Errors:", errors);
-             toast({ variant: "destructive", title: "Upload Partially Successful", description: `${description} Check console for details.`, duration: 7000 });
+          let description = `${processedCount} items/mappings added.`;
+          if (skippedCount > 0 || errors.length > 0) {
+            description += ` ${skippedCount + errors.filter(e => !e.includes("already exists")).length} rows skipped due to errors or duplicates.`;
+            console.warn(`CSV Upload Errors/Skipped (${type}):`, errors);
+            toast({ variant: "destructive", title: "Upload Partially Successful", description: `${description} Check console for details.`, duration: 7000 });
           } else {
             toast({ title: "Upload Successful", description });
           }
@@ -445,13 +494,12 @@ export default function SpendWiseCentralPage() {
           toast({ variant: "destructive", title: "Processing Error", description: `Could not process the CSV file for ${type}.` });
           reject(err);
         } finally {
-          if (isCategoryUpload) setIsUploadingCategoryCsv(false);
-          else setIsUploadingCommodityCsv(false);
+          if (isProcessingSetter) isProcessingSetter(false);
         }
       };
       reader.onerror = () => {
         toast({ variant: "destructive", title: "File Read Error", description: "Failed to read the file." });
-        if (isCategoryUpload) setIsUploadingCategoryCsv(false); else setIsUploadingCommodityCsv(false);
+        if (isProcessingSetter) isProcessingSetter(false);
         reject(new Error("File read error"));
       };
       reader.readAsText(file);
@@ -466,6 +514,21 @@ export default function SpendWiseCentralPage() {
   const handleProcessCommodityCsv = async (file: File) => {
     await processCsvUpload(file, 'commodity');
     setIsCommodityUploadDialogOpen(false); 
+  };
+
+  const handleProcessPartsCsv = async (file: File) => {
+    await processCsvUpload(file, 'part');
+    setIsPartsUploadDialogOpen(false);
+  };
+
+  const handleProcessSuppliersCsv = async (file: File) => {
+    await processCsvUpload(file, 'supplier');
+    setIsSuppliersUploadDialogOpen(false);
+  };
+
+  const handleProcessSourceMixCsv = async (file: File) => {
+    await processCsvUpload(file, 'sourcemix');
+    setIsSourceMixUploadDialogOpen(false);
   };
 
 
@@ -585,7 +648,7 @@ export default function SpendWiseCentralPage() {
           </div>
         </header>
 
-        <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16"> {/* Added pb-16 for footer */}
+        <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16"> 
           <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background py-4 shadow-sm`}>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               {summaryStats.map(stat => (
@@ -602,7 +665,7 @@ export default function SpendWiseCentralPage() {
             </div>
           </section>
 
-          <Tabs defaultValue="update-parts" className="w-full mt-4"> {/* Added mt-4 to prevent overlap with sticky TabsList */}
+          <Tabs defaultValue="update-parts" className="w-full mt-4"> 
             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1">
                 <Package className="h-3.5 w-3.5" /> 1. Parts
@@ -624,22 +687,33 @@ export default function SpendWiseCentralPage() {
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="update-parts" className="mt-4"> {/* Added mt-4 */}
+            <TabsContent value="update-parts" className="mt-4"> 
               <UpdatePartsTab 
                 parts={parts} 
                 onAddPart={handleAddPart} 
                 spendByPartData={spendByPartData} 
                 spendByCategoryData={spendByCategoryData}
                 partsPerCategoryData={partsPerCategoryData}
+                onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
               />
             </TabsContent>
-            <TabsContent value="update-suppliers" className="mt-4"> {/* Added mt-4 */}
-              <UpdateSuppliersTab suppliers={suppliers} onAddSupplier={handleAddSupplier} />
+            <TabsContent value="update-suppliers" className="mt-4"> 
+              <UpdateSuppliersTab 
+                suppliers={suppliers} 
+                onAddSupplier={handleAddSupplier} 
+                onOpenUploadDialog={() => setIsSuppliersUploadDialogOpen(true)}
+              />
             </TabsContent>
-            <TabsContent value="part-supplier-mapping" className="mt-4"> {/* Added mt-4 */}
-              <PartSupplierMappingTab parts={parts} suppliers={suppliers} />
+            <TabsContent value="part-supplier-mapping" className="mt-4"> 
+              <PartSupplierMappingTab 
+                parts={parts} 
+                suppliers={suppliers} 
+                partSupplierAssociations={partSupplierAssociations}
+                setPartSupplierAssociations={setPartSupplierAssociations}
+                onOpenUploadDialog={() => setIsSourceMixUploadDialogOpen(true)}
+              />
             </TabsContent>
-            <TabsContent value="upload-part-category" className="mt-4"> {/* Added mt-4 */}
+            <TabsContent value="upload-part-category" className="mt-4"> 
               <UploadPartCategoryTab 
                 parts={parts} 
                 partCategoryMappings={partCategoryMappings} 
@@ -648,7 +722,7 @@ export default function SpendWiseCentralPage() {
                 onOpenUploadDialog={() => setIsCategoryUploadDialogOpen(true)}
               />
             </TabsContent>
-            <TabsContent value="upload-part-commodity" className="mt-4"> {/* Added mt-4 */}
+            <TabsContent value="upload-part-commodity" className="mt-4"> 
               <UploadPartCommodityTab 
                 parts={parts} 
                 partCommodityMappings={partCommodityMappings} 
@@ -656,7 +730,7 @@ export default function SpendWiseCentralPage() {
                 onOpenUploadDialog={() => setIsCommodityUploadDialogOpen(true)}
               />
             </TabsContent>
-            <TabsContent value="summary" className="mt-4"> {/* Added mt-4 */}
+            <TabsContent value="summary" className="mt-4"> 
               <SummaryTab suppliers={suppliers} />
             </TabsContent>
           </Tabs>
@@ -689,12 +763,28 @@ export default function SpendWiseCentralPage() {
           uploadType="commodity"
           isUploading={isUploadingCommodityCsv}
         />
+        <UploadCsvDialog
+          isOpen={isPartsUploadDialogOpen}
+          onClose={() => setIsPartsUploadDialogOpen(false)}
+          onUpload={handleProcessPartsCsv}
+          uploadType="part"
+          isUploading={isUploadingPartsCsv}
+        />
+        <UploadCsvDialog
+          isOpen={isSuppliersUploadDialogOpen}
+          onClose={() => setIsSuppliersUploadDialogOpen(false)}
+          onUpload={handleProcessSuppliersCsv}
+          uploadType="supplier"
+          isUploading={isUploadingSuppliersCsv}
+        />
+        <UploadCsvDialog
+          isOpen={isSourceMixUploadDialogOpen}
+          onClose={() => setIsSourceMixUploadDialogOpen(false)}
+          onUpload={handleProcessSourceMixCsv}
+          uploadType="sourcemix"
+          isUploading={isUploadingSourceMixCsv}
+        />
       </div>
     </TooltipProvider>
   );
 }
-
-
-    
-
-    

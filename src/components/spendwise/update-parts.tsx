@@ -4,7 +4,7 @@ import type { SpendDataPoint, CountDataPoint } from '@/app/page';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FileEdit, ListOrdered, Package, DollarSign, BarChart3, PlusCircle, TrendingUp as TrendingUpIcon, PieChartIcon, Hash, Info } from "lucide-react";
+import { FileEdit, ListOrdered, Package, DollarSign, BarChart3, PlusCircle, TrendingUp as TrendingUpIcon, PieChartIcon, Hash, Info, UploadCloud } from "lucide-react";
 import { Bar, BarChart, Pie, PieChart, Cell, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,6 +16,7 @@ interface UpdatePartsTabProps {
   spendByPartData: SpendDataPoint[];
   spendByCategoryData: SpendDataPoint[];
   partsPerCategoryData: CountDataPoint[];
+  onOpenUploadDialog: () => void;
 }
 
 const spendByPartChartConfig = {
@@ -38,7 +39,7 @@ const partsPerCategoryChartConfig = {
 
 const PIE_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
-export default function UpdatePartsTab({ parts, onAddPart, spendByPartData, spendByCategoryData, partsPerCategoryData }: UpdatePartsTabProps) {
+export default function UpdatePartsTab({ parts, onAddPart, spendByPartData, spendByCategoryData, partsPerCategoryData, onOpenUploadDialog }: UpdatePartsTabProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
   };
@@ -60,7 +61,7 @@ export default function UpdatePartsTab({ parts, onAddPart, spendByPartData, spen
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-xs max-w-xs">Manage individual parts, their pricing, and estimated annual demand. View spend analysis by part and category.</p>
+              <p className="text-xs max-w-xs">Manage individual parts, their pricing, and estimated annual demand. View spend analysis by part and category. Upload parts via CSV.</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -68,14 +69,19 @@ export default function UpdatePartsTab({ parts, onAddPart, spendByPartData, spen
       <CardContent className="grid md:grid-cols-8 gap-6 text-xs">
         <div className="md:col-span-5 space-y-4">
           <section>
-            <h3 className="text-base font-semibold mb-2">Part Management</h3>
-            <div className="mb-3 flex justify-end">
-              <Button onClick={onAddPart} size="sm" className="text-xs">
-                <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add New Part
-              </Button>
+            <div className="flex justify-between items-center mb-1.5">
+              <h3 className="text-base font-semibold">Part Management</h3>
+              <div className="flex items-center gap-2">
+                <Button onClick={onOpenUploadDialog} size="sm" variant="outline" className="text-xs">
+                  <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload Parts CSV
+                </Button>
+                <Button onClick={onAddPart} size="sm" className="text-xs">
+                  <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add New Part
+                </Button>
+              </div>
             </div>
             {parts.length === 0 ? (
-              <p className="text-muted-foreground text-center py-3">No parts available. Generate or add some parts.</p>
+              <p className="text-muted-foreground text-center py-3">No parts available. Generate, add, or upload some parts.</p>
             ) : (
               <ScrollArea className="max-h-80 overflow-x-auto">
                 <Table>

@@ -32,3 +32,9 @@ export interface PartCommodityMapping {
   partId: string;
   commodityName: string;
 }
+
+export interface PartSupplierAssociation {
+  id: string; // Unique ID for the association
+  partId: string;
+  supplierId: string;
+}

@@ -20,7 +20,7 @@ interface UploadCsvDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onUpload: (file: File) => Promise<void>;
-  uploadType: 'category' | 'commodity';
+  uploadType: 'category' | 'commodity' | 'part' | 'supplier' | 'sourcemix';
   isUploading: boolean;
 }
 
@@ -55,9 +55,31 @@ export default function UploadCsvDialog({ isOpen, onClose, onUpload, uploadType,
     }
   };
 
-  const expectedFormat = uploadType === 'category' 
-    ? "Column 1: PartNumber, Column 2: CategoryName" 
-    : "Column 1: PartNumber, Column 2: CommodityName";
+  let dialogTitle = "Upload CSV";
+  let expectedFormat = "";
+  switch(uploadType) {
+    case 'category':
+      dialogTitle = "Upload Part-Category CSV";
+      expectedFormat = "Column 1: PartNumber, Column 2: CategoryName";
+      break;
+    case 'commodity':
+      dialogTitle = "Upload Part-Commodity CSV";
+      expectedFormat = "Column 1: PartNumber, Column 2: CommodityName";
+      break;
+    case 'part':
+      dialogTitle = "Upload Parts CSV";
+      expectedFormat = "Cols: PartNumber, Name, Price, AnnualDemand";
+      break;
+    case 'supplier':
+      dialogTitle = "Upload Suppliers CSV";
+      expectedFormat = "Cols: SupplierId, Name, Description, StreetAddress, City, StateOrProvince, PostalCode, Country";
+      break;
+    case 'sourcemix':
+      dialogTitle = "Upload Source Mix CSV";
+      expectedFormat = "Column 1: PartNumber, Column 2: SupplierId";
+      break;
+  }
+
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
@@ -73,19 +95,18 @@ export default function UploadCsvDialog({ isOpen, onClose, onUpload, uploadType,
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <UploadCloud className="mr-2 h-5 w-5" />
-            Upload {uploadType === 'category' ? 'Part-Category' : 'Part-Commodity'} CSV
+            {dialogTitle}
           </DialogTitle>
           <DialogDescription>
-            Select a .csv file to map parts to {uploadType} names.
-            Ensure your Excel file is saved as CSV. Expected format: <br />
+            Select a .csv file. Ensure your Excel file is saved as CSV. Expected format: <br />
             <strong>{expectedFormat}</strong>
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid items-center gap-1.5">
-            <Label htmlFor="csvFile">CSV File</Label>
+            <Label htmlFor={`csvFile-${uploadType}`}>CSV File</Label>
             <Input
-              id="csvFile"
+              id={`csvFile-${uploadType}`}
               type="file"
               accept=".csv"
               onChange={handleFileChange}
