@@ -1,7 +1,7 @@
 
 "use client"; 
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SummaryTab from "@/components/spendwise/summary-tab";
 import UpdatePartsTab from "@/components/spendwise/update-parts";
@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, BarChartBig, DollarSignIcon, Globe } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartCommodityMapping } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 
@@ -29,7 +29,9 @@ export interface CountDataPoint {
   count: number;
 }
 
-const XML_FILENAME = "SpendByTADADef01.xml";
+const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
+const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
+const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
 
 export default function SpendWiseCentralPage() {
   const { setTheme } = useTheme();
@@ -42,10 +44,8 @@ export default function SpendWiseCentralPage() {
   const [isGeneratingData, setIsGeneratingData] = useState(false);
   const [currentDateString, setCurrentDateString] = useState('');
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
-
-  useEffect(() => {
-    setCurrentDateString(new Date().getFullYear().toString());
-  }, []);
+  const [currentFilename, setCurrentFilename] = useState<string>(DEFAULT_XML_FILENAME);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const escapeXml = useCallback((unsafe: string | number): string => {
     const str = String(unsafe);
@@ -60,6 +60,92 @@ export default function SpendWiseCentralPage() {
       }
     });
   }, []);
+
+  const parseAndSetXmlData = useCallback((xmlString: string, filename: string) => {
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlString, "application/xml");
+      
+      const errorNode = xmlDoc.querySelector("parsererror");
+      if (errorNode) {
+        console.error("XML Parsing Error:", errorNode.textContent);
+        toast({ variant: "destructive", title: "Error Parsing XML", description: "The selected file could not be parsed." });
+        return;
+      }
+
+      const newParts: Part[] = [];
+      xmlDoc.querySelectorAll("Parts Part").forEach(p => {
+        newParts.push({
+          id: p.getAttribute("id") || `p_parsed_${Date.now()}`,
+          partNumber: p.getAttribute("partNumber") || "",
+          name: p.getAttribute("name") || "Unknown Part",
+          price: parseFloat(p.getAttribute("price") || "0"),
+          annualDemand: parseInt(p.getAttribute("annualDemand") || "0", 10),
+        });
+      });
+
+      const newSuppliers: Supplier[] = [];
+      xmlDoc.querySelectorAll("Suppliers Supplier").forEach(s => {
+        newSuppliers.push({
+          id: s.getAttribute("id") || `s_parsed_${Date.now()}`,
+          supplierId: s.getAttribute("supplierId") || "",
+          name: s.getAttribute("name") || "Unknown Supplier",
+          description: s.getAttribute("description") || "",
+          address: s.getAttribute("address") || "",
+          streetAddress: s.getAttribute("streetAddress") || "",
+          city: s.getAttribute("city") || "",
+          stateOrProvince: s.getAttribute("stateOrProvince") || "",
+          postalCode: s.getAttribute("postalCode") || "",
+          country: s.getAttribute("country") || "",
+        });
+      });
+
+      const newPartCategoryMappings: PartCategoryMapping[] = [];
+      xmlDoc.querySelectorAll("PartCategoryMappings Mapping").forEach(m => {
+        newPartCategoryMappings.push({
+          id: m.getAttribute("id") || `pcm_parsed_${Date.now()}`,
+          partId: m.getAttribute("partId") || "",
+          categoryName: m.getAttribute("categoryName") || "Unknown Category",
+        });
+      });
+      
+      const newPartCommodityMappings: PartCommodityMapping[] = [];
+      xmlDoc.querySelectorAll("PartCommodityMappings Mapping").forEach(m => {
+        newPartCommodityMappings.push({
+          id: m.getAttribute("id") || `pcom_parsed_${Date.now()}`,
+          partId: m.getAttribute("partId") || "",
+          commodityName: m.getAttribute("commodityName") || "Unknown Commodity",
+        });
+      });
+
+      setParts(newParts);
+      setSuppliers(newSuppliers);
+      setPartCategoryMappings(newPartCategoryMappings);
+      setPartCommodityMappings(newPartCommodityMappings);
+      setCurrentFilename(filename);
+      
+      toast({ title: "Success", description: `Configuration from "${filename}" loaded.` });
+    } catch (error) {
+      console.error("Error processing XML data:", error);
+      toast({ variant: "destructive", title: "Error Loading Data", description: "Could not process the XML data." });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    setCurrentDateString(new Date().getFullYear().toString());
+
+    const lastLoadedFile = localStorage.getItem(LAST_LOADED_FILENAME_KEY);
+    const filenameToLoad = lastLoadedFile || DEFAULT_XML_FILENAME;
+    
+    const storedXmlData = localStorage.getItem(APP_CONFIG_DATA_KEY_PREFIX + filenameToLoad);
+
+    if (storedXmlData) {
+      parseAndSetXmlData(storedXmlData, filenameToLoad);
+    } else {
+      setCurrentFilename(DEFAULT_XML_FILENAME); // Start with default if nothing is stored
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only on mount
 
   useEffect(() => {
     let xmlString = '<SpendData>\n';
@@ -88,7 +174,14 @@ export default function SpendWiseCentralPage() {
     xmlString += '  </PartCommodityMappings>\n';
     xmlString += '</SpendData>';
     setXmlConfigString(xmlString);
-  }, [parts, suppliers, partCategoryMappings, partCommodityMappings, escapeXml]);
+
+    // Auto-save to localStorage
+    if (currentFilename && typeof window !== 'undefined') {
+        localStorage.setItem(APP_CONFIG_DATA_KEY_PREFIX + currentFilename, xmlString);
+        localStorage.setItem(LAST_LOADED_FILENAME_KEY, currentFilename);
+    }
+
+  }, [parts, suppliers, partCategoryMappings, partCommodityMappings, escapeXml, currentFilename]);
 
   const handleDownloadXml = () => {
     if (!xmlConfigString) {
@@ -99,12 +192,39 @@ export default function SpendWiseCentralPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = XML_FILENAME;
+    a.download = currentFilename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast({ title: "Success", description: `${XML_FILENAME} downloaded.` });
+    toast({ title: "Success", description: `${currentFilename} downloaded.` });
+  };
+
+  const handleLoadButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        if (content) {
+          parseAndSetXmlData(content, file.name);
+          // Clear the file input value to allow loading the same file again
+          if(fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        } else {
+          toast({ variant: "destructive", title: "Error", description: "Could not read file content." });
+        }
+      };
+      reader.onerror = () => {
+        toast({ variant: "destructive", title: "Error", description: "Failed to read the file." });
+      };
+      reader.readAsText(file);
+    }
   };
 
   const handleGenerateData = async (domain: string, numParts: number, numSuppliers: number, numCategories: number, numCommodities: number) => {
@@ -289,6 +409,11 @@ export default function SpendWiseCentralPage() {
             Spend Analysis by !TADA
           </h1>
           <div className="ml-auto flex items-center space-x-2">
+            <span className="text-sm text-muted-foreground mr-2">Source: {currentFilename}</span>
+            <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".xml" style={{ display: 'none' }} />
+            <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
+              <UploadCloud className="h-5 w-5" />
+            </Button>
             <Button variant="outline" size="icon" onClick={handleDownloadXml} aria-label="Download Configuration XML">
               <Download className="h-5 w-5" />
             </Button>
@@ -390,3 +515,4 @@ export default function SpendWiseCentralPage() {
     </div>
   );
 }
+
