@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { FileEdit, Package, DollarSign, BarChart3, PlusCircle, TrendingUp as TrendingUpIcon, PieChartIcon, Hash, Info, UploadCloud, Trash2, ListOrdered, Sigma } from "lucide-react";
+import { Package, DollarSign, BarChart3, PlusCircle, TrendingUp as TrendingUpIcon, PieChartIcon, Hash, Info, FileUp, Trash2, ListOrdered, Sigma } from "lucide-react";
 import { Bar, BarChart, Pie, PieChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -122,12 +122,26 @@ export default function UpdatePartsTab({
             </TooltipContent>
           </Tooltip>
            <div className="ml-auto flex items-center gap-2">
-            <Button onClick={onOpenUploadDialog} size="sm" variant="outline" className="text-xs">
-              <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload Parts CSV
-            </Button>
-            <Button onClick={onAddPart} size="sm" className="text-xs">
-              <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add New Part
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={onOpenUploadDialog} size="icon" variant="outline" aria-label="Upload Parts CSV">
+                  <FileUp className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Upload Parts CSV</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={onAddPart} size="icon" aria-label="Add New Part">
+                  <PlusCircle className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Add New Part</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </CardHeader>
@@ -354,3 +368,5 @@ export default function UpdatePartsTab({
     </Card>
   );
 }
+
+    
