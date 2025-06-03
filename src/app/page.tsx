@@ -15,9 +15,12 @@ import { LogoIcon } from "@/components/icons/logo-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud, PercentCircle, Landmark } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartCommodityMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -63,6 +66,8 @@ export default function SpendWiseCentralPage() {
   const [isSourceMixUploadDialogOpen, setIsSourceMixUploadDialogOpen] = useState(false);
   const [isUploadingSourceMixCsv, setIsUploadingSourceMixCsv] = useState(false);
 
+  const [factoryInventoryOHPercent, setFactoryInventoryOHPercent] = useState(10); // Default 10%
+  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(5); // Default 5%
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
   const [currentFilename, setCurrentFilename] = useState<string>(DEFAULT_XML_FILENAME);
@@ -455,7 +460,8 @@ export default function SpendWiseCentralPage() {
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i];
                 const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
-                if (columns.length < 5) { errors.push(`Row ${i+1}: Not enough columns. Expected PartNumber,Name,Price,AnnualDemand,FreightOhdCost.`); skippedCount++; continue; }
+                if (columns.length < 4) { errors.push(`Row ${i+1}: Not enough columns. Expected PartNumber,Name,Price,AnnualDemand,FreightOhdCost(%).`); skippedCount++; continue; }
+                // Expected PartNumber,Name,Price,AnnualDemand,FreightOhdCost
                 const [partNumber, name, priceStr, annualDemandStr, freightOhdCostStr] = columns;
                 const price = parseFloat(priceStr);
                 const annualDemand = parseInt(annualDemandStr, 10);
@@ -626,11 +632,43 @@ export default function SpendWiseCentralPage() {
         <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
           <div className="container mx-auto flex h-16 items-center space-x-4 px-4 sm:px-6 lg:px-8">
             <LogoIcon className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-headline font-semibold text-foreground">
+            <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
               Spend Analysis by !TADA
             </h1>
+            <div className="flex-grow flex items-center space-x-4 ml-4">
+              <div className="flex items-center space-x-2">
+                <Landmark className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="factoryOHDSlider" className="text-xs text-muted-foreground whitespace-nowrap">Inv. OHD:</Label>
+                <Slider
+                  id="factoryOHDSlider"
+                  min={0}
+                  max={50}
+                  step={1}
+                  value={[factoryInventoryOHPercent]}
+                  onValueChange={(value) => setFactoryInventoryOHPercent(value[0])}
+                  className="w-24 md:w-32"
+                />
+                <span className="text-xs text-foreground w-10 text-right">{factoryInventoryOHPercent}%</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <PercentCircle className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="logisticsCostInput" className="text-xs text-muted-foreground whitespace-nowrap">Logistics:</Label>
+                <Input
+                  id="logisticsCostInput"
+                  type="number"
+                  min={0}
+                  max={50}
+                  step={1}
+                  value={totalLogisticsCostPercent}
+                  onChange={(e) => setTotalLogisticsCostPercent(parseInt(e.target.value, 10) || 0)}
+                  className="h-7 w-16 text-xs"
+                />
+                 <span className="text-xs text-foreground">%</span>
+              </div>
+            </div>
+
             <div className="ml-auto flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground mr-2">Source: {currentFilename}</span>
+              <span className="text-sm text-muted-foreground mr-2 hidden md:inline">Source: {currentFilename}</span>
               <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".xml" style={{ display: 'none' }} />
               <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
                 <UploadCloud className="h-5 w-5" />
@@ -809,3 +847,5 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
+
+    
