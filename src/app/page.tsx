@@ -13,6 +13,7 @@ import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import { LogoIcon } from "@/components/icons/logo-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud } from "lucide-react";
@@ -34,7 +35,7 @@ const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
 
 export default function SpendWiseCentralPage() {
-  const { setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [parts, setParts] = useState<Part[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -420,15 +421,28 @@ export default function SpendWiseCentralPage() {
             <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} aria-label="Generate Sample Data" disabled={isGeneratingData}>
               {isGeneratingData ? <Loader2 className="h-5 w-5 animate-spin" /> : <ToyBrick className="h-5 w-5" />}
             </Button>
-            <Button variant="outline" size="icon" onClick={() => setTheme('light')} aria-label="Light mode">
-              <Sun className="h-5 w-5" />
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => setTheme('dark')} aria-label="Dark mode">
-              <Moon className="h-5 w-5" />
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => setTheme('tada')} aria-label="Tada mode">
-              <Sparkles className="h-5 w-5" />
-            </Button>
+            <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
+              <SelectTrigger className="w-[120px]" aria-label="Select Theme">
+                <SelectValue placeholder="Select Theme" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="light">
+                  <div className="flex items-center">
+                    <Sun className="mr-2 h-4 w-4" /> Light
+                  </div>
+                </SelectItem>
+                <SelectItem value="dark">
+                  <div className="flex items-center">
+                    <Moon className="mr-2 h-4 w-4" /> Dark
+                  </div>
+                </SelectItem>
+                <SelectItem value="tada">
+                  <div className="flex items-center">
+                    <Sparkles className="mr-2 h-4 w-4" /> Tada
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </header>
@@ -515,4 +529,3 @@ export default function SpendWiseCentralPage() {
     </div>
   );
 }
-
