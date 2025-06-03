@@ -12,9 +12,13 @@ export interface Supplier {
   supplierId: string;
   name: string;
   description: string;
-  address: string; // This could be a more general address line
+  streetAddress: string;
   city: string;
+  stateOrProvince: string;
+  postalCode: string;
   country: string;
+  // The 'address' field will be a concatenation of the above for display/XML
+  address: string; 
 }
 
 export interface PartCategoryMapping {

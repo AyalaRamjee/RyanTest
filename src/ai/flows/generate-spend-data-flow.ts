@@ -19,7 +19,10 @@ const PartSchema = z.object({
 const SupplierSchema = z.object({
   name: z.string().describe("The name of the supplier company."),
   description: z.string().describe("A brief description of the supplier."),
+  streetAddress: z.string().describe("A realistic street address for the supplier's main operations."),
   city: z.string().describe("A realistic city for the supplier's location, relevant to the domain and global in nature."),
+  stateOrProvince: z.string().describe("A realistic state, province, or region for the supplier's location."),
+  postalCode: z.string().describe("A realistic postal or ZIP code for the supplier's location."),
   country: z.string().describe("A realistic country for the supplier's location, relevant to the domain and global in nature."),
 });
 
@@ -34,7 +37,7 @@ export type GenerateSpendDataInput = z.infer<typeof GenerateSpendDataInputSchema
 
 const GenerateSpendDataOutputSchema = z.object({
   parts: z.array(PartSchema).describe("An array of generated parts."),
-  suppliers: z.array(SupplierSchema).describe("An array of generated suppliers, each with a realistic global city and country."),
+  suppliers: z.array(SupplierSchema).describe("An array of generated suppliers, each with a realistic global street address, city, state/province, postal code, and country."),
   categories: z.array(z.string()).describe("An array of generated category names."),
   commodities: z.array(z.string()).describe("An array of generated commodity names."),
 });
@@ -60,7 +63,10 @@ Please generate the following:
 2.  Exactly {{{numSuppliers}}} unique suppliers. Each supplier MUST have:
     *   A 'name'.
     *   A short 'description' of their business, relevant to the domain.
+    *   A realistic 'streetAddress' for their main operations.
     *   A realistic 'city' for their main operations.
+    *   A realistic 'stateOrProvince' for their location.
+    *   A realistic 'postalCode' for their location.
     *   A realistic 'country' for their main operations. Aim for a global distribution of supplier locations.
 3.  Exactly {{{numCategories}}} unique part category names relevant to the domain. These should be general classifications for parts.
 4.  Exactly {{{numCommodities}}} unique commodity names relevant to the domain. These should be raw materials or basic production items.

@@ -66,7 +66,7 @@ export default function SpendWiseCentralPage() {
 
     xmlString += '  <Suppliers>\n';
     suppliers.forEach(s => {
-      xmlString += `    <Supplier id="${escapeXml(s.id)}" supplierId="${escapeXml(s.supplierId)}" name="${escapeXml(s.name)}" description="${escapeXml(s.description)}" address="${escapeXml(s.address)}" city="${escapeXml(s.city)}" country="${escapeXml(s.country)}" />\n`;
+      xmlString += `    <Supplier id="${escapeXml(s.id)}" supplierId="${escapeXml(s.supplierId)}" name="${escapeXml(s.name)}" description="${escapeXml(s.description)}" address="${escapeXml(s.address)}" streetAddress="${escapeXml(s.streetAddress)}" city="${escapeXml(s.city)}" stateOrProvince="${escapeXml(s.stateOrProvince)}" postalCode="${escapeXml(s.postalCode)}" country="${escapeXml(s.country)}" />\n`;
     });
     xmlString += '  </Suppliers>\n';
 
@@ -136,15 +136,21 @@ export default function SpendWiseCentralPage() {
         }
       });
 
-      const newSuppliers: Supplier[] = generatedData.suppliers.map((s, i) => ({
-        id: `s${Date.now()}${i}`,
-        supplierId: `#S${String(i + 1).padStart(2, '0')}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
-        name: s.name,
-        description: s.description,
-        address: `${Math.floor(Math.random() * 900) + 100} Global Trade Way, ${s.city}`, // Using AI city
-        city: s.city,
-        country: s.country,
-      }));
+      const newSuppliers: Supplier[] = generatedData.suppliers.map((s, i) => {
+        const fullAddress = `${s.streetAddress}, ${s.city}, ${s.stateOrProvince} ${s.postalCode}, ${s.country}`;
+        return {
+          id: `s${Date.now()}${i}`,
+          supplierId: `#S${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + ((i+5) % 26))}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
+          name: s.name,
+          description: s.description,
+          streetAddress: s.streetAddress,
+          city: s.city,
+          stateOrProvince: s.stateOrProvince,
+          postalCode: s.postalCode,
+          country: s.country,
+          address: fullAddress,
+        };
+      });
 
       setParts(newParts);
       setSuppliers(newSuppliers);
@@ -175,23 +181,27 @@ export default function SpendWiseCentralPage() {
     const defaultCategory = partCategoryMappings.length > 0 ? partCategoryMappings[0].categoryName : "Default Category";
     const defaultCommodity = partCommodityMappings.length > 0 ? partCommodityMappings[0].commodityName : "Default Commodity";
     
-    if (parts.length === 0 || partCategoryMappings.some(m => m.partId !== newPartId)) {
+    if (parts.length === 0 || !partCategoryMappings.some(m => m.partId === newPartId)) {
         setPartCategoryMappings(prev => [...prev, { id: `pcm${Date.now()}_manual`, partId: newPartId, categoryName: defaultCategory}]);
     }
-    if (parts.length === 0 || partCommodityMappings.some(m => m.partId !== newPartId)) {
+    if (parts.length === 0 || !partCommodityMappings.some(m => m.partId === newPartId)) {
         setPartCommodityMappings(prev => [...prev, { id: `pcom${Date.now()}_manual`, partId: newPartId, commodityName: defaultCommodity}]);
     }
   };
 
   const handleAddSupplier = () => {
+    const i = suppliers.length;
     const newSupplier: Supplier = {
       id: `s${Date.now()}_manual`,
-      supplierId: `#S${String(suppliers.length + 1).padStart(2, '0')}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
+      supplierId: `#S${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + ((i+3) % 26))}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
       name: "New Custom Supplier",
       description: "Supplier description",
-      address: "Supplier address",
-      city: "Unknown City",
-      country: "Unknown Country",
+      streetAddress: "123 Main St",
+      city: "Anytown",
+      stateOrProvince: "CA",
+      postalCode: "90210",
+      country: "USA",
+      address: "123 Main St, Anytown, CA 90210, USA",
     };
     setSuppliers(prev => [...prev, newSupplier]);
   };
@@ -300,11 +310,8 @@ export default function SpendWiseCentralPage() {
           </div>
         </section>
 
-        <Tabs defaultValue="summary" className="w-full">
+        <Tabs defaultValue="update-parts" className="w-full">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 mb-6">
-             <TabsTrigger value="summary" className="flex items-center gap-2">
-              <BarChartBig className="h-4 w-4" /> 0. Summary
-            </TabsTrigger>
             <TabsTrigger value="update-parts" className="flex items-center gap-2">
               <Package className="h-4 w-4" /> 1. Parts
             </TabsTrigger>
@@ -320,11 +327,11 @@ export default function SpendWiseCentralPage() {
             <TabsTrigger value="upload-part-commodity" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" /> 5. Part Commodity
             </TabsTrigger>
+            <TabsTrigger value="summary" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" /> 6. Summary
+            </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="summary">
-            <SummaryTab suppliers={suppliers} />
-          </TabsContent>
           <TabsContent value="update-parts">
             <UpdatePartsTab parts={parts} onAddPart={handleAddPart} spendData={spendByPartData} />
           </TabsContent>
@@ -339,6 +346,9 @@ export default function SpendWiseCentralPage() {
           </TabsContent>
           <TabsContent value="upload-part-commodity">
             <UploadPartCommodityTab parts={parts} partCommodityMappings={partCommodityMappings} spendData={spendByCommodityData} />
+          </TabsContent>
+          <TabsContent value="summary">
+            <SummaryTab suppliers={suppliers} />
           </TabsContent>
         </Tabs>
       </main>
