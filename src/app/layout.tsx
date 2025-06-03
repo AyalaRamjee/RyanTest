@@ -5,8 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/context/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'SpendWise Central',
-  description: 'Spend Management Application',
+  title: 'Spend Analysis by !TADA',
+  description: 'Spend Management Application for !TADA',
 };
 
 export default function RootLayout({
