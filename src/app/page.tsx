@@ -24,6 +24,11 @@ export interface SpendDataPoint {
   spend: number;
 }
 
+export interface CountDataPoint {
+  name: string;
+  count: number;
+}
+
 const XML_FILENAME = "SpendByTADADef01.xml";
 
 export default function SpendWiseCentralPage() {
@@ -250,6 +255,16 @@ export default function SpendWiseCentralPage() {
       .sort((a,b) => b.spend - a.spend);
   }, [parts, partCategoryMappings]);
 
+  const partsPerCategoryData: CountDataPoint[] = useMemo(() => {
+    const categoryCounts: Record<string, number> = {};
+    partCategoryMappings.forEach(mapping => {
+      categoryCounts[mapping.categoryName] = (categoryCounts[mapping.categoryName] || 0) + 1;
+    });
+    return Object.entries(categoryCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [partCategoryMappings]);
+
   const spendByCommodityData: SpendDataPoint[] = useMemo(() => {
     const commoditySpend: Record<string, number> = {};
     partCommodityMappings.forEach(mapping => {
@@ -333,7 +348,13 @@ export default function SpendWiseCentralPage() {
           </TabsList>
           
           <TabsContent value="update-parts">
-            <UpdatePartsTab parts={parts} onAddPart={handleAddPart} spendData={spendByPartData} />
+            <UpdatePartsTab 
+              parts={parts} 
+              onAddPart={handleAddPart} 
+              spendByPartData={spendByPartData} 
+              spendByCategoryData={spendByCategoryData}
+              partsPerCategoryData={partsPerCategoryData}
+            />
           </TabsContent>
           <TabsContent value="update-suppliers">
             <UpdateSuppliersTab suppliers={suppliers} onAddSupplier={handleAddSupplier} />
@@ -342,7 +363,12 @@ export default function SpendWiseCentralPage() {
             <PartSupplierMappingTab parts={parts} suppliers={suppliers} />
           </TabsContent>
           <TabsContent value="upload-part-category">
-            <UploadPartCategoryTab parts={parts} partCategoryMappings={partCategoryMappings} spendData={spendByCategoryData} />
+            <UploadPartCategoryTab 
+              parts={parts} 
+              partCategoryMappings={partCategoryMappings} 
+              spendByCategoryData={spendByCategoryData}
+              partsPerCategoryData={partsPerCategoryData} 
+            />
           </TabsContent>
           <TabsContent value="upload-part-commodity">
             <UploadPartCommodityTab parts={parts} partCommodityMappings={partCommodityMappings} spendData={spendByCommodityData} />
