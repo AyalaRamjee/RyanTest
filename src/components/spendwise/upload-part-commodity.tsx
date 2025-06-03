@@ -3,7 +3,6 @@ import type { Part, PartCommodityMapping } from '@/types/spendwise';
 import type { SpendDataPoint } from '@/app/page';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { UploadCloud, TrendingUp, List } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -13,6 +12,7 @@ interface UploadPartCommodityTabProps {
   parts: Part[];
   partCommodityMappings: PartCommodityMapping[];
   spendData: SpendDataPoint[];
+  onOpenUploadDialog: () => void;
 }
 
 const chartConfig = {
@@ -22,7 +22,7 @@ const chartConfig = {
   },
 } satisfies import("@/components/ui/chart").ChartConfig;
 
-export default function UploadPartCommodityTab({ parts, partCommodityMappings, spendData }: UploadPartCommodityTabProps) {
+export default function UploadPartCommodityTab({ parts, partCommodityMappings, spendData, onOpenUploadDialog }: UploadPartCommodityTabProps) {
    const getPartName = (partId: string) => {
     const part = parts.find(p => p.id === partId);
     return part ? part.name : 'Unknown Part';
@@ -36,26 +36,19 @@ export default function UploadPartCommodityTab({ parts, partCommodityMappings, s
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center text-lg"><TrendingUp className="mr-2 h-5 w-5" /> Part Commodity Management</CardTitle>
-        <CardDescription>Upload part commodity index data or view AI-generated mappings. Analyze spend by commodity.</CardDescription>
+        <CardDescription>Upload part commodity data (CSV) or view AI-generated mappings. Analyze spend by commodity.</CardDescription>
       </CardHeader>
       <CardContent className="grid md:grid-cols-8 gap-6 text-xs">
         <div className="md:col-span-5 space-y-4">
           <section>
-            <h3 className="text-base font-semibold mb-1.5">Upload Data</h3>
-            <div className="space-y-1.5 p-3 border rounded-md shadow-sm bg-muted/20">
-              <label htmlFor="partCommodityFile" className="text-xs font-medium">Choose file for Part-Commodity mapping</label>
-              <Input id="partCommodityFile" type="file" className="text-xs file:text-xs file:font-medium file:text-primary file:bg-primary-foreground hover:file:bg-accent/20 h-9"/>
-              <p className="text-[10px] text-muted-foreground">Supported formats: .csv, .xlsx. Ensure columns for Part ID/Number and Commodity Name.</p>
-              <Button size="sm" className="w-full sm:w-auto mt-1.5 text-xs">
-                <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload File
+             <div className="flex justify-between items-center mb-1.5">
+              <h3 className="text-base font-semibold flex items-center">
+                <List className="mr-1.5 h-4 w-4" /> Current Part Commodity Mappings
+              </h3>
+              <Button onClick={onOpenUploadDialog} size="sm" variant="outline" className="text-xs">
+                <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload CSV
               </Button>
             </div>
-          </section>
-
-          <section className="mt-4 pt-4 border-t">
-            <h3 className="text-base font-semibold mb-1.5 flex items-center">
-              <List className="mr-1.5 h-4 w-4" /> Current Part Commodity Mappings
-            </h3>
             {partCommodityMappings.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-3">No commodity mappings available. Generate data or upload a file.</p>
             ) : (

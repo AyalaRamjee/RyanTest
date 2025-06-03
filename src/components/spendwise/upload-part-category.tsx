@@ -3,17 +3,18 @@ import type { Part, PartCategoryMapping } from '@/types/spendwise';
 import type { SpendDataPoint, CountDataPoint } from '@/app/page';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { UploadCloud, FolderTree, List, TrendingUp as TrendingUpIcon, PieChartIcon, Hash } from "lucide-react";
+import { UploadCloud, FolderTree, List, PieChartIcon, Hash } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bar, BarChart, Pie, PieChart, Cell, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Pie, PieChart, Cell, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 interface UploadPartCategoryTabProps {
   parts: Part[];
   partCategoryMappings: PartCategoryMapping[];
   spendByCategoryData: SpendDataPoint[];
   partsPerCategoryData: CountDataPoint[];
+  onOpenUploadDialog: () => void;
 }
 
 const spendByCategoryChartConfig = {
@@ -30,7 +31,7 @@ const partsPerCategoryChartConfig = {
 const PIE_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
 
-export default function UploadPartCategoryTab({ parts, partCategoryMappings, spendByCategoryData, partsPerCategoryData }: UploadPartCategoryTabProps) {
+export default function UploadPartCategoryTab({ parts, partCategoryMappings, spendByCategoryData, partsPerCategoryData, onOpenUploadDialog }: UploadPartCategoryTabProps) {
   const getPartName = (partId: string) => {
     const part = parts.find(p => p.id === partId);
     return part ? part.name : 'Unknown Part';
@@ -48,26 +49,19 @@ export default function UploadPartCategoryTab({ parts, partCategoryMappings, spe
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center text-lg"><FolderTree className="mr-2 h-5 w-5" /> Part Category Management</CardTitle>
-        <CardDescription>Upload part category data or view AI-generated mappings. Analyze spend and part distribution by category.</CardDescription>
+        <CardDescription>Upload part category data (CSV) or view AI-generated mappings. Analyze spend and part distribution by category.</CardDescription>
       </CardHeader>
       <CardContent className="grid md:grid-cols-8 gap-6 text-xs">
         <div className="md:col-span-5 space-y-4">
           <section>
-            <h3 className="text-base font-semibold mb-1.5">Upload Data</h3>
-            <div className="space-y-1.5 p-3 border rounded-md shadow-sm bg-muted/20">
-              <label htmlFor="partCategoryFile" className="text-xs font-medium">Choose file for Part-Category mapping</label>
-              <Input id="partCategoryFile" type="file" className="text-xs file:text-xs file:font-medium file:text-primary file:bg-primary-foreground hover:file:bg-accent/20 h-9"/>
-              <p className="text-[10px] text-muted-foreground">Supported formats: .csv, .xlsx. Ensure columns for Part ID/Number and Category Name.</p>
-              <Button size="sm" className="w-full sm:w-auto mt-1.5 text-xs">
-                <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload File
+            <div className="flex justify-between items-center mb-1.5">
+              <h3 className="text-base font-semibold flex items-center">
+                <List className="mr-1.5 h-4 w-4" /> Current Part Category Mappings
+              </h3>
+              <Button onClick={onOpenUploadDialog} size="sm" variant="outline" className="text-xs">
+                <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload CSV
               </Button>
             </div>
-          </section>
-          
-          <section className="mt-4 pt-4 border-t">
-            <h3 className="text-base font-semibold mb-1.5 flex items-center">
-              <List className="mr-1.5 h-4 w-4" /> Current Part Category Mappings
-            </h3>
             {partCategoryMappings.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-3">No category mappings available. Generate data or upload a file.</p>
             ) : (
