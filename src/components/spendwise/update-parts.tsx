@@ -1,19 +1,18 @@
 
 "use client";
 
-import type { Part } from '@/types/spendwise';
+import type { Part, Supplier, PartSupplierAssociation } from '@/types/spendwise'; // Added Supplier, PartSupplierAssociation
 import type { SpendDataPoint, CountDataPoint } from '@/app/page';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Package, DollarSign, BarChart3, PlusCircle, TrendingUp as TrendingUpIcon, PieChartIcon, Hash, Info, FileUp, Trash2, ListOrdered, Sigma } from "lucide-react";
-import { Bar, BarChart, Pie, PieChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer } from 'recharts';
+import { Package, DollarSign, PieChartIcon, Hash, Info, FileUp, Trash2, Sigma, PlusCircle } from "lucide-react";
+import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react'; // Added useCallback
 
 interface UpdatePartsTabProps {
   parts: Part[];
@@ -23,8 +22,11 @@ interface UpdatePartsTabProps {
   spendByCategoryData: SpendDataPoint[];
   partsPerCategoryData: CountDataPoint[];
   onOpenUploadDialog: () => void;
-  factoryInventoryOHPercent: number; // Added for cumulative spend display
-  totalLogisticsCostPercent: number; // Added for cumulative spend display
+  tariffChargePercent: number; 
+  totalLogisticsCostPercent: number;
+  suppliers: Supplier[]; 
+  partSupplierAssociations: PartSupplierAssociation[];
+  homeCountry: string;
 }
 
 const spendByPartChartConfig = {
@@ -55,8 +57,11 @@ export default function UpdatePartsTab({
   spendByCategoryData, 
   partsPerCategoryData, 
   onOpenUploadDialog,
-  factoryInventoryOHPercent,
+  tariffChargePercent,
   totalLogisticsCostPercent,
+  suppliers: allSuppliers, // Renamed for clarity within component
+  partSupplierAssociations: allPartSupplierAssociations, // Renamed
+  homeCountry
 }: UpdatePartsTabProps) {
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
 
@@ -86,7 +91,7 @@ export default function UpdatePartsTab({
       })
     );
   };
-
+  
   const handleAnnualDemandChange = (partId: string, rawValue: string) => {
     const cleanedValue = rawValue.replace(/,/g, '');
     if (cleanedValue === '') {
@@ -114,16 +119,28 @@ export default function UpdatePartsTab({
 
   const totalPartsCount = useMemo(() => parts.length, [parts]);
 
+  const calculateSpendForSummary = useCallback((part: Part): number => {
+    let isImported = false;
+    const associationsForPart = allPartSupplierAssociations.filter(assoc => assoc.partId === part.id);
+    if (associationsForPart.length > 0) {
+        isImported = associationsForPart.some(assoc => {
+            const supplier = allSuppliers.find(s => s.id === assoc.supplierId);
+            return supplier && supplier.country !== homeCountry;
+        });
+    }
+
+    const tariffMultiplier = isImported ? (1 + tariffChargePercent / 100) : 1;
+    const logisticsRateMultiplier = totalLogisticsCostPercent / 100;
+
+    const finalPrice = part.price * tariffMultiplier;
+    const finalFreightOhdRate = part.freightOhdCost * logisticsRateMultiplier;
+
+    return finalPrice * part.annualDemand * (1 + finalFreightOhdRate);
+  }, [tariffChargePercent, totalLogisticsCostPercent, allSuppliers, allPartSupplierAssociations, homeCountry]);
+
   const cumulativeSpend = useMemo(() => {
-    const inventoryMultiplier = factoryInventoryOHPercent / 100;
-    const logisticsMultiplier = totalLogisticsCostPercent / 100;
-    return parts.reduce((sum, p) => {
-      const effectivePrice = p.price * inventoryMultiplier;
-      const effectiveFreightOhdRate = p.freightOhdCost * logisticsMultiplier;
-      const totalUnitCost = effectivePrice * (1 + effectiveFreightOhdRate);
-      return sum + (totalUnitCost * p.annualDemand);
-    }, 0);
-  }, [parts, factoryInventoryOHPercent, totalLogisticsCostPercent]);
+    return parts.reduce((sum, p) => sum + calculateSpendForSummary(p), 0);
+  }, [parts, calculateSpendForSummary]);
 
   const cumulativeVolume = useMemo(() => {
     return parts.reduce((sum, p) => sum + p.annualDemand, 0);
@@ -177,7 +194,7 @@ export default function UpdatePartsTab({
             <div className="flex-1 min-w-[120px]">Part Name</div>
             <div className="w-24 text-right">Base Cost</div>
             <div className="w-28 text-right">Annual Volume</div>
-            <div className="w-28 text-right">Freight & OHD</div>
+            <div className="w-28 text-right">Freight & OHD %</div>
             <div className="w-10"> {/* Spacer for delete */} </div>
           </div>
 
@@ -262,15 +279,14 @@ export default function UpdatePartsTab({
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center">
-                <TrendingUpIcon className="mr-1.5 h-4 w-4" />
-                Spend by Part
+                 Part Spend Analysis {/* Reverted from TrendingUpIcon for simplicity as per last successful state */}
               </CardTitle>
                <Tooltip>
                 <TooltipTrigger asChild>
                    <span className="text-xs text-muted-foreground cursor-default flex items-center">Top 10 parts by spend <Info className="ml-1 h-3 w-3" /></span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Top 10 parts by calculated spend (Price x Demand x Modifiers).</p>
+                  <p className="text-xs">Top 10 parts by calculated spend (Base Cost x Annual Volume, adjusted by Tariff & Logistics).</p>
                 </TooltipContent>
               </Tooltip>
             </CardHeader>
@@ -305,7 +321,7 @@ export default function UpdatePartsTab({
                    <span className="text-xs text-muted-foreground cursor-default flex items-center">Spend distribution <Info className="ml-1 h-3 w-3" /></span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Distribution of spend across part categories (Price x Demand x Modifiers).</p>
+                  <p className="text-xs">Distribution of spend across part categories (Adjusted by Tariff & Logistics).</p>
                 </TooltipContent>
               </Tooltip>
             </CardHeader>
@@ -392,6 +408,3 @@ export default function UpdatePartsTab({
   );
 }
 
-    
-
-    

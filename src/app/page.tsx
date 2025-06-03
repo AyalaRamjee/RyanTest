@@ -15,12 +15,11 @@ import { LogoIcon } from "@/components/icons/logo-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud, PercentCircle, Landmark } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud, PercentCircle, Shield } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartCommodityMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -38,6 +37,7 @@ export interface CountDataPoint {
 const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
+const HOME_COUNTRY = "USA"; // Define a home country for tariff calculations
 
 const HEADER_HEIGHT_PX = 64;
 const SUMMARY_STATS_HEIGHT_PX = 122; 
@@ -66,7 +66,7 @@ export default function SpendWiseCentralPage() {
   const [isSourceMixUploadDialogOpen, setIsSourceMixUploadDialogOpen] = useState(false);
   const [isUploadingSourceMixCsv, setIsUploadingSourceMixCsv] = useState(false);
 
-  const [factoryInventoryOHPercent, setFactoryInventoryOHPercent] = useState(100); // Default 100% (no change)
+  const [tariffChargePercent, setTariffChargePercent] = useState(10); // Default 10%
   const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100); // Default 100% (no change)
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
@@ -561,17 +561,34 @@ export default function SpendWiseCentralPage() {
   const totalCategories = useMemo(() => new Set(partCategoryMappings.map(m => m.categoryName)).size, [partCategoryMappings]);
   const totalCommodities = useMemo(() => new Set(partCommodityMappings.map(m => m.commodityName)).size, [partCommodityMappings]);
 
-  const calculateSpend = (part: Part) => {
-    const inventoryMultiplier = factoryInventoryOHPercent / 100;
-    const logisticsMultiplier = totalLogisticsCostPercent / 100;
-    const effectivePrice = part.price * inventoryMultiplier;
-    const effectiveFreightOhdRate = part.freightOhdCost * logisticsMultiplier;
-    return effectivePrice * part.annualDemand * (1 + effectiveFreightOhdRate);
-  };
+  const calculateSpendForPart = useCallback((
+    part: Part,
+    currentTariffChargePercent: number,
+    currentTotalLogisticsCostPercent: number,
+    allSuppliers: Supplier[],
+    allPartSupplierAssociations: PartSupplierAssociation[]
+  ): number => {
+    let isImported = false;
+    const associationsForPart = allPartSupplierAssociations.filter(assoc => assoc.partId === part.id);
+    if (associationsForPart.length > 0) {
+        isImported = associationsForPart.some(assoc => {
+            const supplier = allSuppliers.find(s => s.id === assoc.supplierId);
+            return supplier && supplier.country !== HOME_COUNTRY;
+        });
+    }
+
+    const tariffMultiplier = isImported ? (1 + currentTariffChargePercent / 100) : 1;
+    const logisticsRateMultiplier = currentTotalLogisticsCostPercent / 100; 
+
+    const finalPrice = part.price * tariffMultiplier;
+    const finalFreightOhdRate = part.freightOhdCost * logisticsRateMultiplier;
+
+    return finalPrice * part.annualDemand * (1 + finalFreightOhdRate);
+  }, []);
   
   const totalAnnualSpend = useMemo(() => {
-    return parts.reduce((sum, p) => sum + calculateSpend(p), 0);
-  }, [parts, factoryInventoryOHPercent, totalLogisticsCostPercent]);
+    return parts.reduce((sum, p) => sum + calculateSpendForPart(p, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations), 0);
+  }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
 
   const formatCurrencyDisplay = (value: number) => {
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
@@ -591,23 +608,23 @@ export default function SpendWiseCentralPage() {
   const spendByPartData: SpendDataPoint[] = useMemo(() => {
     return parts.map(part => ({
       name: part.partNumber,
-      spend: calculateSpend(part),
+      spend: calculateSpendForPart(part, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations),
     })).sort((a,b) => b.spend - a.spend).slice(0,10);
-  }, [parts, factoryInventoryOHPercent, totalLogisticsCostPercent]);
+  }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
 
   const spendByCategoryData: SpendDataPoint[] = useMemo(() => {
     const categorySpend: Record<string, number> = {};
     partCategoryMappings.forEach(mapping => {
       const part = parts.find(p => p.id === mapping.partId);
       if (part) {
-        const spend = calculateSpend(part);
+        const spend = calculateSpendForPart(part, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations);
         categorySpend[mapping.categoryName] = (categorySpend[mapping.categoryName] || 0) + spend;
       }
     });
     return Object.entries(categorySpend)
       .map(([name, spend]) => ({ name, spend }))
       .sort((a,b) => b.spend - a.spend);
-  }, [parts, partCategoryMappings, factoryInventoryOHPercent, totalLogisticsCostPercent]);
+  }, [parts, partCategoryMappings, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
 
   const partsPerCategoryData: CountDataPoint[] = useMemo(() => {
     const categoryCounts: Record<string, number> = {};
@@ -624,14 +641,14 @@ export default function SpendWiseCentralPage() {
     partCommodityMappings.forEach(mapping => {
       const part = parts.find(p => p.id === mapping.partId);
       if (part) {
-        const spend = calculateSpend(part);
+        const spend = calculateSpendForPart(part, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations);
         commoditySpend[mapping.commodityName] = (commoditySpend[mapping.commodityName] || 0) + spend;
       }
     });
     return Object.entries(commoditySpend)
       .map(([name, spend]) => ({ name, spend }))
       .sort((a,b) => b.spend - a.spend);
-  }, [parts, partCommodityMappings, factoryInventoryOHPercent, totalLogisticsCostPercent]);
+  }, [parts, partCommodityMappings, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
 
 
   return (
@@ -645,18 +662,19 @@ export default function SpendWiseCentralPage() {
             </h1>
             <div className="flex-grow flex items-center space-x-4 ml-4">
               <div className="flex items-center space-x-2">
-                <Landmark className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="factoryOHDSlider" className="text-xs text-muted-foreground whitespace-nowrap">Inv. OHD:</Label>
-                <Slider
-                  id="factoryOHDSlider"
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="tariffChargeInput" className="text-xs text-muted-foreground whitespace-nowrap">Tariff:</Label>
+                <Input
+                  id="tariffChargeInput"
+                  type="number"
                   min={0}
-                  max={200}
+                  max={100}
                   step={1}
-                  value={[factoryInventoryOHPercent]}
-                  onValueChange={(value) => setFactoryInventoryOHPercent(value[0])}
-                  className="w-24 md:w-32"
+                  value={tariffChargePercent}
+                  onChange={(e) => setTariffChargePercent(parseInt(e.target.value, 10) || 0)}
+                  className="h-7 w-16 text-xs"
                 />
-                <span className="text-xs text-foreground w-10 text-right">{factoryInventoryOHPercent}%</span>
+                <span className="text-xs text-foreground">%</span>
               </div>
               <div className="flex items-center space-x-2">
                 <PercentCircle className="h-4 w-4 text-muted-foreground" />
@@ -676,7 +694,6 @@ export default function SpendWiseCentralPage() {
             </div>
 
             <div className="ml-auto flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground mr-2 hidden md:inline">Source: {currentFilename}</span>
               <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".xml" style={{ display: 'none' }} />
               <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
                 <UploadCloud className="h-5 w-5" />
@@ -761,8 +778,11 @@ export default function SpendWiseCentralPage() {
                 spendByCategoryData={spendByCategoryData}
                 partsPerCategoryData={partsPerCategoryData}
                 onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
-                factoryInventoryOHPercent={factoryInventoryOHPercent}
+                tariffChargePercent={tariffChargePercent}
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
+                suppliers={suppliers}
+                partSupplierAssociations={partSupplierAssociations}
+                homeCountry={HOME_COUNTRY}
               />
             </TabsContent>
             <TabsContent value="update-suppliers" className="mt-4"> 
@@ -858,4 +878,3 @@ export default function SpendWiseCentralPage() {
   );
 }
 
-    
