@@ -12,7 +12,9 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const PartSchema = z.object({
-  partNumber: z.string().describe("The unique part number, strictly in '###AAA####' format (e.g., 123ABC4567). Letters must be uppercase."),
+  partNumber: z.string()
+    .regex(/^\d{3}[A-Z]{3}\d{4}$/, "Part number must be in the format ###AAA#### (e.g., 123ABC4567) with uppercase letters.")
+    .describe("The unique part number, strictly in '###AAA####' format (e.g., 123ABC4567). Letters must be uppercase."),
   name: z.string().describe("The descriptive name of the part."),
 });
 
@@ -86,12 +88,7 @@ const spendDataGenerationFlow = ai.defineFlow(
     if (!output) {
       throw new Error("AI failed to generate valid data.");
     }
-    // Basic validation for part number format
-    output.parts.forEach(part => {
-      if (!/^\d{3}[A-Z]{3}\d{4}$/.test(part.partNumber)) {
-        console.warn(`Generated part number ${part.partNumber} does not match format ###AAA####. AI may need prompt adjustment.`);
-      }
-    });
     return output;
   }
 );
+
