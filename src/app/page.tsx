@@ -455,7 +455,6 @@ export default function SpendWiseCentralPage() {
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i];
                 const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
-                // PartNumber,Name,Price,AnnualDemand,FreightOhdCost
                 if (columns.length < 5) { errors.push(`Row ${i+1}: Not enough columns. Expected PartNumber,Name,Price,AnnualDemand,FreightOhdCost.`); skippedCount++; continue; }
                 const [partNumber, name, priceStr, annualDemandStr, freightOhdCostStr] = columns;
                 const price = parseFloat(priceStr);
@@ -721,6 +720,7 @@ export default function SpendWiseCentralPage() {
             <TabsContent value="update-suppliers" className="mt-4"> 
               <UpdateSuppliersTab 
                 suppliers={suppliers} 
+                setSuppliers={setSuppliers}
                 onAddSupplier={handleAddSupplier} 
                 onOpenUploadDialog={() => setIsSuppliersUploadDialogOpen(true)}
               />
@@ -809,5 +809,3 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
-
-    
