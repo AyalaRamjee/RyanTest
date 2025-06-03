@@ -66,8 +66,8 @@ export default function SpendWiseCentralPage() {
   const [isSourceMixUploadDialogOpen, setIsSourceMixUploadDialogOpen] = useState(false);
   const [isUploadingSourceMixCsv, setIsUploadingSourceMixCsv] = useState(false);
 
-  const [factoryInventoryOHPercent, setFactoryInventoryOHPercent] = useState(10); // Default 10%
-  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(5); // Default 5%
+  const [factoryInventoryOHPercent, setFactoryInventoryOHPercent] = useState(100); // Default 100% (no change)
+  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100); // Default 100% (no change)
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
   const [currentFilename, setCurrentFilename] = useState<string>(DEFAULT_XML_FILENAME);
@@ -461,11 +461,10 @@ export default function SpendWiseCentralPage() {
                 const line = lines[i];
                 const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
                 if (columns.length < 4) { errors.push(`Row ${i+1}: Not enough columns. Expected PartNumber,Name,Price,AnnualDemand,FreightOhdCost(%).`); skippedCount++; continue; }
-                // Expected PartNumber,Name,Price,AnnualDemand,FreightOhdCost
                 const [partNumber, name, priceStr, annualDemandStr, freightOhdCostStr] = columns;
                 const price = parseFloat(priceStr);
                 const annualDemand = parseInt(annualDemandStr, 10);
-                const freightOhdCost = parseFloat(freightOhdCostStr) / 100; // Assuming CSV has percentage
+                const freightOhdCost = parseFloat(freightOhdCostStr) / 100; 
                 if (!partNumber || !name || isNaN(price) || isNaN(annualDemand) || isNaN(freightOhdCost)) { errors.push(`Row ${i+1}: Invalid data for PartNumber, Name, Price, AnnualDemand, or FreightOhdCost.`); skippedCount++; continue; }
                 if (parts.some(p => p.partNumber === partNumber)) { errors.push(`Row ${i+1}: PartNumber "${partNumber}" already exists. Skipped.`); skippedCount++; continue; }
                 newPartsArr.push({ id: `p_csv_${Date.now()}_${i}`, partNumber, name, price, annualDemand, freightOhdCost });
@@ -561,9 +560,18 @@ export default function SpendWiseCentralPage() {
   const totalSuppliers = useMemo(() => suppliers.length, [suppliers]);
   const totalCategories = useMemo(() => new Set(partCategoryMappings.map(m => m.categoryName)).size, [partCategoryMappings]);
   const totalCommodities = useMemo(() => new Set(partCommodityMappings.map(m => m.commodityName)).size, [partCommodityMappings]);
+
+  const calculateSpend = (part: Part) => {
+    const inventoryMultiplier = factoryInventoryOHPercent / 100;
+    const logisticsMultiplier = totalLogisticsCostPercent / 100;
+    const effectivePrice = part.price * inventoryMultiplier;
+    const effectiveFreightOhdRate = part.freightOhdCost * logisticsMultiplier;
+    return effectivePrice * part.annualDemand * (1 + effectiveFreightOhdRate);
+  };
+  
   const totalAnnualSpend = useMemo(() => {
-    return parts.reduce((sum, p) => sum + (p.price * p.annualDemand), 0);
-  }, [parts]);
+    return parts.reduce((sum, p) => sum + calculateSpend(p), 0);
+  }, [parts, factoryInventoryOHPercent, totalLogisticsCostPercent]);
 
   const formatCurrencyDisplay = (value: number) => {
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
@@ -583,23 +591,23 @@ export default function SpendWiseCentralPage() {
   const spendByPartData: SpendDataPoint[] = useMemo(() => {
     return parts.map(part => ({
       name: part.partNumber,
-      spend: part.price * part.annualDemand,
+      spend: calculateSpend(part),
     })).sort((a,b) => b.spend - a.spend).slice(0,10);
-  }, [parts]);
+  }, [parts, factoryInventoryOHPercent, totalLogisticsCostPercent]);
 
   const spendByCategoryData: SpendDataPoint[] = useMemo(() => {
     const categorySpend: Record<string, number> = {};
     partCategoryMappings.forEach(mapping => {
       const part = parts.find(p => p.id === mapping.partId);
       if (part) {
-        const spend = part.price * part.annualDemand;
+        const spend = calculateSpend(part);
         categorySpend[mapping.categoryName] = (categorySpend[mapping.categoryName] || 0) + spend;
       }
     });
     return Object.entries(categorySpend)
       .map(([name, spend]) => ({ name, spend }))
       .sort((a,b) => b.spend - a.spend);
-  }, [parts, partCategoryMappings]);
+  }, [parts, partCategoryMappings, factoryInventoryOHPercent, totalLogisticsCostPercent]);
 
   const partsPerCategoryData: CountDataPoint[] = useMemo(() => {
     const categoryCounts: Record<string, number> = {};
@@ -616,14 +624,14 @@ export default function SpendWiseCentralPage() {
     partCommodityMappings.forEach(mapping => {
       const part = parts.find(p => p.id === mapping.partId);
       if (part) {
-        const spend = part.price * part.annualDemand;
+        const spend = calculateSpend(part);
         commoditySpend[mapping.commodityName] = (commoditySpend[mapping.commodityName] || 0) + spend;
       }
     });
     return Object.entries(commoditySpend)
       .map(([name, spend]) => ({ name, spend }))
       .sort((a,b) => b.spend - a.spend);
-  }, [parts, partCommodityMappings]);
+  }, [parts, partCommodityMappings, factoryInventoryOHPercent, totalLogisticsCostPercent]);
 
 
   return (
@@ -642,7 +650,7 @@ export default function SpendWiseCentralPage() {
                 <Slider
                   id="factoryOHDSlider"
                   min={0}
-                  max={50}
+                  max={200}
                   step={1}
                   value={[factoryInventoryOHPercent]}
                   onValueChange={(value) => setFactoryInventoryOHPercent(value[0])}
@@ -657,7 +665,7 @@ export default function SpendWiseCentralPage() {
                   id="logisticsCostInput"
                   type="number"
                   min={0}
-                  max={50}
+                  max={200}
                   step={1}
                   value={totalLogisticsCostPercent}
                   onChange={(e) => setTotalLogisticsCostPercent(parseInt(e.target.value, 10) || 0)}
@@ -753,6 +761,8 @@ export default function SpendWiseCentralPage() {
                 spendByCategoryData={spendByCategoryData}
                 partsPerCategoryData={partsPerCategoryData}
                 onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
+                factoryInventoryOHPercent={factoryInventoryOHPercent}
+                totalLogisticsCostPercent={totalLogisticsCostPercent}
               />
             </TabsContent>
             <TabsContent value="update-suppliers" className="mt-4"> 

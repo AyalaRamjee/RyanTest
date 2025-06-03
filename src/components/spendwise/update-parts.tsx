@@ -23,6 +23,8 @@ interface UpdatePartsTabProps {
   spendByCategoryData: SpendDataPoint[];
   partsPerCategoryData: CountDataPoint[];
   onOpenUploadDialog: () => void;
+  factoryInventoryOHPercent: number; // Added for cumulative spend display
+  totalLogisticsCostPercent: number; // Added for cumulative spend display
 }
 
 const spendByPartChartConfig = {
@@ -52,7 +54,9 @@ export default function UpdatePartsTab({
   spendByPartData, 
   spendByCategoryData, 
   partsPerCategoryData, 
-  onOpenUploadDialog 
+  onOpenUploadDialog,
+  factoryInventoryOHPercent,
+  totalLogisticsCostPercent,
 }: UpdatePartsTabProps) {
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
 
@@ -93,7 +97,6 @@ export default function UpdatePartsTab({
     if (!isNaN(numericValue)) {
       handlePartInputChange(partId, 'annualDemand', numericValue);
     }
-    // If input is invalid (e.g. "abc"), state doesn't change, input will show last valid formatted number
   };
 
   const handlePartNameChange = (partId: string, value: string) => {
@@ -110,9 +113,18 @@ export default function UpdatePartsTab({
   };
 
   const totalPartsCount = useMemo(() => parts.length, [parts]);
+
   const cumulativeSpend = useMemo(() => {
-    return parts.reduce((sum, p) => sum + (p.price * p.annualDemand), 0);
-  }, [parts]);
+    const inventoryMultiplier = factoryInventoryOHPercent / 100;
+    const logisticsMultiplier = totalLogisticsCostPercent / 100;
+    return parts.reduce((sum, p) => {
+      const effectivePrice = p.price * inventoryMultiplier;
+      const effectiveFreightOhdRate = p.freightOhdCost * logisticsMultiplier;
+      const totalUnitCost = effectivePrice * (1 + effectiveFreightOhdRate);
+      return sum + (totalUnitCost * p.annualDemand);
+    }, 0);
+  }, [parts, factoryInventoryOHPercent, totalLogisticsCostPercent]);
+
   const cumulativeVolume = useMemo(() => {
     return parts.reduce((sum, p) => sum + p.annualDemand, 0);
   }, [parts]);
@@ -258,7 +270,7 @@ export default function UpdatePartsTab({
                    <span className="text-xs text-muted-foreground cursor-default flex items-center">Top 10 parts by spend <Info className="ml-1 h-3 w-3" /></span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Top 10 parts by calculated spend (Price x Demand).</p>
+                  <p className="text-xs">Top 10 parts by calculated spend (Price x Demand x Modifiers).</p>
                 </TooltipContent>
               </Tooltip>
             </CardHeader>
@@ -293,7 +305,7 @@ export default function UpdatePartsTab({
                    <span className="text-xs text-muted-foreground cursor-default flex items-center">Spend distribution <Info className="ml-1 h-3 w-3" /></span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Distribution of spend across part categories.</p>
+                  <p className="text-xs">Distribution of spend across part categories (Price x Demand x Modifiers).</p>
                 </TooltipContent>
               </Tooltip>
             </CardHeader>
