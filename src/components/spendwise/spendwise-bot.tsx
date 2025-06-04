@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send, Loader2, User } from "lucide-react";
+import { Bot, Send, Loader2, User, MessageCircle } from "lucide-react"; // Added MessageCircle
 import { querySpendData } from '@/ai/flows/query-spend-data-flow';
 import { useToast } from "@/hooks/use-toast";
 
@@ -117,13 +117,13 @@ export default function SpendWiseBot({
   return (
     <>
       <Button variant="outline" size="icon" onClick={openBot} aria-label="Open SpendWise Assistant">
-        <Bot className="h-5 w-5" />
+        <MessageCircle className="h-5 w-5" /> {/* Changed icon here */}
       </Button>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-lg h-[70vh] flex flex-col p-0">
           <DialogHeader className="p-4 border-b">
             <DialogTitle className="flex items-center">
-              <Bot className="mr-2 h-5 w-5" />
+              <Bot className="mr-2 h-5 w-5" /> {/* Keeping Bot icon inside dialog title */}
               SpendWise Assistant
             </DialogTitle>
             <DialogDescription className="text-xs">
