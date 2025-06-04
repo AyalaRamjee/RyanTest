@@ -11,6 +11,7 @@ import UploadPartCategoryTab from "@/components/spendwise/upload-part-category";
 import UploadPartCommodityTab from "@/components/spendwise/upload-part-commodity";
 import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import UploadCsvDialog from "@/components/spendwise/upload-csv-dialog";
+import SpendWiseBot from "@/components/spendwise/spendwise-bot"; // Import the bot
 import { LogoIcon } from "@/components/icons/logo-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -563,25 +564,26 @@ export default function SpendWiseCentralPage() {
 
   const calculateSpendForPart = useCallback((
     part: Part,
-    currentTariffChargePercent: number, // e.g., 120 for 120%
-    currentTotalLogisticsCostPercent: number, // e.g., 80 for 80%
+    currentTariffChargePercent: number, 
+    currentTotalLogisticsCostPercent: number, 
     allSuppliers: Supplier[],
     allPartSupplierAssociations: PartSupplierAssociation[]
   ): number => {
-    let isImported = false;
-    const associationsForPart = allPartSupplierAssociations.filter(assoc => assoc.partId === part.id);
-    if (associationsForPart.length > 0) {
-        isImported = associationsForPart.some(assoc => {
-            const supplier = allSuppliers.find(s => s.id === assoc.supplierId);
-            return supplier && supplier.country !== HOME_COUNTRY;
-        });
+    let priceMultiplier = 1.0;
+    const isImported = allPartSupplierAssociations
+      .filter(assoc => assoc.partId === part.id)
+      .some(assoc => {
+        const supplier = allSuppliers.find(s => s.id === assoc.supplierId);
+        return supplier && supplier.country !== HOME_COUNTRY;
+      });
+
+    if (isImported) {
+      priceMultiplier = currentTariffChargePercent / 100;
     }
-
-    const priceMultiplier = isImported ? (currentTariffChargePercent / 100) : 1.0;
+    
     const effectivePrice = part.price * priceMultiplier;
-
-    const logisticsMultiplier = currentTotalLogisticsCostPercent / 100;
-    const effectiveFreightOhdRate = part.freightOhdCost * logisticsMultiplier;
+    const logisticsRateMultiplier = currentTotalLogisticsCostPercent / 100;
+    const effectiveFreightOhdRate = part.freightOhdCost * logisticsRateMultiplier;
 
     return effectivePrice * part.annualDemand * (1 + effectiveFreightOhdRate);
   }, []);
@@ -692,6 +694,21 @@ export default function SpendWiseCentralPage() {
             </div>
 
             <div className="ml-auto flex items-center space-x-2">
+               <SpendWiseBot 
+                parts={parts}
+                suppliers={suppliers}
+                partCategoryMappings={partCategoryMappings}
+                partCommodityMappings={partCommodityMappings}
+                partSupplierAssociations={partSupplierAssociations}
+                tariffChargePercent={tariffChargePercent}
+                totalLogisticsCostPercent={totalLogisticsCostPercent}
+                homeCountry={HOME_COUNTRY}
+                totalAnnualSpend={totalAnnualSpend}
+                totalParts={totalParts}
+                totalSuppliers={totalSuppliers}
+                totalCategories={totalCategories}
+                totalCommodities={totalCommodities}
+              />
               <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".xml" style={{ display: 'none' }} />
               <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
                 <UploadCloud className="h-5 w-5" />
@@ -875,6 +892,3 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
-
-
-    
