@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud, PercentCircle, Shield } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, ArrowUp, PercentCircle, Shield } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartCommodityMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -711,7 +711,7 @@ export default function SpendWiseCentralPage() {
               />
               <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".xml" style={{ display: 'none' }} />
               <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
-                <UploadCloud className="h-5 w-5" />
+                <ArrowUp className="h-5 w-5" />
               </Button>
               <Button variant="outline" size="icon" onClick={handleDownloadXml} aria-label="Download Configuration XML">
                 <Download className="h-5 w-5" />
@@ -892,3 +892,4 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
+
