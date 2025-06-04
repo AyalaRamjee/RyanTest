@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider"; // Changed from Input
+import { Slider } from "@/components/ui/slider";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud, PercentCircle, Shield } from "lucide-react";
@@ -591,10 +591,10 @@ export default function SpendWiseCentralPage() {
   }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
 
   const formatCurrencyDisplay = (value: number) => {
-    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-    return value.toFixed(1);
+    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(2)}K`;
+    return value.toFixed(2);
   };
   
   const summaryStats = [
@@ -876,3 +876,5 @@ export default function SpendWiseCentralPage() {
   );
 }
 
+
+    
