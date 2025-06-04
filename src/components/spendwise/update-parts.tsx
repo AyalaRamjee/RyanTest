@@ -1,18 +1,18 @@
 
 "use client";
 
-import type { Part, Supplier, PartSupplierAssociation } from '@/types/spendwise'; // Added Supplier, PartSupplierAssociation
+import type { Part, Supplier, PartSupplierAssociation } from '@/types/spendwise'; 
 import type { SpendDataPoint, CountDataPoint } from '@/app/page';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Package, DollarSign, PieChartIcon, Hash, Info, FileUp, Trash2, Sigma, PlusCircle } from "lucide-react";
+import { Package, PieChartIcon, Hash, Info, FileUp, Trash2, Sigma, PlusCircle } from "lucide-react"; // DollarSign removed as not directly used for icons here
 import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie, PieChart } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import React, { useState, useMemo, useCallback } from 'react'; // Added useCallback
+import React, { useState, useMemo, useCallback } from 'react';
 
 interface UpdatePartsTabProps {
   parts: Part[];
@@ -59,8 +59,8 @@ export default function UpdatePartsTab({
   onOpenUploadDialog,
   tariffChargePercent,
   totalLogisticsCostPercent,
-  suppliers: allSuppliers, // Renamed for clarity within component
-  partSupplierAssociations: allPartSupplierAssociations, // Renamed
+  suppliers: allSuppliers, 
+  partSupplierAssociations: allPartSupplierAssociations, 
   homeCountry
 }: UpdatePartsTabProps) {
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
@@ -118,29 +118,38 @@ export default function UpdatePartsTab({
   };
 
   const totalPartsCount = useMemo(() => parts.length, [parts]);
-
-  const calculateSpendForSummary = useCallback((part: Part): number => {
+  
+  const calculateSpendForSummary = useCallback((
+    part: Part,
+    currentTariffChargePercent: number,
+    currentTotalLogisticsCostPercent: number,
+    localSuppliers: Supplier[], // Use a different name to avoid conflict with props
+    localPartSupplierAssociations: PartSupplierAssociation[],
+    localHomeCountry: string
+  ): number => {
     let isImported = false;
-    const associationsForPart = allPartSupplierAssociations.filter(assoc => assoc.partId === part.id);
+    const associationsForPart = localPartSupplierAssociations.filter(assoc => assoc.partId === part.id);
     if (associationsForPart.length > 0) {
         isImported = associationsForPart.some(assoc => {
-            const supplier = allSuppliers.find(s => s.id === assoc.supplierId);
-            return supplier && supplier.country !== homeCountry;
+            const supplier = localSuppliers.find(s => s.id === assoc.supplierId);
+            return supplier && supplier.country !== localHomeCountry;
         });
     }
 
-    const tariffMultiplier = isImported ? (1 + tariffChargePercent / 100) : 1;
-    const logisticsRateMultiplier = totalLogisticsCostPercent / 100;
+    const priceMultiplier = isImported ? (currentTariffChargePercent / 100) : 1.0;
+    const effectivePrice = part.price * priceMultiplier;
 
-    const finalPrice = part.price * tariffMultiplier;
-    const finalFreightOhdRate = part.freightOhdCost * logisticsRateMultiplier;
+    const logisticsMultiplier = currentTotalLogisticsCostPercent / 100;
+    const effectiveFreightOhdRate = part.freightOhdCost * logisticsMultiplier;
 
-    return finalPrice * part.annualDemand * (1 + finalFreightOhdRate);
-  }, [tariffChargePercent, totalLogisticsCostPercent, allSuppliers, allPartSupplierAssociations, homeCountry]);
+    return effectivePrice * part.annualDemand * (1 + effectiveFreightOhdRate);
+  }, []);
+
 
   const cumulativeSpend = useMemo(() => {
-    return parts.reduce((sum, p) => sum + calculateSpendForSummary(p), 0);
-  }, [parts, calculateSpendForSummary]);
+    return parts.reduce((sum, p) => sum + calculateSpendForSummary(p, tariffChargePercent, totalLogisticsCostPercent, allSuppliers, allPartSupplierAssociations, homeCountry), 0);
+  }, [parts, tariffChargePercent, totalLogisticsCostPercent, allSuppliers, allPartSupplierAssociations, homeCountry, calculateSpendForSummary]);
+
 
   const cumulativeVolume = useMemo(() => {
     return parts.reduce((sum, p) => sum + p.annualDemand, 0);

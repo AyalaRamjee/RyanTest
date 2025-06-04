@@ -15,8 +15,8 @@ import { LogoIcon } from "@/components/icons/logo-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider"; // Changed from Input
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Package, Building, ArrowRightLeft, FolderTree, TrendingUp, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud, PercentCircle, Shield } from "lucide-react";
@@ -37,7 +37,7 @@ export interface CountDataPoint {
 const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
-const HOME_COUNTRY = "USA"; // Define a home country for tariff calculations
+const HOME_COUNTRY = "USA"; 
 
 const HEADER_HEIGHT_PX = 64;
 const SUMMARY_STATS_HEIGHT_PX = 122; 
@@ -66,8 +66,8 @@ export default function SpendWiseCentralPage() {
   const [isSourceMixUploadDialogOpen, setIsSourceMixUploadDialogOpen] = useState(false);
   const [isUploadingSourceMixCsv, setIsUploadingSourceMixCsv] = useState(false);
 
-  const [tariffChargePercent, setTariffChargePercent] = useState(10); // Default 10%
-  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100); // Default 100% (no change)
+  const [tariffChargePercent, setTariffChargePercent] = useState(100); 
+  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100); 
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
   const [currentFilename, setCurrentFilename] = useState<string>(DEFAULT_XML_FILENAME);
@@ -305,7 +305,7 @@ export default function SpendWiseCentralPage() {
           name: p.name,
           price: parseFloat((Math.random() * 1000 + 5).toFixed(2)),
           annualDemand: Math.floor(Math.random() * 50000) + 1000,
-          freightOhdCost: parseFloat((Math.random() * 0.05).toFixed(4)), // 0-5%
+          freightOhdCost: parseFloat((Math.random() * 0.05).toFixed(4)), 
         });
         if (generatedData.categories.length > 0) {
           newPartCategoryMappingsArr.push({
@@ -563,8 +563,8 @@ export default function SpendWiseCentralPage() {
 
   const calculateSpendForPart = useCallback((
     part: Part,
-    currentTariffChargePercent: number,
-    currentTotalLogisticsCostPercent: number,
+    currentTariffChargePercent: number, // e.g., 120 for 120%
+    currentTotalLogisticsCostPercent: number, // e.g., 80 for 80%
     allSuppliers: Supplier[],
     allPartSupplierAssociations: PartSupplierAssociation[]
   ): number => {
@@ -577,13 +577,13 @@ export default function SpendWiseCentralPage() {
         });
     }
 
-    const tariffMultiplier = isImported ? (1 + currentTariffChargePercent / 100) : 1;
-    const logisticsRateMultiplier = currentTotalLogisticsCostPercent / 100; 
+    const priceMultiplier = isImported ? (currentTariffChargePercent / 100) : 1.0;
+    const effectivePrice = part.price * priceMultiplier;
 
-    const finalPrice = part.price * tariffMultiplier;
-    const finalFreightOhdRate = part.freightOhdCost * logisticsRateMultiplier;
+    const logisticsMultiplier = currentTotalLogisticsCostPercent / 100;
+    const effectiveFreightOhdRate = part.freightOhdCost * logisticsMultiplier;
 
-    return finalPrice * part.annualDemand * (1 + finalFreightOhdRate);
+    return effectivePrice * part.annualDemand * (1 + effectiveFreightOhdRate);
   }, []);
   
   const totalAnnualSpend = useMemo(() => {
@@ -594,7 +594,7 @@ export default function SpendWiseCentralPage() {
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
     if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
     if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-    return value.toFixed(0);
+    return value.toFixed(1);
   };
   
   const summaryStats = [
@@ -663,33 +663,31 @@ export default function SpendWiseCentralPage() {
             <div className="flex-grow flex items-center space-x-4 ml-4">
               <div className="flex items-center space-x-2">
                 <Shield className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="tariffChargeInput" className="text-xs text-muted-foreground whitespace-nowrap">Tariff:</Label>
-                <Input
-                  id="tariffChargeInput"
-                  type="number"
-                  min={0}
-                  max={100}
+                <Label htmlFor="tariffChargeSlider" className="text-xs text-muted-foreground whitespace-nowrap">Tariff:</Label>
+                 <Slider
+                  id="tariffChargeSlider"
+                  min={50}
+                  max={200}
                   step={1}
-                  value={tariffChargePercent}
-                  onChange={(e) => setTariffChargePercent(parseInt(e.target.value, 10) || 0)}
-                  className="h-7 w-16 text-xs"
+                  value={[tariffChargePercent]}
+                  onValueChange={(value) => setTariffChargePercent(value[0])}
+                  className="w-24 h-2"
                 />
-                <span className="text-xs text-foreground">%</span>
+                <span className="text-xs text-foreground w-8 text-right">{tariffChargePercent}%</span>
               </div>
               <div className="flex items-center space-x-2">
                 <PercentCircle className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="logisticsCostInput" className="text-xs text-muted-foreground whitespace-nowrap">Logistics:</Label>
-                <Input
-                  id="logisticsCostInput"
-                  type="number"
-                  min={0}
+                <Label htmlFor="logisticsCostSlider" className="text-xs text-muted-foreground whitespace-nowrap">Logistics:</Label>
+                <Slider
+                  id="logisticsCostSlider"
+                  min={50}
                   max={200}
                   step={1}
-                  value={totalLogisticsCostPercent}
-                  onChange={(e) => setTotalLogisticsCostPercent(parseInt(e.target.value, 10) || 0)}
-                  className="h-7 w-16 text-xs"
+                  value={[totalLogisticsCostPercent]}
+                  onValueChange={(value) => setTotalLogisticsCostPercent(value[0])}
+                  className="w-24 h-2"
                 />
-                 <span className="text-xs text-foreground">%</span>
+                 <span className="text-xs text-foreground w-8 text-right">{totalLogisticsCostPercent}%</span>
               </div>
             </div>
 
