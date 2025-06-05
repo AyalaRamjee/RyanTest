@@ -1,13 +1,14 @@
+
 import React, { useState, useRef, useMemo } from 'react';
 import type { Part, PartCategoryMapping } from '@/types/spendwise';
 import type { SpendDataPoint, CountDataPoint } from '@/app/page';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UploadCloud, FolderTree, Search, Plus, Trash2, Package, Target, Palette, TrendingUp, Hash, Info } from "lucide-react";
+import { UploadCloud, FolderTree, Search, Plus, Trash2, Package, Target, Palette, TrendingUp, Hash, Info, PieChartIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Pie, PieChart, Cell, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Pie, PieChart, Cell, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 
 // Simple Badge component
@@ -515,64 +516,62 @@ export default function UploadPartCategoryTab({
             Category Analytics
           </h3>
 
-          {/* Spend by Category Chart */}
+          {/* Spend by Category Chart - MOVED HERE */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center">
-                <TrendingUp className="mr-1.5 h-4 w-4" />
+                <PieChartIcon className="mr-1.5 h-4 w-4" />
                 $ Spend by Category
               </CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Spend distribution <Info className="ml-1 h-3 w-3" /></span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Distribution of spend across part categories (Adjusted by Tariff & Logistics).</p>
+                </TooltipContent>
+              </Tooltip>
             </CardHeader>
             <CardContent className="pt-0">
               {spendByCategoryData.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-8">
-                  No spend data to display
-                </p>
+                <p className="text-xs text-muted-foreground text-center py-3">No category spend data.</p>
               ) : (
                 <ChartContainer config={spendByCategoryChartConfig} className="min-h-[180px] w-full aspect-square">
-                  <PieChart accessibilityLayer>
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent hideLabel formatter={(value, name, props) => 
-                        <div className="text-xs">
-                          <span className="font-medium">{props.payload?.name}</span>: {formatCurrency(value as number)}
-                        </div>} />}
-                    />
-                    <Pie 
-                      data={spendByCategoryData} 
-                      dataKey="spend" 
-                      nameKey="name" 
-                      cx="50%" 
-                      cy="50%" 
-                      outerRadius={60}
-                      labelLine={false}
-                      label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                        const RADIAN = Math.PI / 180;
-                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                        return (percent as number) * 100 > 5 ? (
-                          <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[8px] fill-primary-foreground">
-                            {`${((percent as number) * 100).toFixed(0)}%`}
-                          </text>
-                        ) : null;
-                      }}
-                    >
-                      {spendByCategoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Legend content={({ payload }) => (
-                      <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 mt-2 text-[10px]">
-                        {payload?.map((entry, index) => (
-                          <div key={`item-${index}`} className="flex items-center">
-                            <span style={{ backgroundColor: entry.color }} className="inline-block w-2 h-2 rounded-full mr-1"></span>
-                            {entry.value} ({formatCurrency(entry.payload?.payload?.spend as number || 0)})
-                          </div>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart accessibilityLayer>
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent hideLabel formatter={(value, name, props) => <div className="text-xs"><span className="font-medium">{props.payload?.name}</span>: {formatCurrency(value as number)}</div>} />}
+                      />
+                      <Pie data={spendByCategoryData} dataKey="spend" nameKey="name" cx="50%" cy="50%" outerRadius={60} labelLine={false}
+                          label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                              const RADIAN = Math.PI / 180;
+                              const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                              const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                              const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                              return (percent as number) * 100 > 5 ? (
+                                <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[8px]">
+                                  {`${((percent as number) * 100).toFixed(0)}%`}
+                                </text>
+                              ) : null;
+                            }}
+                      >
+                        {spendByCategoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                         ))}
-                      </div>
-                    )} />
-                  </PieChart>
+                      </Pie>
+                      <Legend content={({ payload }) => (
+                          <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 mt-2 text-[10px]">
+                            {payload?.map((entry, index) => (
+                              <div key={`item-${index}`} className="flex items-center">
+                                <span style={{ backgroundColor: entry.color }} className="inline-block w-2 h-2 rounded-full mr-1"></span>
+                                {entry.value} ({formatCurrency(entry.payload?.payload?.spend as number || 0)})
+                              </div>
+                            ))}
+                          </div>
+                        )} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </ChartContainer>
               )}
             </CardContent>
@@ -593,16 +592,18 @@ export default function UploadPartCategoryTab({
                 </p>
               ) : (
                 <ChartContainer config={partsPerCategoryChartConfig} className="min-h-[180px] w-full aspect-video">
-                  <BarChart accessibilityLayer data={partsPerCategoryData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
-                    <CartesianGrid horizontal={false} />
-                    <XAxis type="number" dataKey="count" tickFormatter={formatNumber} tick={{ fontSize: 10 }} />
-                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} tick={{ fontSize: 10 }} />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent indicator="dot" formatter={(value) => formatNumber(value as number)} />}
-                    />
-                    <Bar dataKey="count" fill="var(--color-count)" radius={3} barSize={10} />
-                  </BarChart>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart accessibilityLayer data={partsPerCategoryData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
+                      <CartesianGrid horizontal={false} />
+                      <XAxis type="number" dataKey="count" tickFormatter={formatNumber} tick={{ fontSize: 10 }} />
+                      <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} tick={{ fontSize: 10 }} />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="dot" formatter={(value) => formatNumber(value as number)} />}
+                      />
+                      <Bar dataKey="count" fill="var(--color-count)" radius={3} barSize={10} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </ChartContainer>
               )}
             </CardContent>

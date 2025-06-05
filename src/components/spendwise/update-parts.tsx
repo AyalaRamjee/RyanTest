@@ -2,13 +2,13 @@
 "use client";
 
 import type { Part, Supplier, PartSupplierAssociation } from '@/types/spendwise';
-import type { SpendDataPoint, CountDataPoint } from '@/app/page';
+import type { SpendDataPoint } from '@/app/page';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Package, PieChartIcon, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
-import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie, PieChart } from 'recharts';
+import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
+import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, PieChart, Pie } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,8 +19,6 @@ interface UpdatePartsTabProps {
   setParts: React.Dispatch<React.SetStateAction<Part[]>>;
   onAddPart: () => void;
   spendByPartData: SpendDataPoint[];
-  spendByCategoryData: SpendDataPoint[];
-  partsPerCategoryData: CountDataPoint[]; // This prop remains as it might be used by parent or other features
   onOpenUploadDialog: () => void;
   tariffChargePercent: number;
   totalLogisticsCostPercent: number;
@@ -44,16 +42,11 @@ const spendByPartChartConfig = {
   },
 } satisfies import("@/components/ui/chart").ChartConfig;
 
-const spendByCategoryChartConfig = {
-  spend: { label: "Spend ($)" },
-} satisfies import("@/components/ui/chart").ChartConfig;
-
 const abcChartConfig = {
   value: { label: "Value" },
 } satisfies import("@/components/ui/chart").ChartConfig;
 
 
-const PIE_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 const ABC_COLORS = {
   A: "hsl(var(--chart-1))",
   B: "hsl(var(--chart-4))",
@@ -66,8 +59,6 @@ export default function UpdatePartsTab({
   setParts,
   onAddPart,
   spendByPartData,
-  spendByCategoryData,
-  partsPerCategoryData,
   onOpenUploadDialog,
   tariffChargePercent,
   totalLogisticsCostPercent,
@@ -361,66 +352,6 @@ export default function UpdatePartsTab({
                       />
                       <Bar dataKey="spend" fill="var(--color-spend)" radius={3} barSize={10} />
                     </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center">
-                <PieChartIcon className="mr-1.5 h-4 w-4" />
-                $ Spend by Category
-              </CardTitle>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Spend distribution <Info className="ml-1 h-3 w-3" /></span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Distribution of spend across part categories (Adjusted by Tariff & Logistics).</p>
-                </TooltipContent>
-              </Tooltip>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {spendByCategoryData.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3">No category spend data.</p>
-              ) : (
-                <ChartContainer config={spendByCategoryChartConfig} className="min-h-[180px] w-full aspect-square">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart accessibilityLayer>
-                      <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent hideLabel formatter={(value, name, props) => <div className="text-xs"><span className="font-medium">{props.payload?.name}</span>: {formatCurrency(value as number)}</div>} />}
-                      />
-                      <Pie data={spendByCategoryData} dataKey="spend" nameKey="name" cx="50%" cy="50%" outerRadius={60} labelLine={false}
-                          label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                              const RADIAN = Math.PI / 180;
-                              const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                              const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                              const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                              return (percent as number) * 100 > 5 ? (
-                                <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[8px]">
-                                  {`${((percent as number) * 100).toFixed(0)}%`}
-                                </text>
-                              ) : null;
-                            }}
-                      >
-                        {spendByCategoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Legend content={({ payload }) => (
-                          <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 mt-2 text-[10px]">
-                            {payload?.map((entry, index) => (
-                              <div key={`item-${index}`} className="flex items-center">
-                                <span style={{ backgroundColor: entry.color }} className="inline-block w-2 h-2 rounded-full mr-1"></span>
-                                {entry.value} ({formatCurrency(entry.payload?.payload?.spend as number || 0)})
-                              </div>
-                            ))}
-                          </div>
-                        )} />
-                    </PieChart>
                   </ResponsiveContainer>
                 </ChartContainer>
               )}

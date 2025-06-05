@@ -754,8 +754,6 @@ export default function SpendWiseCentralPage() {
                 setParts={setParts}
                 onAddPart={handleAddPart}
                 spendByPartData={spendByPartData}
-                spendByCategoryData={spendByCategoryData}
-                partsPerCategoryData={partsPerCategoryData}
                 onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
                 tariffChargePercent={tariffChargePercent}
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
