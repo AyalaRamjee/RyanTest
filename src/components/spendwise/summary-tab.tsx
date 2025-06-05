@@ -245,7 +245,6 @@ export default function SummaryTab({
         </Card>
       </div>
 
-      {/* Existing Sections (Geo-Distribution and Placeholder Spend by Supplier) */}
       <Card>
         <CardHeader>
           <div className="flex items-center">
@@ -322,32 +321,6 @@ export default function SummaryTab({
               </ScrollArea>
             )}
           </section>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center">
-            <TrendingUp className="mr-2 h-6 w-6 text-green-500" />
-            <CardTitle className="text-lg">Spend by Supplier</CardTitle>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="ml-2 h-5 w-5">
-                  <Info className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs max-w-xs">Aggregated spend per supplier. Requires part-supplier mappings and relevant part data.</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0 min-h-[180px] flex items-center justify-center">
-          <div className="text-center text-muted-foreground p-3 border border-dashed rounded-md">
-            <Info className="mx-auto h-6 w-6 mb-1.5" />
-            <p className="text-xs">Spend by supplier will be available once parts are mapped to suppliers in the "Source & Mix" tab and data is processed.</p>
-            <p className="text-xs mt-1">This section currently shows a placeholder.</p>
-          </div>
         </CardContent>
       </Card>
     </div>
