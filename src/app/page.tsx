@@ -75,13 +75,18 @@ export default function SpendWiseCentralPage() {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const updateDateTime = () => {
       const now = new Date();
-      const hours = now.getHours().toString().padStart(2, '0');
+      let hours = now.getHours();
       const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12; // the hour '0' should be '12'
+      const hoursStr = hours.toString().padStart(2, '0');
+      
       const dayName = days[now.getDay()];
       const day = now.getDate().toString().padStart(2, '0');
       const month = (now.getMonth() + 1).toString().padStart(2, '0');
       const year = now.getFullYear();
-      setFormattedDateTime(`${hours}:${minutes}, ${dayName}, ${day}/${month}/${year}`);
+      setFormattedDateTime(`${hoursStr}:${minutes} ${ampm}, ${dayName}, ${day}/${month}/${year}`);
     };
 
     updateDateTime(); 
