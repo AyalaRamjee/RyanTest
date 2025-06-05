@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2 } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -710,7 +710,7 @@ export default function SpendWiseCentralPage() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
-                    <UploadCloud className="h-5 w-5" />
+                    <ArrowUpToLine className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -721,7 +721,7 @@ export default function SpendWiseCentralPage() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="outline" size="icon" onClick={handleDownloadXml} aria-label="Download Configuration XML">
-                    <Download className="h-5 w-5" />
+                    <ArrowDownToLine className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -744,7 +744,7 @@ export default function SpendWiseCentralPage() {
                 </TooltipContent>
               </Tooltip>
               <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
-                <SelectTrigger className="w-[60px] text-xs" aria-label="Select Theme">
+                <SelectTrigger className="w-[60px]" aria-label="Select Theme">
                   <SelectValue placeholder="Select Theme" />
                 </SelectTrigger>
                 <SelectContent>
@@ -898,6 +898,8 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
 
