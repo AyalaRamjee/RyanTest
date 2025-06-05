@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, ScatterChart, Scatter, ZAxis, Tooltip as RechartsTooltip, Cell } from 'recharts';
+import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus, PieChart as PieChartIcon } from "lucide-react"; // PieChartIcon was removed, re-added as it might be used by spendByCategory if that's still here. Let's check. It was moved. Focus is used.
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, ScatterChart, Scatter, ZAxis, Tooltip as RechartsTooltip, Cell, Pie, PieChart } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -43,9 +43,9 @@ const spendByPartChartConfig = {
 } satisfies import("@/components/ui/chart").ChartConfig;
 
 const ABC_COLORS = {
-  A: "hsl(var(--chart-1))", // Blue
-  B: "hsl(var(--chart-2))", // Green
-  C: "hsl(var(--chart-3))", // Purple/Other
+  A: "hsl(var(--chart-1))", 
+  B: "hsl(var(--chart-2))", 
+  C: "hsl(var(--chart-3))", 
 };
 
 const abcBubbleChartConfig = {
@@ -85,6 +85,13 @@ export default function UpdatePartsTab({
     return new Intl.NumberFormat('en-US').format(value);
   };
 
+  const formatYAxisTick = (value: number) => {
+    if (Math.abs(value) >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
+    if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+    if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+    return `$${value.toFixed(0)}`;
+  };
+
   const formatPriceForInput = (value: number): string => {
     const fixedValue = value.toFixed(2);
     const priceParts = fixedValue.split('.');
@@ -101,7 +108,7 @@ export default function UpdatePartsTab({
             const numericValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
             processedValue = isNaN(numericValue) ? 0 : parseFloat(numericValue.toFixed(2));
           } else if (field === 'annualDemand') {
-            const numericValue = typeof value === 'string' ? parseInt(String(value).replace(/,/g, ''), 10) : value;
+            const numericValue = typeof value === 'string' ? parseInt(String(value).replace(/,/g, ''), 10) : parseInt(String(value), 10);
             processedValue = isNaN(numericValue) ? 0 : numericValue;
           } else if (field === 'freightOhdCost') {
             const numericValue = typeof value === 'string' ? parseFloat(value) / 100 : Number(value) / 100;
@@ -411,7 +418,7 @@ export default function UpdatePartsTab({
                     <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                       <CartesianGrid />
                       <XAxis type="number" dataKey="numParts" name="Number of Parts" tickFormatter={formatNumber} tick={{ fontSize: 10 }} />
-                      <YAxis type="number" dataKey="avgSpend" name="Avg. Spend/Part" tickFormatter={formatCurrencyWithDecimals} tick={{ fontSize: 10 }} />
+                      <YAxis type="number" dataKey="avgSpend" name="Avg. Spend/Part" tickFormatter={formatYAxisTick} tick={{ fontSize: 10 }} />
                       <ZAxis type="number" dataKey="totalSpend" range={[150, 1500]} name="Total Annual Spend" />
                       <RechartsTooltip
                         cursor={{ strokeDasharray: '3 3' }}
@@ -451,4 +458,3 @@ export default function UpdatePartsTab({
     </Card>
   );
 }
-
