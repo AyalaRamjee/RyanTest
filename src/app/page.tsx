@@ -789,7 +789,7 @@ export default function SpendWiseCentralPage() {
         </main>
         <footer className="fixed bottom-0 left-0 right-0 z-50 flex h-12 items-center justify-between border-t bg-card px-4 py-3 text-xs text-muted-foreground sm:px-6 lg:px-8 shadow-md">
           <div>
-            <span>&lt;Spend for Supply-Chains by Design&gt; Copyright TADA Cognitive 2025</span>
+            <span>Copyright TADA Cognitive 2025</span>
           </div>
           <div>
             <span>{formattedDateTime || "Loading time..."}</span>
