@@ -729,14 +729,20 @@ export default function SpendWiseCentralPage() {
                 </TooltipContent>
               </Tooltip>
               
-              <Button variant="outline" size="sm" onClick={() => setIsGenerateDataDialogOpen(true)} disabled={isGeneratingData} aria-label="Generate Sample Data using AI">
-                {isGeneratingData ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Wand2 className="mr-2 h-4 w-4" />
-                )}
-                Generate Data
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} disabled={isGeneratingData} aria-label="Generate Sample Data using AI">
+                    {isGeneratingData ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-5 w-5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Generate Sample Data</p>
+                </TooltipContent>
+              </Tooltip>
               <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
                 <SelectTrigger className="w-[120px] text-xs" aria-label="Select Theme">
                   <SelectValue placeholder="Select Theme" />
