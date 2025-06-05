@@ -688,9 +688,6 @@ export default function SpendWiseCentralPage() {
                 )}
                 Generate Data
               </Button>
-              <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} aria-label="Generate Sample Data with Icon" disabled={isGeneratingData}>
-                {isGeneratingData ? <Loader2 className="h-5 w-5 animate-spin" /> : <ToyBrick className="h-5 w-5" />}
-              </Button>
               <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
                 <SelectTrigger className="w-[120px] text-xs" aria-label="Select Theme">
                   <SelectValue placeholder="Select Theme" />
