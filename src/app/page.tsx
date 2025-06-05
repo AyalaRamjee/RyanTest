@@ -12,7 +12,6 @@ import UploadPartCommodityTab from "@/components/spendwise/upload-part-commodity
 import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import UploadCsvDialog from "@/components/spendwise/upload-csv-dialog";
 import SpendWiseBot from "@/components/spendwise/spendwise-bot"; // Import the bot
-import { LogoIcon } from "@/components/icons/logo-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -658,10 +657,14 @@ export default function SpendWiseCentralPage() {
       <div className="flex flex-col min-h-screen bg-background">
         <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
           <div className="container mx-auto flex h-16 items-center space-x-4 px-4 sm:px-6 lg:px-8">
-            <LogoIcon className="h-8 w-8 text-primary" />
-            <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
-              Spend Analysis by !TADA
-            </h1>
+          <img 
+            src="/TADA_TM-2023_Color-White-Logo.svg" 
+            alt="TADA Logo" 
+            className="h-18 w-16 object-contain" 
+          />
+          <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
+            Spend Analysis by !TADA
+          </h1>
             <div className="flex-grow flex items-center space-x-4 ml-4">
               <div className="flex items-center space-x-2">
                 <Shield className="h-4 w-4 text-muted-foreground" />
