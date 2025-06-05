@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import type { Part, Supplier, PartCategoryMapping, PartCommodityMapping, PartSupplierAssociation } from '@/types/spendwise';
+import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise'; // PartCommodityMapping removed
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send, Loader2, User, MessageCircle } from "lucide-react"; // Added MessageCircle
+import { Bot, Send, Loader2, User, MessageCircle } from "lucide-react";
 import { querySpendData } from '@/ai/flows/query-spend-data-flow';
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,7 +23,7 @@ interface SpendWiseBotProps {
   parts: Part[];
   suppliers: Supplier[];
   partCategoryMappings: PartCategoryMapping[];
-  partCommodityMappings: PartCommodityMapping[];
+  // partCommodityMappings removed
   partSupplierAssociations: PartSupplierAssociation[];
   tariffChargePercent: number;
   totalLogisticsCostPercent: number;
@@ -32,7 +32,7 @@ interface SpendWiseBotProps {
   totalParts: number;
   totalSuppliers: number;
   totalCategories: number;
-  totalCommodities: number;
+  // totalCommodities removed
 }
 
 interface Message {
@@ -45,7 +45,7 @@ export default function SpendWiseBot({
   parts,
   suppliers,
   partCategoryMappings,
-  partCommodityMappings,
+  // partCommodityMappings, removed
   partSupplierAssociations,
   tariffChargePercent,
   totalLogisticsCostPercent,
@@ -54,7 +54,7 @@ export default function SpendWiseBot({
   totalParts,
   totalSuppliers,
   totalCategories,
-  totalCommodities,
+  // totalCommodities, removed
 }: SpendWiseBotProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -80,10 +80,10 @@ export default function SpendWiseBot({
     try {
       const inputForAI = {
         question: userMessage.text,
-        partsData: JSON.stringify(parts.map(({ id, freightOhdCost, ...rest}) => ({...rest, freightOhdCostPercent: (freightOhdCost * 100).toFixed(2) + '%'}))), // Show F&OHD as %
+        partsData: JSON.stringify(parts.map(({ id, freightOhdCost, ...rest}) => ({...rest, freightOhdCostPercent: (freightOhdCost * 100).toFixed(2) + '%'}))),
         suppliersData: JSON.stringify(suppliers),
         partCategoryMappingsData: JSON.stringify(partCategoryMappings),
-        partCommodityMappingsData: JSON.stringify(partCommodityMappings),
+        // partCommodityMappingsData removed
         partSupplierAssociationsData: JSON.stringify(partSupplierAssociations),
         tariffPercent: tariffChargePercent,
         logisticsPercent: totalLogisticsCostPercent,
@@ -92,7 +92,7 @@ export default function SpendWiseBot({
         totalParts,
         totalSuppliers,
         totalCategories,
-        totalCommodities,
+        // totalCommodities removed
       };
       
       const response = await querySpendData(inputForAI);
@@ -110,20 +110,20 @@ export default function SpendWiseBot({
   };
   
   const openBot = () => {
-    setMessages([]); // Clear previous messages when opening
+    setMessages([]);
     setIsOpen(true);
   }
 
   return (
     <>
       <Button variant="outline" size="icon" onClick={openBot} aria-label="Open SpendWise Assistant">
-        <MessageCircle className="h-5 w-5" /> {/* Changed icon here */}
+        <MessageCircle className="h-5 w-5" />
       </Button>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-lg h-[70vh] flex flex-col p-0">
           <DialogHeader className="p-4 border-b">
             <DialogTitle className="flex items-center">
-              <Bot className="mr-2 h-5 w-5" /> {/* Keeping Bot icon inside dialog title */}
+              <Bot className="mr-2 h-5 w-5" />
               SpendWise Assistant
             </DialogTitle>
             <DialogDescription className="text-xs">

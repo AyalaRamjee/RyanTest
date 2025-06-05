@@ -11,12 +11,12 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const QuerySpendDataInputSchema = z.object({
+const QuerySpendDataInputSchemaInternal = z.object({ // Renamed to avoid direct export
   question: z.string().describe("The user's question about the spend data."),
   partsData: z.string().describe("A JSON string representation of the array of parts."),
   suppliersData: z.string().describe("A JSON string representation of the array of suppliers."),
   partCategoryMappingsData: z.string().describe("A JSON string representation of the array of part-category mappings."),
-  partCommodityMappingsData: z.string().describe("A JSON string representation of the array of part-commodity mappings."),
+  // partCommodityMappingsData removed
   partSupplierAssociationsData: z.string().describe("A JSON string representation of the array of part-supplier associations (linking part IDs to supplier IDs)."),
   tariffPercent: z.number().describe("Current global tariff percentage applied to imported parts."),
   logisticsPercent: z.number().describe("Current global logistics cost multiplier applied to freight/OHD costs."),
@@ -25,14 +25,14 @@ const QuerySpendDataInputSchema = z.object({
   totalParts: z.number().describe("Total number of parts."),
   totalSuppliers: z.number().describe("Total number of suppliers."),
   totalCategories: z.number().describe("Total number of unique categories."),
-  totalCommodities: z.number().describe("Total number of unique commodities."),
+  // totalCommodities removed
 });
-export type QuerySpendDataInput = z.infer<typeof QuerySpendDataInputSchema>;
+export type QuerySpendDataInput = z.infer<typeof QuerySpendDataInputSchemaInternal>;
 
-const QuerySpendDataOutputSchema = z.object({
+const QuerySpendDataOutputSchemaInternal = z.object({ // Renamed to avoid direct export
   answer: z.string().describe("The AI's answer to the user's question."),
 });
-export type QuerySpendDataOutput = z.infer<typeof QuerySpendDataOutputSchema>;
+export type QuerySpendDataOutput = z.infer<typeof QuerySpendDataOutputSchemaInternal>;
 
 export async function querySpendData(input: QuerySpendDataInput): Promise<QuerySpendDataOutput> {
   return querySpendDataFlow(input);
@@ -40,8 +40,8 @@ export async function querySpendData(input: QuerySpendDataInput): Promise<QueryS
 
 const spendDataQueryPrompt = ai.definePrompt({
   name: 'spendDataQueryPrompt',
-  input: {schema: QuerySpendDataInputSchema},
-  output: {schema: QuerySpendDataOutputSchema},
+  input: {schema: QuerySpendDataInputSchemaInternal},
+  output: {schema: QuerySpendDataOutputSchemaInternal},
   prompt: `You are a helpful AI assistant for the SpendWise Central application.
 Your knowledge is strictly limited to the data provided below.
 Answer the user's question based *only* on this data. If the question cannot be answered with the given data, politely state that.
@@ -55,7 +55,7 @@ Current Application Data Context:
 - Total Number of Parts: {{{totalParts}}}
 - Total Number of Suppliers: {{{totalSuppliers}}}
 - Total Number of Unique Part Categories: {{{totalCategories}}}
-- Total Number of Unique Part Commodities: {{{totalCommodities}}}
+{/* Total Commodities context removed */}
 
 Detailed Data (in JSON format):
 Parts:
@@ -67,8 +67,7 @@ Suppliers:
 Part-Category Mappings (maps part.id to categoryName):
 {{{partCategoryMappingsData}}}
 
-Part-Commodity Mappings (maps part.id to commodityName):
-{{{partCommodityMappingsData}}}
+{/* Part-Commodity Mappings context removed */}
 
 Part-Supplier Associations (maps part.id to supplier.id):
 {{{partSupplierAssociationsData}}}
@@ -82,8 +81,8 @@ Your Answer:
 const querySpendDataFlow = ai.defineFlow(
   {
     name: 'querySpendDataFlow',
-    inputSchema: QuerySpendDataInputSchema,
-    outputSchema: QuerySpendDataOutputSchema,
+    inputSchema: QuerySpendDataInputSchemaInternal,
+    outputSchema: QuerySpendDataOutputSchemaInternal,
   },
   async (input) => {
     const {output} = await spendDataQueryPrompt(input);
@@ -93,4 +92,3 @@ const querySpendDataFlow = ai.defineFlow(
     return output;
   }
 );
-

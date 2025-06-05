@@ -18,25 +18,19 @@ export interface Supplier {
   stateOrProvince: string;
   postalCode: string;
   country: string;
-  // The 'address' field will be a concatenation of the above for display/XML
   address: string; 
 }
 
 export interface PartCategoryMapping {
-  id: string; // Unique ID for the mapping
+  id: string; 
   partId: string;
   categoryName: string;
 }
 
-export interface PartCommodityMapping {
-  id: string; // Unique ID for the mapping
-  partId: string;
-  commodityName: string;
-}
+// PartCommodityMapping interface removed
 
 export interface PartSupplierAssociation {
-  id: string; // Unique ID for the association
+  id: string; 
   partId: string;
   supplierId: string;
 }
-

@@ -3,7 +3,7 @@
 /**
  * @fileOverview A Genkit flow to generate sample spend management data.
  *
- * - generateSpendData - A function that calls an LLM to generate parts, suppliers, categories, commodities, and part-supplier associations.
+ * - generateSpendData - A function that calls an LLM to generate parts, suppliers, categories, and part-supplier associations.
  * - GenerateSpendDataInput - The input type for the generateSpendData function.
  * - GenerateSpendDataOutput - The return type for the generateSpendData function.
  */
@@ -38,7 +38,7 @@ const GenerateSpendDataInputSchema = z.object({
   numParts: z.number().int().min(1).describe("The number of unique parts to generate."),
   numSuppliers: z.number().int().min(1).describe("The number of unique suppliers to generate."),
   numCategories: z.number().int().min(1).describe("The number of unique part categories to generate."),
-  numCommodities: z.number().int().min(1).describe("The number of unique commodities to generate."),
+  // numCommodities removed
 });
 export type GenerateSpendDataInput = z.infer<typeof GenerateSpendDataInputSchema>;
 
@@ -46,7 +46,7 @@ const GenerateSpendDataOutputSchema = z.object({
   parts: z.array(PartSchema).describe("An array of generated parts."),
   suppliers: z.array(SupplierSchema).describe("An array of generated suppliers, each with a realistic global street address, city, state/province, postal code, and country. ALL fields for each supplier are mandatory."),
   categories: z.array(z.string()).describe("An array of generated category names."),
-  commodities: z.array(z.string()).describe("An array of generated commodity names."),
+  // commodities removed
   partSupplierAssociations: z.array(PartSupplierAssociationAISchema).describe("An array of associations between parts (by partNumber) and suppliers (by supplierName). Ensure each part is associated with at least one supplier, and aim for a diverse set of mappings."),
 });
 export type GenerateSpendDataOutput = z.infer<typeof GenerateSpendDataOutputSchema>;
@@ -78,13 +78,13 @@ Please generate the following:
     *   A realistic 'country' for their main operations. Aim for a global distribution of supplier locations.
     Ensure every supplier object is complete and contains all specified fields. Do not return empty supplier objects or suppliers with missing fields.
 3.  Exactly {{{numCategories}}} unique part category names relevant to the domain. These should be general classifications for parts.
-4.  Exactly {{{numCommodities}}} unique commodity names relevant to the domain. These should be raw materials or basic production items.
-5.  A list of 'partSupplierAssociations'. For each association, specify the 'partNumber' of an existing generated part and the 'supplierName' of an existing generated supplier.
+{/* Commodity generation instruction removed */}
+4.  A list of 'partSupplierAssociations'. For each association, specify the 'partNumber' of an existing generated part and the 'supplierName' of an existing generated supplier.
     *   Ensure that each of the {{{numParts}}} parts is associated with at least one supplier.
     *   A supplier can be associated with multiple parts.
     *   The total number of associations should be reasonable, for example, between {{{numParts}}} and {{{numParts}}} * 2.
 
-Your output MUST be a valid JSON object that strictly adheres to the provided output schema. Ensure all part numbers are unique and correctly formatted. Ensure all names (parts, suppliers, categories, commodities) are unique within their respective lists. Ensure part numbers and supplier names in associations correctly refer to generated parts and suppliers. CRITICALLY: Ensure ALL supplier objects in the 'suppliers' array are fully populated with all required fields (name, description, streetAddress, city, stateOrProvince, postalCode, country).
+Your output MUST be a valid JSON object that strictly adheres to the provided output schema. Ensure all part numbers are unique and correctly formatted. Ensure all names (parts, suppliers, categories) are unique within their respective lists. Ensure part numbers and supplier names in associations correctly refer to generated parts and suppliers. CRITICALLY: Ensure ALL supplier objects in the 'suppliers' array are fully populated with all required fields (name, description, streetAddress, city, stateOrProvince, postalCode, country).
 `,
 });
 
@@ -99,11 +99,9 @@ const spendDataGenerationFlow = ai.defineFlow(
     if (!output) {
       throw new Error("AI failed to generate valid data.");
     }
-    // Basic check to ensure suppliers array is not empty if numSuppliers > 0
     if (input.numSuppliers > 0 && (!output.suppliers || output.suppliers.length === 0)) {
         throw new Error(`AI failed to generate any suppliers, but ${input.numSuppliers} were requested.`);
     }
-    // Basic check for empty supplier objects or missing names
     if (output.suppliers) {
         for (let i = 0; i < output.suppliers.length; i++) {
             const supplier = output.suppliers[i];
@@ -118,5 +116,3 @@ const spendDataGenerationFlow = ai.defineFlow(
     return output;
   }
 );
-
-    

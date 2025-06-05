@@ -18,7 +18,7 @@ import { ToyBrick } from "lucide-react";
 interface GenerateDataDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerate: (domain: string, numParts: number, numSuppliers: number, numCategories: number, numCommodities: number) => void;
+  onGenerate: (domain: string, numParts: number, numSuppliers: number, numCategories: number) => void; // numCommodities removed
   isGenerating: boolean;
 }
 
@@ -27,11 +27,10 @@ export default function GenerateDataDialog({ isOpen, onClose, onGenerate, isGene
   const [numParts, setNumParts] = useState(50);
   const [numSuppliers, setNumSuppliers] = useState(12);
   const [numCategories, setNumCategories] = useState(5);
-  const [numCommodities, setNumCommodities] = useState(6);
+  // numCommodities state removed
 
   const handleGenerateClick = () => {
-    onGenerate(domain, numParts, numSuppliers, numCategories, numCommodities);
-    // Don't close immediately, allow parent to close after generation
+    onGenerate(domain, numParts, numSuppliers, numCategories); // numCommodities removed from call
   };
 
   return (
@@ -98,19 +97,7 @@ export default function GenerateDataDialog({ isOpen, onClose, onGenerate, isGene
               min="1"
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="numCommodities" className="text-right">
-              Commodities
-            </Label>
-            <Input
-              id="numCommodities"
-              type="number"
-              value={numCommodities}
-              onChange={(e) => setNumCommodities(Math.max(1, parseInt(e.target.value, 10) || 1))}
-              className="col-span-3"
-              min="1"
-            />
-          </div>
+          {/* Commodities input section removed */}
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose} disabled={isGenerating}>Cancel</Button>
