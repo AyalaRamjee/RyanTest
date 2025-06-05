@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Package, PieChartIcon, Hash, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
+import { Package, PieChartIcon, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
 import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie, PieChart } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,7 +20,7 @@ interface UpdatePartsTabProps {
   onAddPart: () => void;
   spendByPartData: SpendDataPoint[];
   spendByCategoryData: SpendDataPoint[];
-  partsPerCategoryData: CountDataPoint[];
+  partsPerCategoryData: CountDataPoint[]; // This prop remains as it might be used by parent or other features
   onOpenUploadDialog: () => void;
   tariffChargePercent: number;
   totalLogisticsCostPercent: number;
@@ -46,13 +46,6 @@ const spendByPartChartConfig = {
 
 const spendByCategoryChartConfig = {
   spend: { label: "Spend ($)" },
-} satisfies import("@/components/ui/chart").ChartConfig;
-
-const partsPerCategoryChartConfig = {
-  count: {
-    label: "# Parts",
-    color: "hsl(var(--chart-4))",
-  },
 } satisfies import("@/components/ui/chart").ChartConfig;
 
 const abcChartConfig = {
@@ -157,7 +150,6 @@ export default function UpdatePartsTab({
     if (partsWithSpend.length === 0) {
       return {
         spendByClass: [],
-        countByClass: [],
       };
     }
 
@@ -170,11 +162,6 @@ export default function UpdatePartsTab({
                 { name: 'Class A', value: 0, fill: ABC_COLORS.A },
                 { name: 'Class B', value: 0, fill: ABC_COLORS.B },
                 { name: 'Class C', value: 0, fill: ABC_COLORS.C },
-            ],
-            countByClass: [
-                { name: 'Class A', value: 0, fill: ABC_COLORS.A },
-                { name: 'Class B', value: 0, fill: ABC_COLORS.B },
-                { name: 'Class C', value: sortedParts.length, fill: ABC_COLORS.C },
             ],
         };
     }
@@ -201,13 +188,7 @@ export default function UpdatePartsTab({
       { name: 'Class C', value: classifiedParts.filter(p => p.class === 'C').reduce((sum, p) => sum + p.annualSpend, 0), fill: ABC_COLORS.C },
     ];
 
-    const countByClass = [
-      { name: 'Class A', value: classifiedParts.filter(p => p.class === 'A').length, fill: ABC_COLORS.A },
-      { name: 'Class B', value: classifiedParts.filter(p => p.class === 'B').length, fill: ABC_COLORS.B },
-      { name: 'Class C', value: classifiedParts.filter(p => p.class === 'C').length, fill: ABC_COLORS.C },
-    ];
-
-    return { spendByClass, countByClass };
+    return { spendByClass };
   }, [partsWithSpend]);
 
 
@@ -440,43 +421,6 @@ export default function UpdatePartsTab({
                           </div>
                         )} />
                     </PieChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center">
-                <Hash className="mr-1.5 h-4 w-4" />
-                # Parts by Category
-              </CardTitle>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Part count distribution <Info className="ml-1 h-3 w-3" /></span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Number of unique parts in each category.</p>
-                </TooltipContent>
-              </Tooltip>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {partsPerCategoryData.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3">No parts per category data.</p>
-              ) : (
-                <ChartContainer config={partsPerCategoryChartConfig} className="min-h-[180px] w-full aspect-video">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart accessibilityLayer data={partsPerCategoryData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
-                      <CartesianGrid horizontal={false} />
-                      <XAxis type="number" dataKey="count" tickFormatter={formatNumber} tick={{ fontSize: 10 }} />
-                      <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} tick={{ fontSize: 10 }} />
-                      <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent indicator="dot" formatter={(value) => formatNumber(value as number)}/>}
-                      />
-                      <Bar dataKey="count" fill="var(--color-count)" radius={3} barSize={10}/>
-                    </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
               )}
