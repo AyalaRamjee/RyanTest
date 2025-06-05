@@ -34,6 +34,12 @@ export interface CountDataPoint {
   count: number;
 }
 
+export interface ABCPieChartDataItem {
+  name: string;
+  count: number;
+  fill: string;
+}
+
 const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
@@ -42,6 +48,12 @@ const HOME_COUNTRY = "USA";
 const HEADER_HEIGHT_PX = 64;
 const SUMMARY_STATS_HEIGHT_PX = 122;
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
+
+const ABC_COLORS_CLASSES = { // Renamed to avoid conflict with PIE_COLORS in other files if they were global
+  A: "hsl(var(--chart-1))",
+  B: "hsl(var(--chart-2))",
+  C: "hsl(var(--chart-3))",
+};
 
 export default function SpendWiseCentralPage() {
   const { theme, setTheme } = useTheme();
@@ -586,9 +598,23 @@ export default function SpendWiseCentralPage() {
     return effectivePrice * part.annualDemand * (1 + effectiveFreightOhdRate);
   }, []);
 
-  const totalAnnualSpend = useMemo(() => {
-    return parts.reduce((sum, p) => sum + calculateSpendForPart(p, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, HOME_COUNTRY), 0);
+  const partsWithSpend = useMemo(() => {
+    return parts.map(part => ({
+      ...part,
+      annualSpend: calculateSpendForPart(
+        part,
+        tariffChargePercent,
+        totalLogisticsCostPercent,
+        suppliers,
+        partSupplierAssociations,
+        HOME_COUNTRY
+      ),
+    }));
   }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
+
+  const totalAnnualSpend = useMemo(() => {
+    return partsWithSpend.reduce((sum, p) => sum + p.annualSpend, 0);
+  }, [partsWithSpend]);
 
   const formatCurrencyDisplay = (value: number) => {
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
@@ -605,25 +631,27 @@ export default function SpendWiseCentralPage() {
   ];
 
   const spendByPartData: SpendDataPoint[] = useMemo(() => {
-    return parts.map(part => ({
-      name: part.partNumber,
-      spend: calculateSpendForPart(part, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, HOME_COUNTRY),
-    })).sort((a,b) => b.spend - a.spend).slice(0,10);
-  }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
+    return partsWithSpend
+      .map(part => ({
+        name: part.partNumber,
+        spend: part.annualSpend,
+      }))
+      .sort((a,b) => b.spend - a.spend)
+      .slice(0,10);
+  }, [partsWithSpend]);
 
   const spendByCategoryData: SpendDataPoint[] = useMemo(() => {
     const categorySpend: Record<string, number> = {};
     partCategoryMappings.forEach(mapping => {
-      const part = parts.find(p => p.id === mapping.partId);
+      const part = partsWithSpend.find(p => p.id === mapping.partId);
       if (part) {
-        const spend = calculateSpendForPart(part, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, HOME_COUNTRY);
-        categorySpend[mapping.categoryName] = (categorySpend[mapping.categoryName] || 0) + spend;
+        categorySpend[mapping.categoryName] = (categorySpend[mapping.categoryName] || 0) + part.annualSpend;
       }
     });
     return Object.entries(categorySpend)
       .map(([name, spend]) => ({ name, spend }))
       .sort((a,b) => b.spend - a.spend);
-  }, [parts, partCategoryMappings, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
+  }, [partsWithSpend, partCategoryMappings]);
 
   const partsPerCategoryData: CountDataPoint[] = useMemo(() => {
     const categoryCounts: Record<string, number> = {};
@@ -635,6 +663,37 @@ export default function SpendWiseCentralPage() {
       .sort((a, b) => b.count - a.count);
   }, [partCategoryMappings]);
 
+  const abcSummaryPieData = useMemo(() : ABCPieChartDataItem[] => {
+    if (partsWithSpend.length === 0) return [];
+
+    const sortedParts = [...partsWithSpend].sort((a, b) => b.annualSpend - a.annualSpend);
+    const totalSpendAllParts = sortedParts.reduce((sum, p) => sum + p.annualSpend, 0);
+
+    if (totalSpendAllParts === 0) return [];
+
+    let cumulativeSpend = 0;
+    const counts = { A: 0, B: 0, C: 0 };
+
+    for (const part of sortedParts) {
+      cumulativeSpend += part.annualSpend;
+      const cumulativePercent = cumulativeSpend / totalSpendAllParts;
+      if (cumulativePercent <= 0.80) {
+        counts.A++;
+      } else if (cumulativePercent <= 0.95) {
+        counts.B++;
+      } else {
+        counts.C++;
+      }
+    }
+    
+    const pieData: ABCPieChartDataItem[] = [];
+    if (counts.A > 0) pieData.push({ name: 'Class A', count: counts.A, fill: ABC_COLORS_CLASSES.A });
+    if (counts.B > 0) pieData.push({ name: 'Class B', count: counts.B, fill: ABC_COLORS_CLASSES.B });
+    if (counts.C > 0) pieData.push({ name: 'Class C', count: counts.C, fill: ABC_COLORS_CLASSES.C });
+    
+    return pieData;
+  }, [partsWithSpend]);
+
 
   return (
     <TooltipProvider>
@@ -645,6 +704,7 @@ export default function SpendWiseCentralPage() {
             src="/TADA_TM-2023_Color-White-Logo.svg"
             alt="TADA Logo"
             className="h-18 w-16 object-contain"
+            data-ai-hint="logo company"
           />
           <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
             Spend by TADA
@@ -745,7 +805,7 @@ export default function SpendWiseCentralPage() {
               </Tooltip>
               <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
                 <SelectTrigger className="w-[60px]" aria-label="Select Theme">
-                  <SelectValue placeholder="Select Theme" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="light">
@@ -815,6 +875,7 @@ export default function SpendWiseCentralPage() {
                 partSupplierAssociations={partSupplierAssociations}
                 homeCountry={HOME_COUNTRY}
                 calculateSpendForSummary={calculateSpendForPart}
+                partsWithSpend={partsWithSpend}
               />
             </TabsContent>
             <TabsContent value="update-suppliers" className="mt-4">
@@ -845,7 +906,13 @@ export default function SpendWiseCentralPage() {
               />
             </TabsContent>
             <TabsContent value="summary" className="mt-4">
-              <SummaryTab suppliers={suppliers} />
+              <SummaryTab 
+                suppliers={suppliers}
+                parts={parts}
+                partSupplierAssociations={partSupplierAssociations}
+                spendByCategoryData={spendByCategoryData}
+                abcSummaryPieData={abcSummaryPieData}
+              />
             </TabsContent>
             <TabsContent value="scenario" className="mt-4">
               <ScenarioTab />
@@ -898,9 +965,3 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
-
-    
-
-    
-
-    

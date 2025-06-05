@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus, PieChart as PieChartIcon } from "lucide-react"; // PieChartIcon was removed, re-added as it might be used by spendByCategory if that's still here. Let's check. It was moved. Focus is used.
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, ScatterChart, Scatter, ZAxis, Tooltip as RechartsTooltip, Cell, Pie, PieChart } from 'recharts';
+import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react"; 
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, ScatterChart, Scatter, ZAxis, Tooltip as RechartsTooltip, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,14 +18,14 @@ interface UpdatePartsTabProps {
   parts: Part[];
   setParts: React.Dispatch<React.SetStateAction<Part[]>>;
   onAddPart: () => void;
-  spendByPartData: SpendDataPoint[];
+  spendByPartData: SpendDataPoint[]; // This uses partsWithSpend indirectly from page.tsx
   onOpenUploadDialog: () => void;
   tariffChargePercent: number;
   totalLogisticsCostPercent: number;
   suppliers: Supplier[];
   partSupplierAssociations: PartSupplierAssociation[];
   homeCountry: string;
-  calculateSpendForSummary: (
+  calculateSpendForSummary: ( // This function is now primarily for calculating part-specific spend for display if needed, overall totals are from partsWithSpend
     part: Part,
     currentTariffChargePercent: number,
     currentTotalLogisticsCostPercent: number,
@@ -33,6 +33,7 @@ interface UpdatePartsTabProps {
     localPartSupplierAssociations: PartSupplierAssociation[],
     localHomeCountry: string
   ) => number;
+  partsWithSpend: (Part & { annualSpend: number })[]; // Directly pass partsWithSpend for ABC analysis
 }
 
 const spendByPartChartConfig = {
@@ -64,6 +65,8 @@ export default function UpdatePartsTab({
   onAddPart,
   spendByPartData,
   onOpenUploadDialog,
+  partsWithSpend, // Use this for ABC
+  // The following are still needed for any direct spend calculations if they occur here, though primarily they feed into partsWithSpend in page.tsx
   tariffChargePercent,
   totalLogisticsCostPercent,
   suppliers, 
@@ -151,20 +154,6 @@ export default function UpdatePartsTab({
   };
 
   const totalPartsCount = useMemo(() => parts.length, [parts]);
-
-  const partsWithSpend = useMemo(() => {
-    return parts.map(part => ({
-      ...part,
-      annualSpend: calculateSpendForSummary(
-        part,
-        tariffChargePercent,
-        totalLogisticsCostPercent,
-        suppliers,
-        partSupplierAssociations,
-        homeCountry
-      ),
-    }));
-  }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, homeCountry, calculateSpendForSummary]);
 
   const abcClassificationData = useMemo(() => {
     if (partsWithSpend.length === 0) {
