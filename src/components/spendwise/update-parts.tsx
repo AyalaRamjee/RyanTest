@@ -311,11 +311,11 @@ export default function UpdatePartsTab({
                 <p className="font-medium">{formatNumber(totalPartsCount)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Cum. Spend:</p>
+                <p className="text-muted-foreground">Total Spend:</p>
                 <p className="font-medium">{formatCurrency(cumulativeSpendValue)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Cum. Volume:</p>
+                <p className="text-muted-foreground">Total Volume:</p>
                 <p className="font-medium">{formatNumber(cumulativeVolume)}</p>
               </div>
             </div>
