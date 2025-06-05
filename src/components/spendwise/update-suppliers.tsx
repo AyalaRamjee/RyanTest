@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Fingerprint, Building, FileText, MapPin, PlusCircle, TrendingUp as TrendingUpIcon, Info, UploadCloud, Trash2 } from "lucide-react";
+import { Fingerprint, Building, FileText, MapPin, PlusCircle, Info, UploadCloud, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import SupplierWorldMap from './supplier-world-map'; // Added import
@@ -164,28 +164,6 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
           </section>
         </div>
         <div className="md:col-span-3 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center">
-                <TrendingUpIcon className="mr-1.5 h-4 w-4" />
-                Spend by Supplier
-              </CardTitle>
-               <Tooltip>
-                <TooltipTrigger asChild>
-                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Aggregated spend <Info className="ml-1 h-3 w-3" /></span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Aggregated spend per supplier. Requires part-supplier mappings.</p>
-                </TooltipContent>
-              </Tooltip>
-            </CardHeader>
-            <CardContent className="pt-0 min-h-[180px] flex items-center justify-center">
-              <div className="text-center text-muted-foreground p-3 border border-dashed rounded-md">
-                <Info className="mx-auto h-6 w-6 mb-1.5" />
-                <p className="text-xs">Spend by supplier will be available once parts are mapped to suppliers in the "Source & Mix" tab.</p>
-              </div>
-            </CardContent>
-          </Card>
           <SupplierWorldMap suppliers={suppliers} />
         </div>
       </CardContent>
