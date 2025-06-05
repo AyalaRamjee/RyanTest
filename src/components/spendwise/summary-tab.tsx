@@ -2,11 +2,11 @@
 "use client";
 
 import type { Supplier, Part, PartSupplierAssociation } from '@/types/spendwise';
-import type { SpendDataPoint } from '@/app/page'; // ABCPieChartDataItem removed
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { SpendDataPoint } from '@/app/page'; 
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Globe, Building, Info, PieChart as PieChartIcon, Users, Link2, PackageCheck, Blocks, TrendingUp, Focus } from "lucide-react";
+import { Globe, Building, Info, PieChart as PieChartIcon, Users, Link2, PackageCheck, Blocks, TrendingUp, Focus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
@@ -20,11 +20,10 @@ import { useMemo } from 'react';
 
 interface SummaryTabProps {
   suppliers: Supplier[];
-  parts: Part[]; // Raw parts data
-  partsWithSpend: (Part & { annualSpend: number })[]; // Parts with calculated annual spend
+  parts: Part[]; 
+  partsWithSpend: (Part & { annualSpend: number })[]; 
   partSupplierAssociations: PartSupplierAssociation[];
   spendByCategoryData: SpendDataPoint[];
-  // abcSummaryPieData prop removed
 }
 
 const PIE_COLORS_CATEGORIES = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -58,7 +57,6 @@ export default function SummaryTab({
   partsWithSpend,
   partSupplierAssociations, 
   spendByCategoryData,
-  // abcSummaryPieData removed
 }: SummaryTabProps) {
 
   const formatCurrency = (value: number) => {
@@ -168,6 +166,29 @@ export default function SummaryTab({
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center text-lg">
+            <Sparkles className="mr-2 h-5 w-5 text-primary" />
+            Summary &amp; Key Insights
+          </CardTitle>
+          <CardDescription>
+            A high-level overview and AI-driven insights based on the current data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="p-6 border-2 border-dashed border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50/30 dark:bg-blue-950/20 min-h-[150px] flex flex-col items-center justify-center text-center">
+            <Sparkles className="h-12 w-12 text-blue-400 dark:text-blue-500 mb-3" />
+            <h4 className="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-1">AI-Powered Insights Dashboard</h4>
+            <p className="text-sm text-blue-600 dark:text-blue-400 max-w-md">
+              Future enhancements will populate this area with AI-generated summaries,
+              cost-saving opportunities, risk assessments, and actionable recommendations
+              based on your spend data.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Chart 1: ABC Parts Classification (Bubble Chart) */}
         <Card>
