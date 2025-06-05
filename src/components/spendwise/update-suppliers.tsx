@@ -23,24 +23,20 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
       prevSuppliers.map(s => {
         if (s.id === supplierId) {
           const updatedSupplier = { ...s, [field]: value };
-          // If an address component is changed, reconstruct the full address
-          // StreetAddress and StateOrProvince are no longer directly editable here, but might exist in the data
+          
           if (['city', 'postalCode', 'country', 'streetAddress', 'stateOrProvince'].includes(field)) {
             const street = updatedSupplier.streetAddress || '';
-            const city = updatedSupplier.city || '';
+            const cityVal = updatedSupplier.city || '';
             const state = updatedSupplier.stateOrProvince || '';
             const postal = updatedSupplier.postalCode || '';
             const countryVal = updatedSupplier.country || '';
             
-            let fullAddress = [street, city, state, postal, countryVal]
-              .filter(Boolean) // Remove empty or null parts
+            let fullAddress = [street, cityVal, state, postal, countryVal]
+              .filter(Boolean) 
               .join(', ');
             
-            // Refine formatting: "City, State Postal, Country" or "Street, City, Postal, Country" etc.
-            // This is a simple join; more complex logic might be needed for perfect grammar across all address formats.
-            // For now, just joining with comma and space, and cleaning up multiple commas/spaces.
-            if (state && postal) { // "City, State Postal"
-                fullAddress = fullAddress.replace(`${city}, ${state}, ${postal}`, `${city}, ${state} ${postal}`);
+            if (state && postal) { 
+                fullAddress = fullAddress.replace(`${cityVal}, ${state}, ${postal}`, `${cityVal}, ${state} ${postal}`);
             }
             updatedSupplier.address = fullAddress.replace(/ , |, $/g, '').replace(/, ,/g, ',').replace(/  +/g, ' ').trim();
           }
@@ -97,7 +93,6 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
                       <TableHead className="min-w-[150px] text-xs"><Building className="inline-block mr-1 h-3.5 w-3.5" />Name</TableHead>
                       <TableHead className="min-w-[150px] text-xs"><FileText className="inline-block mr-1 h-3.5 w-3.5" />Description</TableHead>
                       <TableHead className="min-w-[100px] text-xs">City</TableHead>
-                      <TableHead className="min-w-[80px] text-xs">Postal</TableHead>
                       <TableHead className="min-w-[100px] text-xs"><Globe2 className="inline-block mr-1 h-3.5 w-3.5" />Country</TableHead>
                       <TableHead className="min-w-[200px] text-xs"><MapPin className="inline-block mr-1 h-3.5 w-3.5" />Full Address</TableHead>
                       <TableHead className="text-center w-[50px] text-xs">Del</TableHead>
@@ -128,14 +123,6 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
                             type="text"
                             value={supplier.city}
                             onChange={(e) => handleSupplierInputChange(supplier.id, 'city', e.target.value)}
-                            className="h-7 text-xs"
-                          />
-                        </TableCell>
-                        <TableCell className="py-1.5">
-                          <Input
-                            type="text"
-                            value={supplier.postalCode}
-                            onChange={(e) => handleSupplierInputChange(supplier.id, 'postalCode', e.target.value)}
                             className="h-7 text-xs"
                           />
                         </TableCell>
