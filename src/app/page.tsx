@@ -88,8 +88,12 @@ export default function SpendWiseCentralPage() {
       const day = now.getDate();
       const monthName = monthNames[now.getMonth()];
       const year = now.getFullYear();
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      setFormattedDateTime(`${hoursStr}:${minutes} ${ampm} ${timeZone.replace('_', ' ')}, ${dayName}, ${monthName} ${day}, ${year}`);
+
+      // Attempt to get the short time zone name
+      const timeZoneShort = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
+                                .formatToParts(now).find(part => part.type === 'timeZoneName')?.value || '';
+      
+      setFormattedDateTime(`${hoursStr}:${minutes} ${ampm} ${timeZoneShort}, ${dayName}, ${monthName} ${day}, ${year}`);
     };
 
     updateDateTime(); 
