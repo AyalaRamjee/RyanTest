@@ -1,33 +1,33 @@
 
 "use client";
 
-import type { Part, Supplier, PartSupplierAssociation } from '@/types/spendwise'; 
+import type { Part, Supplier, PartSupplierAssociation } from '@/types/spendwise';
 import type { SpendDataPoint, CountDataPoint } from '@/app/page';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Package, PieChartIcon, Hash, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
-import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie } from 'recharts'; // Removed duplicate PieChart import
+import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 
 interface UpdatePartsTabProps {
   parts: Part[];
-  setParts: React.Dispatch<React.SetStateAction<Part[]>>; 
+  setParts: React.Dispatch<React.SetStateAction<Part[]>>;
   onAddPart: () => void;
   spendByPartData: SpendDataPoint[];
   spendByCategoryData: SpendDataPoint[];
   partsPerCategoryData: CountDataPoint[];
   onOpenUploadDialog: () => void;
-  tariffChargePercent: number; 
+  tariffChargePercent: number;
   totalLogisticsCostPercent: number;
-  suppliers: Supplier[]; 
+  suppliers: Supplier[];
   partSupplierAssociations: PartSupplierAssociation[];
   homeCountry: string;
-  calculateSpendForSummary: ( // Added this prop explicitly for clarity, assuming it's passed
+  calculateSpendForSummary: (
     part: Part,
     currentTariffChargePercent: number,
     currentTotalLogisticsCostPercent: number,
@@ -56,30 +56,30 @@ const partsPerCategoryChartConfig = {
 } satisfies import("@/components/ui/chart").ChartConfig;
 
 const abcChartConfig = {
-  value: { label: "Value" }, // Generic label, will be overridden in legend/tooltip
+  value: { label: "Value" },
 } satisfies import("@/components/ui/chart").ChartConfig;
 
 
 const PIE_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 const ABC_COLORS = {
-  A: "hsl(var(--chart-1))", // Green (Good)
-  B: "hsl(var(--chart-4))", // Yellow (Medium)
-  C: "hsl(var(--chart-3))", // Blue (Okay)
+  A: "hsl(var(--chart-1))",
+  B: "hsl(var(--chart-4))",
+  C: "hsl(var(--chart-3))",
 };
 
 
-export default function UpdatePartsTab({ 
-  parts, 
+export default function UpdatePartsTab({
+  parts,
   setParts,
-  onAddPart, 
-  spendByPartData, 
-  spendByCategoryData, 
-  partsPerCategoryData, 
+  onAddPart,
+  spendByPartData,
+  spendByCategoryData,
+  partsPerCategoryData,
   onOpenUploadDialog,
   tariffChargePercent,
   totalLogisticsCostPercent,
-  suppliers: allSuppliers, 
-  partSupplierAssociations: allPartSupplierAssociations, 
+  suppliers, // Renamed from allSuppliers for consistency
+  partSupplierAssociations, // Renamed from allPartSupplierAssociations
   homeCountry,
   calculateSpendForSummary
 }: UpdatePartsTabProps) {
@@ -94,7 +94,7 @@ export default function UpdatePartsTab({
   };
 
   const handlePartInputChange = (partId: string, field: keyof Part, value: string | number) => {
-    setParts(prevParts => 
+    setParts(prevParts =>
       prevParts.map(p => {
         if (p.id === partId) {
           let processedValue = value;
@@ -111,7 +111,7 @@ export default function UpdatePartsTab({
       })
     );
   };
-  
+
   const handleAnnualDemandChange = (partId: string, rawValue: string) => {
     const cleanedValue = rawValue.replace(/,/g, '');
     if (cleanedValue === '') {
@@ -125,11 +125,11 @@ export default function UpdatePartsTab({
   };
 
   const handlePartNameChange = (partId: string, value: string) => {
-     setParts(prevParts => 
+     setParts(prevParts =>
       prevParts.map(p => p.id === partId ? { ...p, name: value } : p)
     );
   };
-  
+
   const handleDeletePart = (partId: string) => {
     setParts(prevParts => prevParts.filter(p => p.id !== partId));
     if (selectedPartId === partId) {
@@ -138,7 +138,7 @@ export default function UpdatePartsTab({
   };
 
   const totalPartsCount = useMemo(() => parts.length, [parts]);
-  
+
   const partsWithSpend = useMemo(() => {
     return parts.map(part => ({
       ...part,
@@ -146,12 +146,12 @@ export default function UpdatePartsTab({
         part,
         tariffChargePercent,
         totalLogisticsCostPercent,
-        allSuppliers,
-        allPartSupplierAssociations,
+        suppliers,
+        partSupplierAssociations,
         homeCountry
       ),
     }));
-  }, [parts, tariffChargePercent, totalLogisticsCostPercent, allSuppliers, allPartSupplierAssociations, homeCountry, calculateSpendForSummary]);
+  }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, homeCountry, calculateSpendForSummary]);
 
   const abcClassificationData = useMemo(() => {
     if (partsWithSpend.length === 0) {
@@ -164,7 +164,7 @@ export default function UpdatePartsTab({
     const sortedParts = [...partsWithSpend].sort((a, b) => b.annualSpend - a.annualSpend);
     const totalAnnualSpendAllParts = sortedParts.reduce((sum, p) => sum + p.annualSpend, 0);
 
-    if (totalAnnualSpendAllParts === 0) { // Avoid division by zero if all spends are 0
+    if (totalAnnualSpendAllParts === 0) {
         return {
             spendByClass: [
                 { name: 'Class A', value: 0, fill: ABC_COLORS.A },
@@ -174,8 +174,7 @@ export default function UpdatePartsTab({
             countByClass: [
                 { name: 'Class A', value: 0, fill: ABC_COLORS.A },
                 { name: 'Class B', value: 0, fill: ABC_COLORS.B },
-                // Assign all parts to C if total spend is zero, or handle as needed
-                { name: 'Class C', value: sortedParts.length, fill: ABC_COLORS.C }, 
+                { name: 'Class C', value: sortedParts.length, fill: ABC_COLORS.C },
             ],
         };
     }
@@ -195,7 +194,7 @@ export default function UpdatePartsTab({
         classifiedParts.push({ ...part, class: 'C' });
       }
     }
-    
+
     const spendByClass = [
       { name: 'Class A', value: classifiedParts.filter(p => p.class === 'A').reduce((sum, p) => sum + p.annualSpend, 0), fill: ABC_COLORS.A },
       { name: 'Class B', value: classifiedParts.filter(p => p.class === 'B').reduce((sum, p) => sum + p.annualSpend, 0), fill: ABC_COLORS.B },
@@ -207,12 +206,12 @@ export default function UpdatePartsTab({
       { name: 'Class B', value: classifiedParts.filter(p => p.class === 'B').length, fill: ABC_COLORS.B },
       { name: 'Class C', value: classifiedParts.filter(p => p.class === 'C').length, fill: ABC_COLORS.C },
     ];
-    
+
     return { spendByClass, countByClass };
   }, [partsWithSpend]);
 
 
-  const cumulativeSpendValue = useMemo(() => { // Renamed from cumulativeSpend
+  const cumulativeSpendValue = useMemo(() => {
     return partsWithSpend.reduce((sum, p) => sum + p.annualSpend, 0);
   }, [partsWithSpend]);
 
@@ -276,12 +275,12 @@ export default function UpdatePartsTab({
           {parts.length === 0 ? (
             <p className="text-muted-foreground text-center py-3">No parts available. Generate, add, or upload some parts.</p>
           ) : (
-            <ScrollArea className="max-h-[calc(100vh-480px)] min-h-[200px]"> 
+            <ScrollArea className="max-h-[calc(100vh-480px)] min-h-[200px]">
               <RadioGroup value={selectedPartId || undefined} onValueChange={setSelectedPartId} className="space-y-2 pr-2">
                 {parts.map((part) => (
                   <div key={part.id} className="flex items-center gap-2 p-2.5 rounded-md border bg-card shadow-sm hover:shadow-md transition-shadow">
                     <RadioGroupItem value={part.id} id={`part-${part.id}`} className="h-5 w-5" />
-                    
+
                     <div className="w-24 flex-shrink-0 font-mono text-xs truncate" title={part.partNumber}>
                       {part.partNumber}
                     </div>
@@ -413,7 +412,7 @@ export default function UpdatePartsTab({
                         cursor={false}
                         content={<ChartTooltipContent hideLabel formatter={(value, name, props) => <div className="text-xs"><span className="font-medium">{props.payload?.name}</span>: {formatCurrency(value as number)}</div>} />}
                       />
-                      <Pie data={spendByCategoryData} dataKey="spend" nameKey="name" cx="50%" cy="50%" outerRadius={60} labelLine={false} 
+                      <Pie data={spendByCategoryData} dataKey="spend" nameKey="name" cx="50%" cy="50%" outerRadius={60} labelLine={false}
                           label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
                               const RADIAN = Math.PI / 180;
                               const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -484,7 +483,6 @@ export default function UpdatePartsTab({
             </CardContent>
           </Card>
 
-          {/* ABC Spend Classification Chart */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center">
@@ -557,7 +555,6 @@ export default function UpdatePartsTab({
             </CardContent>
           </Card>
 
-          {/* ABC Count Classification Chart */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center">

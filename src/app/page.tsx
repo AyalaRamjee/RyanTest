@@ -1,5 +1,5 @@
 
-"use client"; 
+"use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -37,11 +37,11 @@ export interface CountDataPoint {
 const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
-const HOME_COUNTRY = "USA"; 
+const HOME_COUNTRY = "USA";
 
 const HEADER_HEIGHT_PX = 64;
-const SUMMARY_STATS_HEIGHT_PX = 122; 
-const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX; 
+const SUMMARY_STATS_HEIGHT_PX = 122;
+const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
 export default function SpendWiseCentralPage() {
   const { theme, setTheme } = useTheme();
@@ -50,10 +50,10 @@ export default function SpendWiseCentralPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [partCategoryMappings, setPartCategoryMappings] = useState<PartCategoryMapping[]>([]);
   const [partSupplierAssociations, setPartSupplierAssociations] = useState<PartSupplierAssociation[]>([]);
-  
+
   const [isGenerateDataDialogOpen, setIsGenerateDataDialogOpen] = useState(false);
   const [isGeneratingData, setIsGeneratingData] = useState(false);
-  
+
   const [isCategoryUploadDialogOpen, setIsCategoryUploadDialogOpen] = useState(false);
   const [isUploadingCategoryCsv, setIsUploadingCategoryCsv] = useState(false);
   const [isPartsUploadDialogOpen, setIsPartsUploadDialogOpen] = useState(false);
@@ -63,8 +63,8 @@ export default function SpendWiseCentralPage() {
   const [isSourceMixUploadDialogOpen, setIsSourceMixUploadDialogOpen] = useState(false);
   const [isUploadingSourceMixCsv, setIsUploadingSourceMixCsv] = useState(false);
 
-  const [tariffChargePercent, setTariffChargePercent] = useState(100); 
-  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100); 
+  const [tariffChargePercent, setTariffChargePercent] = useState(100);
+  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100);
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
   const [currentFilename, setCurrentFilename] = useState<string>(DEFAULT_XML_FILENAME);
@@ -74,7 +74,7 @@ export default function SpendWiseCentralPage() {
   useEffect(() => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    
+
     const updateDateTime = () => {
       const now = new Date();
       let hours = now.getHours();
@@ -83,7 +83,7 @@ export default function SpendWiseCentralPage() {
       hours = hours % 12;
       hours = hours ? hours : 12; // the hour '0' should be '12'
       const hoursStr = hours.toString().padStart(2, '0');
-      
+
       const dayName = days[now.getDay()];
       const day = now.getDate();
       const monthName = monthNames[now.getMonth()];
@@ -91,14 +91,14 @@ export default function SpendWiseCentralPage() {
 
       const timeZoneShort = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
                                 .formatToParts(now).find(part => part.type === 'timeZoneName')?.value || '';
-      
+
       setFormattedDateTime(`${dayName}, ${monthName} ${day}, ${year} at ${hoursStr}:${minutes} ${ampm} ${timeZoneShort}`);
     };
 
-    updateDateTime(); 
-    const intervalId = setInterval(updateDateTime, 1000); 
+    updateDateTime();
+    const intervalId = setInterval(updateDateTime, 1000);
 
-    return () => clearInterval(intervalId); 
+    return () => clearInterval(intervalId);
   }, []);
 
 
@@ -120,7 +120,7 @@ export default function SpendWiseCentralPage() {
     try {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlString, "application/xml");
-      
+
       const errorNode = xmlDoc.querySelector("parsererror");
       if (errorNode) {
         console.error("XML Parsing Error:", errorNode.textContent);
@@ -147,8 +147,8 @@ export default function SpendWiseCentralPage() {
           supplierId: s.getAttribute("supplierId") || "",
           name: s.getAttribute("name") || "Unknown Supplier",
           description: s.getAttribute("description") || "",
-          address: s.getAttribute("address") || "", 
-          streetAddress: s.getAttribute("streetAddress") || s.getAttribute("address") || "", 
+          address: s.getAttribute("address") || "",
+          streetAddress: s.getAttribute("streetAddress") || s.getAttribute("address") || "",
           city: s.getAttribute("city") || "",
           stateOrProvince: s.getAttribute("stateOrProvince") || "",
           postalCode: s.getAttribute("postalCode") || "",
@@ -164,7 +164,7 @@ export default function SpendWiseCentralPage() {
           categoryName: m.getAttribute("categoryName") || "Unknown Category",
         });
       });
-      
+
 
       const newPartSupplierAssociations: PartSupplierAssociation[] = [];
       xmlDoc.querySelectorAll("PartSupplierAssociations Association").forEach(a => {
@@ -180,7 +180,7 @@ export default function SpendWiseCentralPage() {
       setPartCategoryMappings(newPartCategoryMappings);
       setPartSupplierAssociations(newPartSupplierAssociations);
       setCurrentFilename(filename);
-      
+
       toast({ title: "Success", description: `Configuration from "${filename}" loaded.` });
     } catch (error) {
       console.error("Error processing XML data:", error);
@@ -191,16 +191,16 @@ export default function SpendWiseCentralPage() {
   useEffect(() => {
     const lastLoadedFile = typeof window !== 'undefined' ? localStorage.getItem(LAST_LOADED_FILENAME_KEY) : null;
     const filenameToLoad = lastLoadedFile || DEFAULT_XML_FILENAME;
-    
+
     const storedXmlData = typeof window !== 'undefined' ? localStorage.getItem(APP_CONFIG_DATA_KEY_PREFIX + filenameToLoad) : null;
 
     if (storedXmlData) {
       parseAndSetXmlData(storedXmlData, filenameToLoad);
     } else {
-      setCurrentFilename(DEFAULT_XML_FILENAME); 
+      setCurrentFilename(DEFAULT_XML_FILENAME);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
   useEffect(() => {
     let xmlString = '<SpendData>\n';
@@ -286,7 +286,7 @@ export default function SpendWiseCentralPage() {
     setIsGeneratingData(true);
     try {
       const generatedData = await generateSpendData({ domain, numParts: numPartsToGen, numSuppliers: numSuppliersToGen, numCategories: numCategoriesToGen });
-      
+
       const newPartsArr: Part[] = [];
       const newPartCategoryMappingsArr: PartCategoryMapping[] = [];
 
@@ -298,7 +298,7 @@ export default function SpendWiseCentralPage() {
           name: p.name,
           price: parseFloat((Math.random() * 1000 + 5).toFixed(2)),
           annualDemand: Math.floor(Math.random() * 50000) + 1000,
-          freightOhdCost: parseFloat((Math.random() * 0.05).toFixed(4)), 
+          freightOhdCost: parseFloat((Math.random() * 0.05).toFixed(4)),
         });
         if (generatedData.categories.length > 0) {
           newPartCategoryMappingsArr.push({
@@ -339,12 +339,12 @@ export default function SpendWiseCentralPage() {
           }
         });
       }
-      
+
       setParts(newPartsArr);
       setSuppliers(newSuppliersArr);
       setPartCategoryMappings(newPartCategoryMappingsArr);
-      setPartSupplierAssociations(newPartSupplierAssociationsArr); 
-      
+      setPartSupplierAssociations(newPartSupplierAssociationsArr);
+
       toast({ title: "Success", description: "Sample data generated successfully!" });
       setIsGenerateDataDialogOpen(false);
     } catch (error) {
@@ -366,9 +366,9 @@ export default function SpendWiseCentralPage() {
       freightOhdCost: 0.00,
     };
     setParts(prev => [...prev, newPart]);
-    
+
     const defaultCategory = partCategoryMappings.length > 0 ? partCategoryMappings[0].categoryName : "Default Category";
-    
+
     if (parts.length === 0 || !partCategoryMappings.some(m => m.partId === newPartId)) {
         setPartCategoryMappings(prev => [...prev, { id: `pcm${Date.now()}_manual`, partId: newPartId, categoryName: defaultCategory}]);
     }
@@ -407,8 +407,8 @@ export default function SpendWiseCentralPage() {
         try {
           const text = e.target?.result as string;
           const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
-          
-          if (lines.length <= 1) { 
+
+          if (lines.length <= 1) {
              toast({ variant: "destructive", title: "CSV Error", description: "CSV file is empty or contains only a header." });
              reject(new Error("CSV empty or header only"));
              return;
@@ -418,24 +418,24 @@ export default function SpendWiseCentralPage() {
           let processedCount = 0;
           let skippedCount = 0;
 
-          if (type === 'category') { 
-            const newMappings: PartCategoryMapping[] = []; 
+          if (type === 'category') {
+            const newMappings: PartCategoryMapping[] = [];
             for (let i = 1; i < lines.length; i++) {
               const line = lines[i];
               const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
               if (columns.length < 2) { errors.push(`Row ${i+1}: Not enough columns.`); skippedCount++; continue; }
               const partNumber = columns[0];
-              const name = columns[1]; 
+              const name = columns[1];
               if (!partNumber || !name) { errors.push(`Row ${i+1}: Missing PartNumber or Name.`); skippedCount++; continue; }
               const part = parts.find(p => p.partNumber === partNumber);
               if (!part) { errors.push(`Row ${i+1}: PartNumber "${partNumber}" not found.`); skippedCount++; continue; }
-              
-              if (type === 'category') { 
+
+              if (type === 'category') {
                 newMappings.push({ id: `pcm_csv_${Date.now()}_${i}`, partId: part.id, categoryName: name } as PartCategoryMapping);
               }
               processedCount++;
             }
-            if (type === 'category') { 
+            if (type === 'category') {
               setPartCategoryMappings(prev => [...prev, ...newMappings as PartCategoryMapping[]]);
             }
           } else if (type === 'part') {
@@ -447,7 +447,7 @@ export default function SpendWiseCentralPage() {
                 const [partNumber, name, priceStr, annualDemandStr, freightOhdCostStr] = columns;
                 const price = parseFloat(priceStr);
                 const annualDemand = parseInt(annualDemandStr, 10);
-                const freightOhdCost = parseFloat(freightOhdCostStr) / 100; 
+                const freightOhdCost = parseFloat(freightOhdCostStr) / 100;
                 if (!partNumber || !name || isNaN(price) || isNaN(annualDemand) || isNaN(freightOhdCost)) { errors.push(`Row ${i+1}: Invalid data for PartNumber, Name, Price, AnnualDemand, or FreightOhdCost.`); skippedCount++; continue; }
                 if (parts.some(p => p.partNumber === partNumber)) { errors.push(`Row ${i+1}: PartNumber "${partNumber}" already exists. Skipped.`); skippedCount++; continue; }
                 newPartsArr.push({ id: `p_csv_${Date.now()}_${i}`, partNumber, name, price, annualDemand, freightOhdCost });
@@ -486,7 +486,7 @@ export default function SpendWiseCentralPage() {
             }
             setPartSupplierAssociations(prev => [...prev, ...newAssociations]);
           }
-          
+
           let description = `${processedCount} items/mappings added.`;
           if (skippedCount > 0 || errors.length > 0) {
             description += ` ${skippedCount + errors.filter(e => !e.includes("already exists")).length} rows skipped due to errors or duplicates.`;
@@ -515,7 +515,7 @@ export default function SpendWiseCentralPage() {
 
   const handleProcessCategoryCsv = async (file: File) => {
     await processCsvUpload(file, 'category');
-    setIsCategoryUploadDialogOpen(false); 
+    setIsCategoryUploadDialogOpen(false);
   };
 
   const handleProcessPartsCsv = async (file: File) => {
@@ -540,32 +540,33 @@ export default function SpendWiseCentralPage() {
 
   const calculateSpendForPart = useCallback((
     part: Part,
-    currentTariffChargePercent: number, 
-    currentTotalLogisticsCostPercent: number, 
-    allSuppliers: Supplier[],
-    allPartSupplierAssociations: PartSupplierAssociation[]
+    currentTariffChargePercent: number,
+    currentTotalLogisticsCostPercent: number,
+    localSuppliers: Supplier[],
+    localPartSupplierAssociations: PartSupplierAssociation[],
+    homeCountryParam: string
   ): number => {
     let priceMultiplier = 1.0;
-    const isImported = allPartSupplierAssociations
+    const isImported = localPartSupplierAssociations
       .filter(assoc => assoc.partId === part.id)
       .some(assoc => {
-        const supplier = allSuppliers.find(s => s.id === assoc.supplierId);
-        return supplier && supplier.country !== HOME_COUNTRY;
+        const supplier = localSuppliers.find(s => s.id === assoc.supplierId);
+        return supplier && supplier.country !== homeCountryParam;
       });
 
     if (isImported) {
       priceMultiplier = currentTariffChargePercent / 100;
     }
-    
+
     const effectivePrice = part.price * priceMultiplier;
     const logisticsRateMultiplier = currentTotalLogisticsCostPercent / 100;
     const effectiveFreightOhdRate = part.freightOhdCost * logisticsRateMultiplier;
 
     return effectivePrice * part.annualDemand * (1 + effectiveFreightOhdRate);
   }, []);
-  
+
   const totalAnnualSpend = useMemo(() => {
-    return parts.reduce((sum, p) => sum + calculateSpendForPart(p, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations), 0);
+    return parts.reduce((sum, p) => sum + calculateSpendForPart(p, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, HOME_COUNTRY), 0);
   }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
 
   const formatCurrencyDisplay = (value: number) => {
@@ -574,7 +575,7 @@ export default function SpendWiseCentralPage() {
     if (value >= 1_000) return `${(value / 1_000).toFixed(2)}K`;
     return value.toFixed(2);
   };
-  
+
   const summaryStats = [
     { Icon: Briefcase, label: "Total Parts", value: totalParts },
     { Icon: Users, label: "Total Suppliers", value: totalSuppliers },
@@ -585,7 +586,7 @@ export default function SpendWiseCentralPage() {
   const spendByPartData: SpendDataPoint[] = useMemo(() => {
     return parts.map(part => ({
       name: part.partNumber,
-      spend: calculateSpendForPart(part, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations),
+      spend: calculateSpendForPart(part, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, HOME_COUNTRY),
     })).sort((a,b) => b.spend - a.spend).slice(0,10);
   }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
 
@@ -594,7 +595,7 @@ export default function SpendWiseCentralPage() {
     partCategoryMappings.forEach(mapping => {
       const part = parts.find(p => p.id === mapping.partId);
       if (part) {
-        const spend = calculateSpendForPart(part, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations);
+        const spend = calculateSpendForPart(part, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, HOME_COUNTRY);
         categorySpend[mapping.categoryName] = (categorySpend[mapping.categoryName] || 0) + spend;
       }
     });
@@ -619,10 +620,10 @@ export default function SpendWiseCentralPage() {
       <div className="flex flex-col min-h-screen bg-background">
         <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
           <div className="container mx-auto flex h-16 items-center space-x-4 px-4 sm:px-6 lg:px-8">
-          <img 
-            src="/TADA_TM-2023_Color-White-Logo.svg" 
-            alt="TADA Logo" 
-            className="h-18 w-16 object-contain" 
+          <img
+            src="/TADA_TM-2023_Color-White-Logo.svg"
+            alt="TADA Logo"
+            className="h-18 w-16 object-contain"
           />
           <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
             Spend by TADA
@@ -659,7 +660,7 @@ export default function SpendWiseCentralPage() {
             </div>
 
             <div className="ml-auto flex items-center space-x-2">
-               <SpendWiseBot 
+               <SpendWiseBot
                 parts={parts}
                 suppliers={suppliers}
                 partCategoryMappings={partCategoryMappings}
@@ -708,7 +709,7 @@ export default function SpendWiseCentralPage() {
           </div>
         </header>
 
-        <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16"> 
+        <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16">
           <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background py-4 shadow-sm`}>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {summaryStats.map(stat => (
@@ -725,7 +726,7 @@ export default function SpendWiseCentralPage() {
             </div>
           </section>
 
-          <Tabs defaultValue="update-parts" className="w-full mt-4"> 
+          <Tabs defaultValue="update-parts" className="w-full mt-4">
             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1">
                 <Package className="h-3.5 w-3.5" /> 1. Parts
@@ -746,13 +747,13 @@ export default function SpendWiseCentralPage() {
                 <Lightbulb className="h-3.5 w-3.5" /> 6. Scenario
               </TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="update-parts" className="mt-4"> 
-              <UpdatePartsTab 
-                parts={parts} 
+
+            <TabsContent value="update-parts" className="mt-4">
+              <UpdatePartsTab
+                parts={parts}
                 setParts={setParts}
-                onAddPart={handleAddPart} 
-                spendByPartData={spendByPartData} 
+                onAddPart={handleAddPart}
+                spendByPartData={spendByPartData}
                 spendByCategoryData={spendByCategoryData}
                 partsPerCategoryData={partsPerCategoryData}
                 onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
@@ -761,36 +762,37 @@ export default function SpendWiseCentralPage() {
                 suppliers={suppliers}
                 partSupplierAssociations={partSupplierAssociations}
                 homeCountry={HOME_COUNTRY}
+                calculateSpendForSummary={calculateSpendForPart}
               />
             </TabsContent>
-            <TabsContent value="update-suppliers" className="mt-4"> 
-              <UpdateSuppliersTab 
-                suppliers={suppliers} 
+            <TabsContent value="update-suppliers" className="mt-4">
+              <UpdateSuppliersTab
+                suppliers={suppliers}
                 setSuppliers={setSuppliers}
-                onAddSupplier={handleAddSupplier} 
+                onAddSupplier={handleAddSupplier}
                 onOpenUploadDialog={() => setIsSuppliersUploadDialogOpen(true)}
               />
             </TabsContent>
-            <TabsContent value="part-supplier-mapping" className="mt-4"> 
-              <PartSupplierMappingTab 
-                parts={parts} 
-                suppliers={suppliers} 
+            <TabsContent value="part-supplier-mapping" className="mt-4">
+              <PartSupplierMappingTab
+                parts={parts}
+                suppliers={suppliers}
                 partSupplierAssociations={partSupplierAssociations}
                 setPartSupplierAssociations={setPartSupplierAssociations}
                 onOpenUploadDialog={() => setIsSourceMixUploadDialogOpen(true)}
               />
             </TabsContent>
-            <TabsContent value="upload-part-category" className="mt-4"> 
-              <UploadPartCategoryTab 
-                parts={parts} 
-                partCategoryMappings={partCategoryMappings} 
+            <TabsContent value="upload-part-category" className="mt-4">
+              <UploadPartCategoryTab
+                parts={parts}
+                partCategoryMappings={partCategoryMappings}
                 spendByCategoryData={spendByCategoryData}
                 partsPerCategoryData={partsPerCategoryData}
                 onOpenUploadDialog={() => setIsCategoryUploadDialogOpen(true)}
                 setPartCategoryMappings={setPartCategoryMappings}
               />
             </TabsContent>
-            <TabsContent value="summary" className="mt-4"> 
+            <TabsContent value="summary" className="mt-4">
               <SummaryTab suppliers={suppliers} />
             </TabsContent>
             <TabsContent value="scenario" className="mt-4">
@@ -806,8 +808,8 @@ export default function SpendWiseCentralPage() {
             <span>{formattedDateTime || "Loading time..."}</span>
           </div>
         </footer>
-        <GenerateDataDialog 
-          isOpen={isGenerateDataDialogOpen} 
+        <GenerateDataDialog
+          isOpen={isGenerateDataDialogOpen}
           onClose={() => setIsGenerateDataDialogOpen(false)}
           onGenerate={handleGenerateData}
           isGenerating={isGeneratingData}
