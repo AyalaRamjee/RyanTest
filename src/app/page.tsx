@@ -8,7 +8,7 @@ import UpdatePartsTab from "@/components/spendwise/update-parts";
 import UpdateSuppliersTab from "@/components/spendwise/update-suppliers";
 import PartSupplierMappingTab from "@/components/spendwise/part-supplier-mapping";
 import UploadPartCategoryTab from "@/components/spendwise/upload-part-category";
-// UploadPartCommodityTab import removed
+import ScenarioTab from "@/components/spendwise/scenario-tab"; // Added ScenarioTab import
 import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import UploadCsvDialog from "@/components/spendwise/upload-csv-dialog";
 import SpendWiseBot from "@/components/spendwise/spendwise-bot";
@@ -19,8 +19,8 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, ArrowUp, PercentCircle, Shield } from "lucide-react";
-import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise'; // PartCommodityMapping removed
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, ArrowUp, PercentCircle, Shield, Lightbulb } from "lucide-react"; // Added Lightbulb
+import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -49,7 +49,6 @@ export default function SpendWiseCentralPage() {
   const [parts, setParts] = useState<Part[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [partCategoryMappings, setPartCategoryMappings] = useState<PartCategoryMapping[]>([]);
-  // partCommodityMappings state removed
   const [partSupplierAssociations, setPartSupplierAssociations] = useState<PartSupplierAssociation[]>([]);
   
   const [isGenerateDataDialogOpen, setIsGenerateDataDialogOpen] = useState(false);
@@ -57,7 +56,6 @@ export default function SpendWiseCentralPage() {
   
   const [isCategoryUploadDialogOpen, setIsCategoryUploadDialogOpen] = useState(false);
   const [isUploadingCategoryCsv, setIsUploadingCategoryCsv] = useState(false);
-  // Commodity upload dialog state removed
   const [isPartsUploadDialogOpen, setIsPartsUploadDialogOpen] = useState(false);
   const [isUploadingPartsCsv, setIsUploadingPartsCsv] = useState(false);
   const [isSuppliersUploadDialogOpen, setIsSuppliersUploadDialogOpen] = useState(false);
@@ -156,7 +154,6 @@ export default function SpendWiseCentralPage() {
         });
       });
       
-      // PartCommodityMappings parsing removed
 
       const newPartSupplierAssociations: PartSupplierAssociation[] = [];
       xmlDoc.querySelectorAll("PartSupplierAssociations Association").forEach(a => {
@@ -170,7 +167,6 @@ export default function SpendWiseCentralPage() {
       setParts(newParts);
       setSuppliers(newSuppliers);
       setPartCategoryMappings(newPartCategoryMappings);
-      // setPartCommodityMappings removed
       setPartSupplierAssociations(newPartSupplierAssociations);
       setCurrentFilename(filename);
       
@@ -215,7 +211,6 @@ export default function SpendWiseCentralPage() {
     });
     xmlString += '  </PartCategoryMappings>\n';
 
-    // PartCommodityMappings XML generation removed
 
     xmlString += '  <PartSupplierAssociations>\n';
     partSupplierAssociations.forEach(a => {
@@ -231,7 +226,7 @@ export default function SpendWiseCentralPage() {
         localStorage.setItem(LAST_LOADED_FILENAME_KEY, currentFilename);
     }
 
-  }, [parts, suppliers, partCategoryMappings, /* partCommodityMappings removed */ partSupplierAssociations, escapeXml, currentFilename]);
+  }, [parts, suppliers, partCategoryMappings, partSupplierAssociations, escapeXml, currentFilename]);
 
   const handleDownloadXml = () => {
     if (!xmlConfigString) {
@@ -276,15 +271,13 @@ export default function SpendWiseCentralPage() {
     }
   };
 
-  const handleGenerateData = async (domain: string, numPartsToGen: number, numSuppliersToGen: number, numCategoriesToGen: number) => { // numCommoditiesToGen removed
+  const handleGenerateData = async (domain: string, numPartsToGen: number, numSuppliersToGen: number, numCategoriesToGen: number) => {
     setIsGeneratingData(true);
     try {
-      // generateSpendData call updated
       const generatedData = await generateSpendData({ domain, numParts: numPartsToGen, numSuppliers: numSuppliersToGen, numCategories: numCategoriesToGen });
       
       const newPartsArr: Part[] = [];
       const newPartCategoryMappingsArr: PartCategoryMapping[] = [];
-      // newPartCommodityMappingsArr removed
 
       generatedData.parts.forEach((p, i) => {
         const partId = `p${Date.now()}${i}`;
@@ -303,7 +296,6 @@ export default function SpendWiseCentralPage() {
             categoryName: generatedData.categories[i % generatedData.categories.length],
           });
         }
-        // Commodity mapping logic removed
       });
 
       const newSuppliersArr: Supplier[] = generatedData.suppliers.map((s, i) => {
@@ -340,7 +332,6 @@ export default function SpendWiseCentralPage() {
       setParts(newPartsArr);
       setSuppliers(newSuppliersArr);
       setPartCategoryMappings(newPartCategoryMappingsArr);
-      // setPartCommodityMappings removed
       setPartSupplierAssociations(newPartSupplierAssociationsArr); 
       
       toast({ title: "Success", description: "Sample data generated successfully!" });
@@ -366,12 +357,10 @@ export default function SpendWiseCentralPage() {
     setParts(prev => [...prev, newPart]);
     
     const defaultCategory = partCategoryMappings.length > 0 ? partCategoryMappings[0].categoryName : "Default Category";
-    // defaultCommodity removed
     
     if (parts.length === 0 || !partCategoryMappings.some(m => m.partId === newPartId)) {
         setPartCategoryMappings(prev => [...prev, { id: `pcm${Date.now()}_manual`, partId: newPartId, categoryName: defaultCategory}]);
     }
-    // Commodity mapping on add part removed
   };
 
   const handleAddSupplier = () => {
@@ -391,11 +380,10 @@ export default function SpendWiseCentralPage() {
     setSuppliers(prev => [...prev, newSupplier]);
   };
 
-  const processCsvUpload = async (file: File, type: 'category' | 'part' | 'supplier' | 'sourcemix') => { // 'commodity' type removed
+  const processCsvUpload = async (file: File, type: 'category' | 'part' | 'supplier' | 'sourcemix') => {
     let isProcessingSetter: React.Dispatch<React.SetStateAction<boolean>> | null = null;
     switch(type) {
       case 'category': isProcessingSetter = setIsUploadingCategoryCsv; break;
-      // commodity case removed
       case 'part': isProcessingSetter = setIsUploadingPartsCsv; break;
       case 'supplier': isProcessingSetter = setIsUploadingSuppliersCsv; break;
       case 'sourcemix': isProcessingSetter = setIsUploadingSourceMixCsv; break;
@@ -419,28 +407,26 @@ export default function SpendWiseCentralPage() {
           let processedCount = 0;
           let skippedCount = 0;
 
-          if (type === 'category') { // condition updated from 'category' || 'commodity'
-            const newMappings: PartCategoryMapping[] = []; // type restricted
+          if (type === 'category') { 
+            const newMappings: PartCategoryMapping[] = []; 
             for (let i = 1; i < lines.length; i++) {
               const line = lines[i];
               const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
               if (columns.length < 2) { errors.push(`Row ${i+1}: Not enough columns.`); skippedCount++; continue; }
               const partNumber = columns[0];
-              const name = columns[1]; // This 'name' is categoryName for type 'category'
+              const name = columns[1]; 
               if (!partNumber || !name) { errors.push(`Row ${i+1}: Missing PartNumber or Name.`); skippedCount++; continue; }
               const part = parts.find(p => p.partNumber === partNumber);
               if (!part) { errors.push(`Row ${i+1}: PartNumber "${partNumber}" not found.`); skippedCount++; continue; }
               
-              if (type === 'category') { // This specific check ensures only category logic runs here
+              if (type === 'category') { 
                 newMappings.push({ id: `pcm_csv_${Date.now()}_${i}`, partId: part.id, categoryName: name } as PartCategoryMapping);
               }
-              // Commodity mapping push removed
               processedCount++;
             }
-            if (type === 'category') { // This specific check ensures only category logic runs here
+            if (type === 'category') { 
               setPartCategoryMappings(prev => [...prev, ...newMappings as PartCategoryMapping[]]);
             }
-            // Commodity mapping set removed
           } else if (type === 'part') {
             const newPartsArr: Part[] = [];
             for (let i = 1; i < lines.length; i++) {
@@ -521,8 +507,6 @@ export default function SpendWiseCentralPage() {
     setIsCategoryUploadDialogOpen(false); 
   };
 
-  // handleProcessCommodityCsv removed
-
   const handleProcessPartsCsv = async (file: File) => {
     await processCsvUpload(file, 'part');
     setIsPartsUploadDialogOpen(false);
@@ -542,7 +526,6 @@ export default function SpendWiseCentralPage() {
   const totalParts = useMemo(() => parts.length, [parts]);
   const totalSuppliers = useMemo(() => suppliers.length, [suppliers]);
   const totalCategories = useMemo(() => new Set(partCategoryMappings.map(m => m.categoryName)).size, [partCategoryMappings]);
-  // totalCommodities removed
 
   const calculateSpendForPart = useCallback((
     part: Part,
@@ -585,7 +568,6 @@ export default function SpendWiseCentralPage() {
     { Icon: Briefcase, label: "Total Parts", value: totalParts },
     { Icon: Users, label: "Total Suppliers", value: totalSuppliers },
     { Icon: FolderTree, label: "Categories", value: totalCategories },
-    // Commodities stat removed
     { Icon: DollarSignIcon, label: "$ Spend/Year", value: formatCurrencyDisplay(totalAnnualSpend) },
   ];
 
@@ -620,7 +602,6 @@ export default function SpendWiseCentralPage() {
       .sort((a, b) => b.count - a.count);
   }, [partCategoryMappings]);
 
-  // spendByCommodityData removed
 
   return (
     <TooltipProvider>
@@ -671,7 +652,6 @@ export default function SpendWiseCentralPage() {
                 parts={parts}
                 suppliers={suppliers}
                 partCategoryMappings={partCategoryMappings}
-                // partCommodityMappings removed
                 partSupplierAssociations={partSupplierAssociations}
                 tariffChargePercent={tariffChargePercent}
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
@@ -680,7 +660,6 @@ export default function SpendWiseCentralPage() {
                 totalParts={totalParts}
                 totalSuppliers={totalSuppliers}
                 totalCategories={totalCategories}
-                // totalCommodities removed
               />
               <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".xml" style={{ display: 'none' }} />
               <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
@@ -720,7 +699,7 @@ export default function SpendWiseCentralPage() {
 
         <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16"> 
           <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background py-4 shadow-sm`}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"> {/* Adjusted grid-cols for 4 items */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {summaryStats.map(stat => (
                 <Card key={stat.label} className="shadow-md">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -736,7 +715,7 @@ export default function SpendWiseCentralPage() {
           </section>
 
           <Tabs defaultValue="update-parts" className="w-full mt-4"> 
-            <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}> {/* md:grid-cols-5 */}
+            <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1">
                 <Package className="h-3.5 w-3.5" /> 1. Parts
               </TabsTrigger>
@@ -749,9 +728,11 @@ export default function SpendWiseCentralPage() {
               <TabsTrigger value="upload-part-category" className="flex items-center gap-1">
                 <FolderTree className="h-3.5 w-3.5" /> 4. Part Category
               </TabsTrigger>
-              {/* Part Commodity TabTrigger removed */}
               <TabsTrigger value="summary" className="flex items-center gap-1">
-                <Globe className="h-3.5 w-3.5" /> 5. Summary {/* Renumbered */}
+                <Globe className="h-3.5 w-3.5" /> 5. Summary
+              </TabsTrigger>
+              <TabsTrigger value="scenario" className="flex items-center gap-1">
+                <Lightbulb className="h-3.5 w-3.5" /> 6. Scenario
               </TabsTrigger>
             </TabsList>
             
@@ -798,9 +779,11 @@ export default function SpendWiseCentralPage() {
                 setPartCategoryMappings={setPartCategoryMappings}
               />
             </TabsContent>
-            {/* Part Commodity TabsContent removed */}
             <TabsContent value="summary" className="mt-4"> 
               <SummaryTab suppliers={suppliers} />
+            </TabsContent>
+            <TabsContent value="scenario" className="mt-4">
+              <ScenarioTab />
             </TabsContent>
           </Tabs>
         </main>
@@ -825,7 +808,6 @@ export default function SpendWiseCentralPage() {
           uploadType="category"
           isUploading={isUploadingCategoryCsv}
         />
-        {/* Commodity UploadCsvDialog removed */}
         <UploadCsvDialog
           isOpen={isPartsUploadDialogOpen}
           onClose={() => setIsPartsUploadDialogOpen(false)}
