@@ -827,6 +827,7 @@ export default function SpendWiseCentralPage() {
                 spendByCategoryData={spendByCategoryData}
                 partsPerCategoryData={partsPerCategoryData}
                 onOpenUploadDialog={() => setIsCategoryUploadDialogOpen(true)}
+                setPartCategoryMappings={setPartCategoryMappings}
               />
             </TabsContent>
             <TabsContent value="upload-part-commodity" className="mt-4"> 
