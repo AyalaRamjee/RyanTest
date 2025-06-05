@@ -16,7 +16,7 @@ const ThemeContext = createContext<ThemeProviderState | undefined>(undefined);
 const THEME_STORAGE_KEY = 'spendwise-theme';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('light'); // Default theme
+  const [theme, setThemeState] = useState<Theme>('dark'); // Default theme
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
