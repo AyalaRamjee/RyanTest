@@ -73,6 +73,8 @@ export default function SpendWiseCentralPage() {
 
   useEffect(() => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
     const updateDateTime = () => {
       const now = new Date();
       let hours = now.getHours();
@@ -83,10 +85,10 @@ export default function SpendWiseCentralPage() {
       const hoursStr = hours.toString().padStart(2, '0');
       
       const dayName = days[now.getDay()];
-      const day = now.getDate().toString().padStart(2, '0');
-      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const day = now.getDate();
+      const monthName = monthNames[now.getMonth()];
       const year = now.getFullYear();
-      setFormattedDateTime(`${hoursStr}:${minutes} ${ampm}, ${dayName}, ${day}/${month}/${year}`);
+      setFormattedDateTime(`${hoursStr}:${minutes} ${ampm}, ${dayName}, ${monthName} ${day}, ${year}`);
     };
 
     updateDateTime(); 
