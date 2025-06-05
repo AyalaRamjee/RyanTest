@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, ScatterChart, Scatter, ZAxis, Tooltip as RechartsTooltip, Cell } from 'recharts';
-import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import React, { useState, useMemo } from 'react';
@@ -87,9 +87,9 @@ export default function UpdatePartsTab({
 
   const formatPriceForInput = (value: number): string => {
     const fixedValue = value.toFixed(2);
-    const parts = fixedValue.split('.');
-    const integerPartFormatted = new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10));
-    return `${integerPartFormatted}.${parts[1]}`;
+    const priceParts = fixedValue.split('.');
+    const integerPartFormatted = new Intl.NumberFormat('en-US').format(parseInt(priceParts[0], 10));
+    return `${integerPartFormatted}.${priceParts[1]}`;
   };
 
   const handlePartInputChange = (partId: string, field: keyof Part, value: string | number) => {
@@ -104,7 +104,7 @@ export default function UpdatePartsTab({
             const numericValue = typeof value === 'string' ? parseInt(String(value).replace(/,/g, ''), 10) : value;
             processedValue = isNaN(numericValue) ? 0 : numericValue;
           } else if (field === 'freightOhdCost') {
-            const numericValue = typeof value === 'string' ? parseFloat(value) / 100 : value / 100;
+            const numericValue = typeof value === 'string' ? parseFloat(value) / 100 : Number(value) / 100;
              processedValue = (isNaN(numericValue) || numericValue < 0) ? 0 : Math.min(numericValue, 1);
           }
           return { ...p, [field]: processedValue };
@@ -208,12 +208,12 @@ export default function UpdatePartsTab({
   }, [partsWithSpend]);
 
 
-  const cumulativeSpendValue = useMemo(() => {
+  const totalSpend = useMemo(() => {
     return partsWithSpend.reduce((sum, p) => sum + p.annualSpend, 0);
   }, [partsWithSpend]);
 
 
-  const cumulativeVolume = useMemo(() => {
+  const totalVolume = useMemo(() => {
     return parts.reduce((sum, p) => sum + p.annualDemand, 0);
   }, [parts]);
 
@@ -336,11 +336,11 @@ export default function UpdatePartsTab({
               </div>
               <div>
                 <p className="text-muted-foreground">Total Spend:</p>
-                <p className="font-medium">{formatCurrency(cumulativeSpendValue)}</p>
+                <p className="font-medium">{formatCurrency(totalSpend)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Volume:</p>
-                <p className="font-medium">{formatNumber(cumulativeVolume)}</p>
+                <p className="font-medium">{formatNumber(totalVolume)}</p>
               </div>
             </div>
           </div>
