@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/context/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Spend Analysis by !TADA',
+  title: 'Spend by TADA',
   description: 'Spend Management Application for !TADA',
 };
 

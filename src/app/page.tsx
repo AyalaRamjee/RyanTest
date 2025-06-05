@@ -8,7 +8,7 @@ import UpdatePartsTab from "@/components/spendwise/update-parts";
 import UpdateSuppliersTab from "@/components/spendwise/update-suppliers";
 import PartSupplierMappingTab from "@/components/spendwise/part-supplier-mapping";
 import UploadPartCategoryTab from "@/components/spendwise/upload-part-category";
-import ScenarioTab from "@/components/spendwise/scenario-tab"; // Added ScenarioTab import
+import ScenarioTab from "@/components/spendwise/scenario-tab";
 import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import UploadCsvDialog from "@/components/spendwise/upload-csv-dialog";
 import SpendWiseBot from "@/components/spendwise/spendwise-bot";
@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, ArrowUp, PercentCircle, Shield, Lightbulb } from "lucide-react"; // Added Lightbulb
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, ArrowUp, PercentCircle, Shield, Lightbulb, MessageCircle } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -614,7 +614,7 @@ export default function SpendWiseCentralPage() {
             className="h-18 w-16 object-contain" 
           />
           <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
-            Spend Analysis by !TADA
+            Spend by TADA
           </h1>
             <div className="flex-grow flex items-center space-x-4 ml-4">
               <div className="flex items-center space-x-2">
