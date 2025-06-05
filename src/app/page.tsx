@@ -19,10 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, ToyBrick, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, ArrowUp, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2 } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, ArrowUp, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2 } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface SpendDataPoint {
   name: string;
@@ -533,6 +533,27 @@ export default function SpendWiseCentralPage() {
     setIsSourceMixUploadDialogOpen(false);
   };
 
+  const handleClearAllData = () => {
+    setParts([]);
+    setSuppliers([]);
+    setPartCategoryMappings([]);
+    setPartSupplierAssociations([]);
+    setTariffChargePercent(100);
+    setTotalLogisticsCostPercent(100);
+
+    if (typeof window !== 'undefined' && currentFilename) {
+      localStorage.removeItem(APP_CONFIG_DATA_KEY_PREFIX + currentFilename);
+    }
+    
+    setCurrentFilename(DEFAULT_XML_FILENAME);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LAST_LOADED_FILENAME_KEY, DEFAULT_XML_FILENAME);
+      localStorage.removeItem(APP_CONFIG_DATA_KEY_PREFIX + DEFAULT_XML_FILENAME); 
+    }
+
+    toast({ title: "All Data Cleared", description: "Application data has been reset to default." });
+  };
+
 
   const totalParts = useMemo(() => parts.length, [parts]);
   const totalSuppliers = useMemo(() => suppliers.length, [suppliers]);
@@ -674,12 +695,40 @@ export default function SpendWiseCentralPage() {
                 totalCategories={totalCategories}
               />
               <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".xml" style={{ display: 'none' }} />
-              <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
-                <ArrowUp className="h-5 w-5" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={handleDownloadXml} aria-label="Download Configuration XML">
-                <Download className="h-5 w-5" />
-              </Button>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={handleClearAllData} aria-label="Clear All Data">
+                    <FileX2 className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Clear All Data</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
+                    <ArrowUp className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Load Configuration (XML)</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={handleDownloadXml} aria-label="Download Configuration XML">
+                    <Download className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Download Configuration (XML)</p>
+                </TooltipContent>
+              </Tooltip>
+              
               <Button variant="outline" size="sm" onClick={() => setIsGenerateDataDialogOpen(true)} disabled={isGeneratingData} aria-label="Generate Sample Data using AI">
                 {isGeneratingData ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
