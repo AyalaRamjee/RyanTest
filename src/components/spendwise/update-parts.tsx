@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
-import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, PieChart, Pie } from 'recharts';
+import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie, PieChart } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -77,13 +77,23 @@ export default function UpdatePartsTab({
     return new Intl.NumberFormat('en-US').format(value);
   };
 
+  const formatPriceForInput = (value: number): string => {
+    const fixedValue = value.toFixed(2); // Ensure two decimal places, e.g., "1234.50"
+    const parts = fixedValue.split('.');
+    const integerPartFormatted = new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10));
+    return `${integerPartFormatted}.${parts[1]}`;
+  };
+
   const handlePartInputChange = (partId: string, field: keyof Part, value: string | number) => {
     setParts(prevParts =>
       prevParts.map(p => {
         if (p.id === partId) {
           let processedValue = value;
-          if (field === 'price' || field === 'annualDemand') {
+          if (field === 'price') {
             const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+            processedValue = isNaN(numericValue) ? 0 : parseFloat(numericValue.toFixed(2)); // Round to 2 decimal places
+          } else if (field === 'annualDemand') {
+            const numericValue = typeof value === 'string' ? parseInt(String(value), 10) : value;
             processedValue = isNaN(numericValue) ? 0 : numericValue;
           } else if (field === 'freightOhdCost') {
             const numericValue = typeof value === 'string' ? parseFloat(value) / 100 : value / 100;
@@ -94,6 +104,12 @@ export default function UpdatePartsTab({
         return p;
       })
     );
+  };
+  
+  const handlePriceChange = (partId: string, rawValue: string) => {
+    const cleanedValue = rawValue.replace(/,/g, ''); // Remove commas
+    // Pass the cleaned string; handlePartInputChange will parse and round it.
+    handlePartInputChange(partId, 'price', cleanedValue);
   };
 
   const handleAnnualDemandChange = (partId: string, rawValue: string) => {
@@ -267,12 +283,11 @@ export default function UpdatePartsTab({
                     <div className="relative w-24">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">$</span>
                       <Input
-                        type="number"
-                        value={part.price}
-                        onChange={(e) => handlePartInputChange(part.id, 'price', e.target.value)}
+                        type="text"
+                        value={formatPriceForInput(part.price)}
+                        onChange={(e) => handlePriceChange(part.id, e.target.value)}
                         className="h-8 text-xs pl-5 text-right"
                         placeholder="0.00"
-                        step="0.01"
                       />
                     </div>
                      <Input
@@ -434,4 +449,3 @@ export default function UpdatePartsTab({
     </Card>
   );
 }
-
