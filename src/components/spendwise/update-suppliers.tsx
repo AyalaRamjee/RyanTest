@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Fingerprint, Building, FileText, MapPin, PlusCircle, Info, UploadCloud, Trash2, Globe2 } from "lucide-react"; // Added Globe2 for Country
+import { Fingerprint, Building, FileText, PlusCircle, Info, UploadCloud, Trash2, Globe2 } from "lucide-react"; // Added Globe2 for Country
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import SupplierWorldMap from './supplier-world-map'; 
@@ -94,7 +94,6 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
                       <TableHead className="min-w-[150px] text-xs"><FileText className="inline-block mr-1 h-3.5 w-3.5" />Description</TableHead>
                       <TableHead className="min-w-[100px] text-xs">City</TableHead>
                       <TableHead className="min-w-[100px] text-xs"><Globe2 className="inline-block mr-1 h-3.5 w-3.5" />Country</TableHead>
-                      <TableHead className="min-w-[200px] text-xs"><MapPin className="inline-block mr-1 h-3.5 w-3.5" />Full Address</TableHead>
                       <TableHead className="text-center w-[50px] text-xs">Del</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -134,7 +133,6 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
                             className="h-7 text-xs"
                           />
                         </TableCell>
-                        <TableCell className="text-xs py-1.5">{supplier.address}</TableCell>
                         <TableCell className="text-center py-1.5">
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" aria-label="Delete Supplier" onClick={() => handleDeleteSupplier(supplier.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
