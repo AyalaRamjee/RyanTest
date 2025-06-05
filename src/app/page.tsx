@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, ArrowUp, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2 } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Download, Briefcase, Users, DollarSignIcon, Globe, UploadCloud, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2 } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -710,7 +710,7 @@ export default function SpendWiseCentralPage() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="outline" size="icon" onClick={handleLoadButtonClick} aria-label="Load Configuration XML">
-                    <ArrowUp className="h-5 w-5" />
+                    <UploadCloud className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -731,7 +731,7 @@ export default function SpendWiseCentralPage() {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} disabled={isGeneratingData} aria-label="Generate Sample Data using AI">
+                  <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} disabled={isGeneratingData} aria-label="Generate Sample Data">
                     {isGeneratingData ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
@@ -905,3 +905,4 @@ export default function SpendWiseCentralPage() {
   );
 }
 
+    
