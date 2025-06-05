@@ -34,11 +34,12 @@ export interface CountDataPoint {
   count: number;
 }
 
-export interface ABCPieChartDataItem {
-  name: string;
-  count: number;
-  fill: string;
-}
+// ABCPieChartDataItem is no longer needed here as SummaryTab will calculate its own bubble chart data
+// export interface ABCPieChartDataItem {
+// name: string;
+// count: number;
+// fill: string;
+// }
 
 const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
@@ -49,11 +50,12 @@ const HEADER_HEIGHT_PX = 64;
 const SUMMARY_STATS_HEIGHT_PX = 122;
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
-const ABC_COLORS_CLASSES = { // Renamed to avoid conflict with PIE_COLORS in other files if they were global
-  A: "hsl(var(--chart-1))",
-  B: "hsl(var(--chart-2))",
-  C: "hsl(var(--chart-3))",
-};
+// ABC_COLORS_CLASSES not needed here for page.tsx calculations anymore.
+// const ABC_COLORS_CLASSES = {
+// A: "hsl(var(--chart-1))",
+// B: "hsl(var(--chart-2))",
+// C: "hsl(var(--chart-3))",
+// };
 
 export default function SpendWiseCentralPage() {
   const { theme, setTheme } = useTheme();
@@ -663,36 +665,31 @@ export default function SpendWiseCentralPage() {
       .sort((a, b) => b.count - a.count);
   }, [partCategoryMappings]);
 
-  const abcSummaryPieData = useMemo(() : ABCPieChartDataItem[] => {
-    if (partsWithSpend.length === 0) return [];
-
-    const sortedParts = [...partsWithSpend].sort((a, b) => b.annualSpend - a.annualSpend);
-    const totalSpendAllParts = sortedParts.reduce((sum, p) => sum + p.annualSpend, 0);
-
-    if (totalSpendAllParts === 0) return [];
-
-    let cumulativeSpend = 0;
-    const counts = { A: 0, B: 0, C: 0 };
-
-    for (const part of sortedParts) {
-      cumulativeSpend += part.annualSpend;
-      const cumulativePercent = cumulativeSpend / totalSpendAllParts;
-      if (cumulativePercent <= 0.80) {
-        counts.A++;
-      } else if (cumulativePercent <= 0.95) {
-        counts.B++;
-      } else {
-        counts.C++;
-      }
-    }
-    
-    const pieData: ABCPieChartDataItem[] = [];
-    if (counts.A > 0) pieData.push({ name: 'Class A', count: counts.A, fill: ABC_COLORS_CLASSES.A });
-    if (counts.B > 0) pieData.push({ name: 'Class B', count: counts.B, fill: ABC_COLORS_CLASSES.B });
-    if (counts.C > 0) pieData.push({ name: 'Class C', count: counts.C, fill: ABC_COLORS_CLASSES.C });
-    
-    return pieData;
-  }, [partsWithSpend]);
+  // abcSummaryPieData is no longer calculated here, SummaryTab will handle its own ABC data for bubble chart.
+  // const abcSummaryPieData = useMemo(() : ABCPieChartDataItem[] => {
+  //   if (partsWithSpend.length === 0) return [];
+  //   const sortedParts = [...partsWithSpend].sort((a, b) => b.annualSpend - a.annualSpend);
+  //   const totalSpendAllParts = sortedParts.reduce((sum, p) => sum + p.annualSpend, 0);
+  //   if (totalSpendAllParts === 0) return [];
+  //   let cumulativeSpend = 0;
+  //   const counts = { A: 0, B: 0, C: 0 };
+  //   for (const part of sortedParts) {
+  //     cumulativeSpend += part.annualSpend;
+  //     const cumulativePercent = cumulativeSpend / totalSpendAllParts;
+  //     if (cumulativePercent <= 0.80) {
+  //       counts.A++;
+  //     } else if (cumulativePercent <= 0.95) {
+  //       counts.B++;
+  //     } else {
+  //       counts.C++;
+  //     }
+  //   }
+  //   const pieData: ABCPieChartDataItem[] = [];
+  //   if (counts.A > 0) pieData.push({ name: 'Class A', count: counts.A, fill: ABC_COLORS_CLASSES.A });
+  //   if (counts.B > 0) pieData.push({ name: 'Class B', count: counts.B, fill: ABC_COLORS_CLASSES.B });
+  //   if (counts.C > 0) pieData.push({ name: 'Class C', count: counts.C, fill: ABC_COLORS_CLASSES.C });
+  //   return pieData;
+  // }, [partsWithSpend]);
 
 
   return (
@@ -804,17 +801,17 @@ export default function SpendWiseCentralPage() {
                 </TooltipContent>
               </Tooltip>
               <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
-                <SelectTrigger className="w-[60px]" aria-label="Select Theme">
+                <SelectTrigger className="w-[40px] px-2" aria-label="Select Theme">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="light">
+                  <SelectItem value="light" className="flex justify-center">
                     <Sun className="h-4 w-4" />
                   </SelectItem>
-                  <SelectItem value="dark">
+                  <SelectItem value="dark" className="flex justify-center">
                     <Moon className="h-4 w-4" />
                   </SelectItem>
-                  <SelectItem value="tada">
+                  <SelectItem value="tada" className="flex justify-center">
                     <Sparkles className="h-4 w-4" />
                   </SelectItem>
                 </SelectContent>
@@ -908,10 +905,11 @@ export default function SpendWiseCentralPage() {
             <TabsContent value="summary" className="mt-4">
               <SummaryTab 
                 suppliers={suppliers}
-                parts={parts}
+                parts={parts} // Pass raw parts
+                partsWithSpend={partsWithSpend} // Pass parts with calculated spend
                 partSupplierAssociations={partSupplierAssociations}
                 spendByCategoryData={spendByCategoryData}
-                abcSummaryPieData={abcSummaryPieData}
+                // abcSummaryPieData prop removed
               />
             </TabsContent>
             <TabsContent value="scenario" className="mt-4">

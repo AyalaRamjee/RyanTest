@@ -2,23 +2,29 @@
 "use client";
 
 import type { Supplier, Part, PartSupplierAssociation } from '@/types/spendwise';
-import type { SpendDataPoint, ABCPieChartDataItem } from '@/app/page';
+import type { SpendDataPoint } from '@/app/page'; // ABCPieChartDataItem removed
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Globe, Building, Info, TrendingUp, PieChart as PieChartIcon, BarChart2, Users, Link2, PackageCheck, Blocks } from "lucide-react";
+import { Globe, Building, Info, PieChart as PieChartIcon, Users, Link2, PackageCheck, Blocks, TrendingUp, Focus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { PieChart as RechartsPieChart, Pie, Cell, Legend as RechartsLegend, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltipComponent } from 'recharts';
+import { 
+  PieChart as RechartsPieChart, Pie, Cell, Legend as RechartsLegend, 
+  BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  ResponsiveContainer, Tooltip as RechartsTooltipComponent,
+  ScatterChart, Scatter, ZAxis
+} from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useMemo } from 'react';
 
 interface SummaryTabProps {
   suppliers: Supplier[];
-  parts: Part[];
+  parts: Part[]; // Raw parts data
+  partsWithSpend: (Part & { annualSpend: number })[]; // Parts with calculated annual spend
   partSupplierAssociations: PartSupplierAssociation[];
   spendByCategoryData: SpendDataPoint[];
-  abcSummaryPieData: ABCPieChartDataItem[];
+  // abcSummaryPieData prop removed
 }
 
 const PIE_COLORS_CATEGORIES = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -30,23 +36,51 @@ const barChartConfig = (label: string, colorVar: string) => ({
   },
 } satisfies import("@/components/ui/chart").ChartConfig);
 
+const ABC_COLORS = {
+  A: "hsl(var(--chart-1))", 
+  B: "hsl(var(--chart-2))", 
+  C: "hsl(var(--chart-3))", 
+};
+
+const abcBubbleChartConfig = {
+  numParts: { label: "Number of Parts" },
+  avgSpend: { label: "Avg. Spend/Part" },
+  totalSpend: { label: "Total Spend (Bubble Size)" },
+  "Class A": { label: "Class A", color: ABC_COLORS.A },
+  "Class B": { label: "Class B", color: ABC_COLORS.B },
+  "Class C": { label: "Class C", color: ABC_COLORS.C },
+} satisfies import("@/components/ui/chart").ChartConfig;
+
 
 export default function SummaryTab({ 
   suppliers, 
   parts, 
+  partsWithSpend,
   partSupplierAssociations, 
   spendByCategoryData,
-  abcSummaryPieData
+  // abcSummaryPieData removed
 }: SummaryTabProps) {
 
   const formatCurrency = (value: number) => {
     if (value === undefined || value === null) return '$0';
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
   };
+  
+  const formatCurrencyWithDecimals = (value: number) => {
+    if (value === undefined || value === null) return '$0.00';
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  };
 
   const formatNumber = (value: number) => {
     if (value === undefined || value === null) return '0';
     return new Intl.NumberFormat('en-US').format(value);
+  };
+
+  const formatYAxisTick = (value: number) => {
+    if (Math.abs(value) >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
+    if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+    if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+    return `$${value.toFixed(0)}`;
   };
   
   const supplierCountByCountry = useMemo(() => {
@@ -57,7 +91,7 @@ export default function SummaryTab({
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 5); // Top 5 countries
+      .slice(0, 5); 
   }, [suppliers]);
 
   const partsBySupplierCountDistribution = useMemo(() => {
@@ -78,57 +112,119 @@ export default function SummaryTab({
 
     return Object.entries(distribution)
       .map(([numSuppliers, partCount]) => ({
-        name: `${numSuppliers} Supplier${parseInt(numSuppliers) !== 1 ? 's' : ''}`, // X-axis label
-        count: partCount // Y-axis value
+        name: `${numSuppliers} Supplier${parseInt(numSuppliers) !== 1 ? 's' : ''}`, 
+        count: partCount 
       }))
       .sort((a,b) => parseInt(a.name) - parseInt(b.name));
   }, [parts, partSupplierAssociations]);
+
+  const abcBubbleChartData = useMemo(() => {
+    if (partsWithSpend.length === 0) {
+      return { A: null, B: null, C: null };
+    }
+
+    const sortedParts = [...partsWithSpend].sort((a, b) => b.annualSpend - a.annualSpend);
+    const totalAnnualSpendAllParts = sortedParts.reduce((sum, p) => sum + p.annualSpend, 0);
+
+    if (totalAnnualSpendAllParts === 0) {
+      return { A: null, B: null, C: null };
+    }
+
+    let cumulativeSpend = 0;
+    const classifiedParts: { part: Part; annualSpend: number; class: 'A' | 'B' | 'C' }[] = [];
+
+    for (const part of sortedParts) {
+      cumulativeSpend += part.annualSpend;
+      const cumulativePercent = cumulativeSpend / totalAnnualSpendAllParts;
+      if (cumulativePercent <= 0.80) {
+        classifiedParts.push({ ...part, class: 'A' });
+      } else if (cumulativePercent <= 0.95) {
+        classifiedParts.push({ ...part, class: 'B' });
+      } else {
+        classifiedParts.push({ ...part, class: 'C' });
+      }
+    }
+    
+    const classAggregatedData: { A: any; B: any; C: any; } = { A: null, B: null, C: null };
+    const classTypes: ('A' | 'B' | 'C')[] = ['A', 'B', 'C'];
+
+    classTypes.forEach(className => {
+      const partsInThisClass = classifiedParts.filter(p => p.class === className);
+      if (partsInThisClass.length > 0) {
+        const totalSpendInClass = partsInThisClass.reduce((sum, p) => sum + p.annualSpend, 0);
+        classAggregatedData[className] = {
+          name: `Class ${className}`,
+          numParts: partsInThisClass.length,
+          totalSpend: totalSpendInClass,
+          avgSpend: totalSpendInClass / partsInThisClass.length,
+          fill: ABC_COLORS[className],
+        };
+      }
+    });
+    
+    return classAggregatedData;
+  }, [partsWithSpend]);
 
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Chart 1: ABC Parts Distribution */}
+        {/* Chart 1: ABC Parts Classification (Bubble Chart) */}
         <Card>
           <CardHeader>
             <div className="flex items-center">
-              <PackageCheck className="mr-2 h-5 w-5 text-primary" />
+              <Focus className="mr-2 h-5 w-5 text-primary" />
               <CardTitle className="text-base">ABC Parts Classification</CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild><Button variant="ghost" size="icon" className="ml-1 h-5 w-5"><Info className="h-3 w-3" /></Button></TooltipTrigger>
-                <TooltipContent><p className="text-xs">Distribution of parts by A, B, C spend classification (Count of Parts).</p></TooltipContent>
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">
+                    ABC analysis: Class A (top 80% spend), B (next 15%), C (last 5%).<br/>
+                    X: # Parts, Y: Avg. Spend/Part, Bubble Size: Total Spend.
+                  </p>
+                </TooltipContent>
               </Tooltip>
             </div>
           </CardHeader>
           <CardContent>
-            {abcSummaryPieData.length === 0 ? (
+            {Object.values(abcBubbleChartData).every(c => c === null) ? (
               <p className="text-xs text-muted-foreground text-center py-8">No ABC classification data available.</p>
             ) : (
-              <ChartContainer config={{}} className="min-h-[200px] w-full aspect-square">
-                <ResponsiveContainer width="100%" height={200}>
-                  <RechartsPieChart>
+              <ChartContainer config={abcBubbleChartConfig} className="min-h-[220px] w-full">
+                <ResponsiveContainer width="100%" height={220}>
+                  <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                    <CartesianGrid />
+                    <XAxis type="number" dataKey="numParts" name="Number of Parts" tickFormatter={formatNumber} tick={{ fontSize: 10 }} />
+                    <YAxis type="number" dataKey="avgSpend" name="Avg. Spend/Part" tickFormatter={formatYAxisTick} tick={{ fontSize: 10 }} />
+                    <ZAxis type="number" dataKey="totalSpend" range={[150, 1500]} name="Total Annual Spend" />
                     <RechartsTooltipComponent
-                      formatter={(value, name) => [`${formatNumber(value as number)} parts`, name]}
-                    />
-                    <Pie data={abcSummaryPieData} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={70} labelLine={false}
-                      label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
-                        const RADIAN = Math.PI / 180;
-                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5 + 5;
-                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                        return (percent as number) * 100 > 3 ? (
-                          <text x={x} y={y} fill="hsl(var(--foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[10px] font-medium">
-                            {`${name} (${((percent as number) * 100).toFixed(0)}%)`}
-                          </text>
-                        ) : null;
+                      cursor={{ strokeDasharray: '3 3' }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="rounded-lg border bg-background p-2.5 shadow-xl text-xs">
+                              <p className="font-medium mb-1" style={{color: data.fill}}>{data.name}</p>
+                              <p>Parts: {formatNumber(data.numParts)}</p>
+                              <p>Avg Spend/Part: {formatCurrencyWithDecimals(data.avgSpend)}</p>
+                              <p>Total Spend: {formatCurrency(data.totalSpend)}</p>
+                            </div>
+                          );
+                        }
+                        return null;
                       }}
-                    >
-                      {abcSummaryPieData.map((entry) => (
-                        <Cell key={`cell-${entry.name}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <RechartsLegend wrapperStyle={{fontSize: "11px", marginTop: "10px"}} />
-                  </RechartsPieChart>
+                    />
+                    <RechartsLegend wrapperStyle={{fontSize: "10px"}} />
+                    {abcBubbleChartData.A && (
+                      <Scatter name="Class A" data={[abcBubbleChartData.A]} fill={abcBubbleChartData.A.fill} shape="circle" />
+                    )}
+                    {abcBubbleChartData.B && (
+                      <Scatter name="Class B" data={[abcBubbleChartData.B]} fill={abcBubbleChartData.B.fill} shape="circle" />
+                    )}
+                    {abcBubbleChartData.C && (
+                      <Scatter name="Class C" data={[abcBubbleChartData.C]} fill={abcBubbleChartData.C.fill} shape="circle" />
+                    )}
+                  </ScatterChart>
                 </ResponsiveContainer>
               </ChartContainer>
             )}
@@ -326,3 +422,4 @@ export default function SummaryTab({
     </div>
   );
 }
+
