@@ -72,7 +72,7 @@ export default function SpendWiseCentralPage() {
   const [formattedDateTime, setFormattedDateTime] = useState<string>('');
 
   useEffect(() => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     
     const updateDateTime = () => {
@@ -89,11 +89,10 @@ export default function SpendWiseCentralPage() {
       const monthName = monthNames[now.getMonth()];
       const year = now.getFullYear();
 
-      // Attempt to get the short time zone name
       const timeZoneShort = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
                                 .formatToParts(now).find(part => part.type === 'timeZoneName')?.value || '';
       
-      setFormattedDateTime(`${hoursStr}:${minutes} ${ampm} ${timeZoneShort}, ${dayName}, ${monthName} ${day}, ${year}`);
+      setFormattedDateTime(`${dayName}, ${monthName} ${day}, ${year} at ${hoursStr}:${minutes} ${ampm} ${timeZoneShort}`);
     };
 
     updateDateTime(); 
