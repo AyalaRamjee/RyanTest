@@ -744,24 +744,18 @@ export default function SpendWiseCentralPage() {
                 </TooltipContent>
               </Tooltip>
               <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
-                <SelectTrigger className="w-[120px] text-xs" aria-label="Select Theme">
+                <SelectTrigger className="w-[60px] text-xs" aria-label="Select Theme">
                   <SelectValue placeholder="Select Theme" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="light">
-                    <div className="flex items-center">
-                      <Sun className="mr-2 h-4 w-4" /> Light
-                    </div>
+                    <Sun className="h-4 w-4" />
                   </SelectItem>
                   <SelectItem value="dark">
-                    <div className="flex items-center">
-                      <Moon className="mr-2 h-4 w-4" /> Dark
-                    </div>
+                    <Moon className="h-4 w-4" />
                   </SelectItem>
                   <SelectItem value="tada">
-                    <div className="flex items-center">
-                      <Sparkles className="mr-2 h-4 w-4" /> Tada
-                    </div>
+                    <Sparkles className="h-4 w-4" />
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -904,5 +898,7 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
