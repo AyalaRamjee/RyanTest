@@ -60,8 +60,8 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
         <div className="md:col-span-5 space-y-4">
           <section>
             <div className="flex justify-between items-center mb-1.5">
-              <h3 className="text-base font-semibold">Supplier Management</h3>
-              <div className="flex items-center gap-2">
+              {/* Supplier Management heading removed */}
+              <div className="flex items-center gap-2 ml-auto"> {/* Added ml-auto to push buttons to the right */}
                 <Button onClick={onOpenUploadDialog} size="sm" variant="outline" className="text-xs">
                   <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload Suppliers CSV
                 </Button>
