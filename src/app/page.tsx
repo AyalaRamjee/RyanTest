@@ -88,7 +88,8 @@ export default function SpendWiseCentralPage() {
       const day = now.getDate();
       const monthName = monthNames[now.getMonth()];
       const year = now.getFullYear();
-      setFormattedDateTime(`${hoursStr}:${minutes} ${ampm}, ${dayName}, ${monthName} ${day}, ${year}`);
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      setFormattedDateTime(`${hoursStr}:${minutes} ${ampm} ${timeZone.replace('_', ' ')}, ${dayName}, ${monthName} ${day}, ${year}`);
     };
 
     updateDateTime(); 
