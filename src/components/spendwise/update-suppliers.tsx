@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Fingerprint, Building, FileText, MapPin, PlusCircle, TrendingUp as TrendingUpIcon, Info, UploadCloud, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import SupplierWorldMap from './supplier-world-map'; // Added import
 
 interface UpdateSuppliersTabProps {
   suppliers: Supplier[];
@@ -185,6 +186,7 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
               </div>
             </CardContent>
           </Card>
+          <SupplierWorldMap suppliers={suppliers} />
         </div>
       </CardContent>
     </Card>
