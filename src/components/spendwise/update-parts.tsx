@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Package, PieChartIcon, Hash, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
-import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie } from 'recharts';
+import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie, PieChart } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -78,8 +78,8 @@ export default function UpdatePartsTab({
   onOpenUploadDialog,
   tariffChargePercent,
   totalLogisticsCostPercent,
-  suppliers, // Renamed from allSuppliers for consistency
-  partSupplierAssociations, // Renamed from allPartSupplierAssociations
+  suppliers, 
+  partSupplierAssociations, 
   homeCountry,
   calculateSpendForSummary
 }: UpdatePartsTabProps) {
