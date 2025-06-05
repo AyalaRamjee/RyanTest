@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Package, PieChartIcon, Hash, Info, FileUp, Trash2, Sigma, PlusCircle } from "lucide-react"; // DollarSign removed as not directly used for icons here
-import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie, PieChart } from 'recharts';
+import { Package, PieChartIcon, Hash, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
+import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie } from 'recharts'; // Removed duplicate PieChart import
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -27,6 +27,14 @@ interface UpdatePartsTabProps {
   suppliers: Supplier[]; 
   partSupplierAssociations: PartSupplierAssociation[];
   homeCountry: string;
+  calculateSpendForSummary: ( // Added this prop explicitly for clarity, assuming it's passed
+    part: Part,
+    currentTariffChargePercent: number,
+    currentTotalLogisticsCostPercent: number,
+    localSuppliers: Supplier[],
+    localPartSupplierAssociations: PartSupplierAssociation[],
+    localHomeCountry: string
+  ) => number;
 }
 
 const spendByPartChartConfig = {
@@ -47,7 +55,18 @@ const partsPerCategoryChartConfig = {
   },
 } satisfies import("@/components/ui/chart").ChartConfig;
 
+const abcChartConfig = {
+  value: { label: "Value" }, // Generic label, will be overridden in legend/tooltip
+} satisfies import("@/components/ui/chart").ChartConfig;
+
+
 const PIE_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+const ABC_COLORS = {
+  A: "hsl(var(--chart-1))", // Green (Good)
+  B: "hsl(var(--chart-4))", // Yellow (Medium)
+  C: "hsl(var(--chart-3))", // Blue (Okay)
+};
+
 
 export default function UpdatePartsTab({ 
   parts, 
@@ -61,7 +80,8 @@ export default function UpdatePartsTab({
   totalLogisticsCostPercent,
   suppliers: allSuppliers, 
   partSupplierAssociations: allPartSupplierAssociations, 
-  homeCountry
+  homeCountry,
+  calculateSpendForSummary
 }: UpdatePartsTabProps) {
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
 
@@ -119,36 +139,82 @@ export default function UpdatePartsTab({
 
   const totalPartsCount = useMemo(() => parts.length, [parts]);
   
-  const calculateSpendForSummary = useCallback((
-    part: Part,
-    currentTariffChargePercent: number,
-    currentTotalLogisticsCostPercent: number,
-    localSuppliers: Supplier[], // Use a different name to avoid conflict with props
-    localPartSupplierAssociations: PartSupplierAssociation[],
-    localHomeCountry: string
-  ): number => {
-    let isImported = false;
-    const associationsForPart = localPartSupplierAssociations.filter(assoc => assoc.partId === part.id);
-    if (associationsForPart.length > 0) {
-        isImported = associationsForPart.some(assoc => {
-            const supplier = localSuppliers.find(s => s.id === assoc.supplierId);
-            return supplier && supplier.country !== localHomeCountry;
-        });
+  const partsWithSpend = useMemo(() => {
+    return parts.map(part => ({
+      ...part,
+      annualSpend: calculateSpendForSummary(
+        part,
+        tariffChargePercent,
+        totalLogisticsCostPercent,
+        allSuppliers,
+        allPartSupplierAssociations,
+        homeCountry
+      ),
+    }));
+  }, [parts, tariffChargePercent, totalLogisticsCostPercent, allSuppliers, allPartSupplierAssociations, homeCountry, calculateSpendForSummary]);
+
+  const abcClassificationData = useMemo(() => {
+    if (partsWithSpend.length === 0) {
+      return {
+        spendByClass: [],
+        countByClass: [],
+      };
     }
 
-    const priceMultiplier = isImported ? (currentTariffChargePercent / 100) : 1.0;
-    const effectivePrice = part.price * priceMultiplier;
+    const sortedParts = [...partsWithSpend].sort((a, b) => b.annualSpend - a.annualSpend);
+    const totalAnnualSpendAllParts = sortedParts.reduce((sum, p) => sum + p.annualSpend, 0);
 
-    const logisticsMultiplier = currentTotalLogisticsCostPercent / 100;
-    const effectiveFreightOhdRate = part.freightOhdCost * logisticsMultiplier;
+    if (totalAnnualSpendAllParts === 0) { // Avoid division by zero if all spends are 0
+        return {
+            spendByClass: [
+                { name: 'Class A', value: 0, fill: ABC_COLORS.A },
+                { name: 'Class B', value: 0, fill: ABC_COLORS.B },
+                { name: 'Class C', value: 0, fill: ABC_COLORS.C },
+            ],
+            countByClass: [
+                { name: 'Class A', value: 0, fill: ABC_COLORS.A },
+                { name: 'Class B', value: 0, fill: ABC_COLORS.B },
+                // Assign all parts to C if total spend is zero, or handle as needed
+                { name: 'Class C', value: sortedParts.length, fill: ABC_COLORS.C }, 
+            ],
+        };
+    }
 
-    return effectivePrice * part.annualDemand * (1 + effectiveFreightOhdRate);
-  }, []);
+
+    let cumulativeSpend = 0;
+    const classifiedParts: { part: Part; annualSpend: number; class: 'A' | 'B' | 'C' }[] = [];
+
+    for (const part of sortedParts) {
+      cumulativeSpend += part.annualSpend;
+      const cumulativePercent = cumulativeSpend / totalAnnualSpendAllParts;
+      if (cumulativePercent <= 0.80) {
+        classifiedParts.push({ ...part, class: 'A' });
+      } else if (cumulativePercent <= 0.95) {
+        classifiedParts.push({ ...part, class: 'B' });
+      } else {
+        classifiedParts.push({ ...part, class: 'C' });
+      }
+    }
+    
+    const spendByClass = [
+      { name: 'Class A', value: classifiedParts.filter(p => p.class === 'A').reduce((sum, p) => sum + p.annualSpend, 0), fill: ABC_COLORS.A },
+      { name: 'Class B', value: classifiedParts.filter(p => p.class === 'B').reduce((sum, p) => sum + p.annualSpend, 0), fill: ABC_COLORS.B },
+      { name: 'Class C', value: classifiedParts.filter(p => p.class === 'C').reduce((sum, p) => sum + p.annualSpend, 0), fill: ABC_COLORS.C },
+    ];
+
+    const countByClass = [
+      { name: 'Class A', value: classifiedParts.filter(p => p.class === 'A').length, fill: ABC_COLORS.A },
+      { name: 'Class B', value: classifiedParts.filter(p => p.class === 'B').length, fill: ABC_COLORS.B },
+      { name: 'Class C', value: classifiedParts.filter(p => p.class === 'C').length, fill: ABC_COLORS.C },
+    ];
+    
+    return { spendByClass, countByClass };
+  }, [partsWithSpend]);
 
 
-  const cumulativeSpend = useMemo(() => {
-    return parts.reduce((sum, p) => sum + calculateSpendForSummary(p, tariffChargePercent, totalLogisticsCostPercent, allSuppliers, allPartSupplierAssociations, homeCountry), 0);
-  }, [parts, tariffChargePercent, totalLogisticsCostPercent, allSuppliers, allPartSupplierAssociations, homeCountry, calculateSpendForSummary]);
+  const cumulativeSpendValue = useMemo(() => { // Renamed from cumulativeSpend
+    return partsWithSpend.reduce((sum, p) => sum + p.annualSpend, 0);
+  }, [partsWithSpend]);
 
 
   const cumulativeVolume = useMemo(() => {
@@ -275,7 +341,7 @@ export default function UpdatePartsTab({
               </div>
               <div>
                 <p className="text-muted-foreground">Cum. Spend:</p>
-                <p className="font-medium">{formatCurrency(cumulativeSpend)}</p>
+                <p className="font-medium">{formatCurrency(cumulativeSpendValue)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Cum. Volume:</p>
@@ -304,16 +370,18 @@ export default function UpdatePartsTab({
                 <p className="text-xs text-muted-foreground text-center py-3">No spend data to display.</p>
               ) : (
                 <ChartContainer config={spendByPartChartConfig} className="min-h-[180px] w-full aspect-video">
-                  <BarChart accessibilityLayer data={spendByPartData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
-                    <CartesianGrid horizontal={false} />
-                    <XAxis type="number" dataKey="spend" tickFormatter={formatCurrency} tick={{ fontSize: 10 }} />
-                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={60} tick={{ fontSize: 10 }} />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent indicator="dot" formatter={(value) => formatCurrency(value as number)} />}
-                    />
-                    <Bar dataKey="spend" fill="var(--color-spend)" radius={3} barSize={10} />
-                  </BarChart>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart accessibilityLayer data={spendByPartData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
+                      <CartesianGrid horizontal={false} />
+                      <XAxis type="number" dataKey="spend" tickFormatter={formatCurrency} tick={{ fontSize: 10 }} />
+                      <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={60} tick={{ fontSize: 10 }} />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="dot" formatter={(value) => formatCurrency(value as number)} />}
+                      />
+                      <Bar dataKey="spend" fill="var(--color-spend)" radius={3} barSize={10} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </ChartContainer>
               )}
             </CardContent>
@@ -339,39 +407,41 @@ export default function UpdatePartsTab({
                 <p className="text-xs text-muted-foreground text-center py-3">No category spend data.</p>
               ) : (
                 <ChartContainer config={spendByCategoryChartConfig} className="min-h-[180px] w-full aspect-square">
-                  <PieChart accessibilityLayer>
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent hideLabel formatter={(value, name, props) => <div className="text-xs"><span className="font-medium">{props.payload?.name}</span>: {formatCurrency(value as number)}</div>} />}
-                    />
-                    <Pie data={spendByCategoryData} dataKey="spend" nameKey="name" cx="50%" cy="50%" outerRadius={60} labelLine={false} 
-                         label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                            const RADIAN = Math.PI / 180;
-                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                            return (percent as number) * 100 > 5 ? (
-                              <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[8px] fill-primary-foreground">
-                                {`${((percent as number) * 100).toFixed(0)}%`}
-                              </text>
-                            ) : null;
-                          }}
-                    >
-                      {spendByCategoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                     <Legend content={({ payload }) => (
-                        <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 mt-2 text-[10px]">
-                          {payload?.map((entry, index) => (
-                            <div key={`item-${index}`} className="flex items-center">
-                              <span style={{ backgroundColor: entry.color }} className="inline-block w-2 h-2 rounded-full mr-1"></span>
-                              {entry.value} ({formatCurrency(entry.payload?.payload?.spend as number || 0)})
-                            </div>
-                          ))}
-                        </div>
-                      )} />
-                  </PieChart>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart accessibilityLayer>
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent hideLabel formatter={(value, name, props) => <div className="text-xs"><span className="font-medium">{props.payload?.name}</span>: {formatCurrency(value as number)}</div>} />}
+                      />
+                      <Pie data={spendByCategoryData} dataKey="spend" nameKey="name" cx="50%" cy="50%" outerRadius={60} labelLine={false} 
+                          label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                              const RADIAN = Math.PI / 180;
+                              const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                              const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                              const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                              return (percent as number) * 100 > 5 ? (
+                                <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[8px]">
+                                  {`${((percent as number) * 100).toFixed(0)}%`}
+                                </text>
+                              ) : null;
+                            }}
+                      >
+                        {spendByCategoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Legend content={({ payload }) => (
+                          <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 mt-2 text-[10px]">
+                            {payload?.map((entry, index) => (
+                              <div key={`item-${index}`} className="flex items-center">
+                                <span style={{ backgroundColor: entry.color }} className="inline-block w-2 h-2 rounded-full mr-1"></span>
+                                {entry.value} ({formatCurrency(entry.payload?.payload?.spend as number || 0)})
+                              </div>
+                            ))}
+                          </div>
+                        )} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </ChartContainer>
               )}
             </CardContent>
@@ -397,20 +467,166 @@ export default function UpdatePartsTab({
                 <p className="text-xs text-muted-foreground text-center py-3">No parts per category data.</p>
               ) : (
                 <ChartContainer config={partsPerCategoryChartConfig} className="min-h-[180px] w-full aspect-video">
-                  <BarChart accessibilityLayer data={partsPerCategoryData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
-                    <CartesianGrid horizontal={false} />
-                    <XAxis type="number" dataKey="count" tickFormatter={formatNumber} tick={{ fontSize: 10 }} />
-                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} tick={{ fontSize: 10 }} />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent indicator="dot" formatter={(value) => formatNumber(value as number)}/>}
-                    />
-                    <Bar dataKey="count" fill="var(--color-count)" radius={3} barSize={10}/>
-                  </BarChart>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart accessibilityLayer data={partsPerCategoryData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
+                      <CartesianGrid horizontal={false} />
+                      <XAxis type="number" dataKey="count" tickFormatter={formatNumber} tick={{ fontSize: 10 }} />
+                      <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} tick={{ fontSize: 10 }} />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="dot" formatter={(value) => formatNumber(value as number)}/>}
+                      />
+                      <Bar dataKey="count" fill="var(--color-count)" radius={3} barSize={10}/>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </ChartContainer>
               )}
             </CardContent>
           </Card>
+
+          {/* ABC Spend Classification Chart */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center">
+                <Focus className="mr-1.5 h-4 w-4" />
+                ABC - % Total Spend
+              </CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Spend breakdown by ABC class <Info className="ml-1 h-3 w-3" /></span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">
+                    ABC analysis classifies parts based on spend:
+                    Class A: Top 80% of spend.
+                    Class B: Next 15% of spend.
+                    Class C: Bottom 5% of spend.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {abcClassificationData.spendByClass.length === 0 || partsWithSpend.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">No data for ABC spend analysis.</p>
+              ) : (
+                <ChartContainer config={abcChartConfig} className="min-h-[180px] w-full aspect-square">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent hideLabel formatter={(value, name, props) => <div className="text-xs"><span className="font-medium" style={{color: props.payload?.fill}}>{props.payload?.name}</span>: {formatCurrency(value as number)}</div>} />}
+                      />
+                      <Pie
+                        data={abcClassificationData.spendByClass}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={60}
+                        labelLine={false}
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+                          const RADIAN = Math.PI / 180;
+                          const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                          return (percent as number) * 100 > 3 ? (
+                            <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[8px]">
+                              {`${name} (${((percent as number) * 100).toFixed(0)}%)`}
+                            </text>
+                          ) : null;
+                        }}
+                      >
+                        {abcClassificationData.spendByClass.map((entry) => (
+                          <Cell key={`cell-abc-spend-${entry.name}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Legend content={({ payload }) => (
+                        <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 mt-2 text-[10px]">
+                          {payload?.map((entry) => (
+                            <div key={`item-abc-spend-${entry.value}`} className="flex items-center">
+                              <span style={{ backgroundColor: entry.color }} className="inline-block w-2 h-2 rounded-full mr-1"></span>
+                              {entry.value} ({formatCurrency(entry.payload?.payload?.value as number || 0)})
+                            </div>
+                          ))}
+                        </div>
+                      )} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ABC Count Classification Chart */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center">
+                <Focus className="mr-1.5 h-4 w-4" />
+                ABC - % Part Count
+              </CardTitle>
+               <Tooltip>
+                <TooltipTrigger asChild>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Part count by ABC class <Info className="ml-1 h-3 w-3" /></span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">
+                    Percentage of total parts that fall into Class A, B, or C based on their contribution to annual spend.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {abcClassificationData.countByClass.length === 0 || partsWithSpend.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">No data for ABC count analysis.</p>
+              ) : (
+                <ChartContainer config={abcChartConfig} className="min-h-[180px] w-full aspect-square">
+                   <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent hideLabel formatter={(value, name, props) => <div className="text-xs"><span className="font-medium" style={{color: props.payload?.fill}}>{props.payload?.name}</span>: {formatNumber(value as number)} parts</div>} />}
+                      />
+                      <Pie
+                        data={abcClassificationData.countByClass}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={60}
+                        labelLine={false}
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+                          const RADIAN = Math.PI / 180;
+                          const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                          return (percent as number) * 100 > 3 ? (
+                            <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[8px]">
+                              {`${name} (${((percent as number) * 100).toFixed(0)}%)`}
+                            </text>
+                          ) : null;
+                        }}
+                      >
+                        {abcClassificationData.countByClass.map((entry) => (
+                          <Cell key={`cell-abc-count-${entry.name}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Legend content={({ payload }) => (
+                        <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 mt-2 text-[10px]">
+                          {payload?.map((entry) => (
+                            <div key={`item-abc-count-${entry.value}`} className="flex items-center">
+                              <span style={{ backgroundColor: entry.color }} className="inline-block w-2 h-2 rounded-full mr-1"></span>
+                              {entry.value} ({formatNumber(entry.payload?.payload?.value as number || 0)} parts)
+                            </div>
+                          ))}
+                        </div>
+                      )} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+
         </div>
       </CardContent>
     </Card>
