@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react";
-import { Bar, BarChart, Cell, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Pie, PieChart } from 'recharts';
-import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, ScatterChart, Scatter, ZAxis, Tooltip as RechartsTooltip, Cell } from 'recharts';
+import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import React, { useState, useMemo } from 'react';
@@ -42,16 +42,20 @@ const spendByPartChartConfig = {
   },
 } satisfies import("@/components/ui/chart").ChartConfig;
 
-const abcChartConfig = {
-  value: { label: "Value" },
-} satisfies import("@/components/ui/chart").ChartConfig;
-
-
 const ABC_COLORS = {
-  A: "hsl(var(--chart-1))",
-  B: "hsl(var(--chart-4))",
-  C: "hsl(var(--chart-3))",
+  A: "hsl(var(--chart-1))", // Blue
+  B: "hsl(var(--chart-2))", // Green
+  C: "hsl(var(--chart-3))", // Purple/Other
 };
+
+const abcBubbleChartConfig = {
+  numParts: { label: "Number of Parts" },
+  avgSpend: { label: "Avg. Spend/Part" },
+  totalSpend: { label: "Total Spend (Bubble Size)" },
+  "Class A": { label: "Class A", color: ABC_COLORS.A },
+  "Class B": { label: "Class B", color: ABC_COLORS.B },
+  "Class C": { label: "Class C", color: ABC_COLORS.C },
+} satisfies import("@/components/ui/chart").ChartConfig;
 
 
 export default function UpdatePartsTab({
@@ -72,13 +76,17 @@ export default function UpdatePartsTab({
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
   };
+  
+  const formatCurrencyWithDecimals = (value: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  };
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-US').format(value);
   };
 
   const formatPriceForInput = (value: number): string => {
-    const fixedValue = value.toFixed(2); // Ensure two decimal places, e.g., "1234.50"
+    const fixedValue = value.toFixed(2);
     const parts = fixedValue.split('.');
     const integerPartFormatted = new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10));
     return `${integerPartFormatted}.${parts[1]}`;
@@ -90,10 +98,10 @@ export default function UpdatePartsTab({
         if (p.id === partId) {
           let processedValue = value;
           if (field === 'price') {
-            const numericValue = typeof value === 'string' ? parseFloat(value) : value;
-            processedValue = isNaN(numericValue) ? 0 : parseFloat(numericValue.toFixed(2)); // Round to 2 decimal places
+            const numericValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
+            processedValue = isNaN(numericValue) ? 0 : parseFloat(numericValue.toFixed(2));
           } else if (field === 'annualDemand') {
-            const numericValue = typeof value === 'string' ? parseInt(String(value), 10) : value;
+            const numericValue = typeof value === 'string' ? parseInt(String(value).replace(/,/g, ''), 10) : value;
             processedValue = isNaN(numericValue) ? 0 : numericValue;
           } else if (field === 'freightOhdCost') {
             const numericValue = typeof value === 'string' ? parseFloat(value) / 100 : value / 100;
@@ -107,9 +115,7 @@ export default function UpdatePartsTab({
   };
   
   const handlePriceChange = (partId: string, rawValue: string) => {
-    const cleanedValue = rawValue.replace(/,/g, ''); // Remove commas
-    // Pass the cleaned string; handlePartInputChange will parse and round it.
-    handlePartInputChange(partId, 'price', cleanedValue);
+    handlePartInputChange(partId, 'price', rawValue);
   };
 
   const handleAnnualDemandChange = (partId: string, rawValue: string) => {
@@ -155,24 +161,15 @@ export default function UpdatePartsTab({
 
   const abcClassificationData = useMemo(() => {
     if (partsWithSpend.length === 0) {
-      return {
-        spendByClass: [],
-      };
+      return { classBubbleData: { A: null, B: null, C: null } };
     }
 
     const sortedParts = [...partsWithSpend].sort((a, b) => b.annualSpend - a.annualSpend);
     const totalAnnualSpendAllParts = sortedParts.reduce((sum, p) => sum + p.annualSpend, 0);
 
     if (totalAnnualSpendAllParts === 0) {
-        return {
-            spendByClass: [
-                { name: 'Class A', value: 0, fill: ABC_COLORS.A },
-                { name: 'Class B', value: 0, fill: ABC_COLORS.B },
-                { name: 'Class C', value: 0, fill: ABC_COLORS.C },
-            ],
-        };
+      return { classBubbleData: { A: null, B: null, C: null } };
     }
-
 
     let cumulativeSpend = 0;
     const classifiedParts: { part: Part; annualSpend: number; class: 'A' | 'B' | 'C' }[] = [];
@@ -188,14 +185,26 @@ export default function UpdatePartsTab({
         classifiedParts.push({ ...part, class: 'C' });
       }
     }
+    
+    const classAggregatedData: { A: any; B: any; C: any; } = { A: null, B: null, C: null };
+    const classTypes: ('A' | 'B' | 'C')[] = ['A', 'B', 'C'];
 
-    const spendByClass = [
-      { name: 'Class A', value: classifiedParts.filter(p => p.class === 'A').reduce((sum, p) => sum + p.annualSpend, 0), fill: ABC_COLORS.A },
-      { name: 'Class B', value: classifiedParts.filter(p => p.class === 'B').reduce((sum, p) => sum + p.annualSpend, 0), fill: ABC_COLORS.B },
-      { name: 'Class C', value: classifiedParts.filter(p => p.class === 'C').reduce((sum, p) => sum + p.annualSpend, 0), fill: ABC_COLORS.C },
-    ];
+    classTypes.forEach(className => {
+      const partsInThisClass = classifiedParts.filter(p => p.class === className);
+      if (partsInThisClass.length > 0) {
+        const totalSpendInClass = partsInThisClass.reduce((sum, p) => sum + p.annualSpend, 0);
+        classAggregatedData[className] = {
+          name: `Class ${className}`,
+          numParts: partsInThisClass.length,
+          totalSpend: totalSpendInClass,
+          avgSpend: totalSpendInClass / partsInThisClass.length,
+          fill: ABC_COLORS[className],
+        };
+      }
+    });
+    
+    return { classBubbleData: classAggregatedData };
 
-    return { spendByClass };
   }, [partsWithSpend]);
 
 
@@ -377,68 +386,61 @@ export default function UpdatePartsTab({
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center">
                 <Focus className="mr-1.5 h-4 w-4" />
-                ABC - % Total Spend
+                ABC Analysis by Class
               </CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild>
-                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Spend breakdown by ABC class <Info className="ml-1 h-3 w-3" /></span>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Bubble size by Total Spend. X: # Parts, Y: Avg. Spend/Part. <Info className="ml-1 h-3 w-3" /></span>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-xs max-w-xs">
-                    ABC analysis classifies parts based on spend:
-                    Class A: Top 80% of spend.
-                    Class B: Next 15% of spend.
-                    Class C: Bottom 5% of spend.
+                    ABC analysis classifies parts: Class A (top 80% spend), B (next 15%), C (last 5%).<br/>
+                    X-axis: Number of parts in class.<br/>
+                    Y-axis: Average spend per part in class.<br/>
+                    Bubble Size: Total annual spend for the class.
                   </p>
                 </TooltipContent>
               </Tooltip>
             </CardHeader>
             <CardContent className="pt-0">
-              {abcClassificationData.spendByClass.length === 0 || partsWithSpend.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3">No data for ABC spend analysis.</p>
+              {Object.values(abcClassificationData.classBubbleData).every(c => c === null) ? (
+                <p className="text-xs text-muted-foreground text-center py-3">No data for ABC bubble chart analysis.</p>
               ) : (
-                <ChartContainer config={abcChartConfig} className="min-h-[180px] w-full aspect-square">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent hideLabel formatter={(value, name, props) => <div className="text-xs"><span className="font-medium" style={{color: props.payload?.fill}}>{props.payload?.name}</span>: {formatCurrency(value as number)}</div>} />}
-                      />
-                      <Pie
-                        data={abcClassificationData.spendByClass}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={60}
-                        labelLine={false}
-                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
-                          const RADIAN = Math.PI / 180;
-                          const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                          return (percent as number) * 100 > 3 ? (
-                            <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[8px]">
-                              {`${name} (${((percent as number) * 100).toFixed(0)}%)`}
-                            </text>
-                          ) : null;
+                <ChartContainer config={abcBubbleChartConfig} className="min-h-[220px] w-full">
+                  <ResponsiveContainer width="100%" height={220}>
+                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                      <CartesianGrid />
+                      <XAxis type="number" dataKey="numParts" name="Number of Parts" tickFormatter={formatNumber} tick={{ fontSize: 10 }} />
+                      <YAxis type="number" dataKey="avgSpend" name="Avg. Spend/Part" tickFormatter={formatCurrencyWithDecimals} tick={{ fontSize: 10 }} />
+                      <ZAxis type="number" dataKey="totalSpend" range={[150, 1500]} name="Total Annual Spend" />
+                      <RechartsTooltip
+                        cursor={{ strokeDasharray: '3 3' }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="rounded-lg border bg-background p-2.5 shadow-xl text-xs">
+                                <p className="font-medium mb-1" style={{color: data.fill}}>{data.name}</p>
+                                <p>Parts: {formatNumber(data.numParts)}</p>
+                                <p>Avg Spend/Part: {formatCurrencyWithDecimals(data.avgSpend)}</p>
+                                <p>Total Spend: {formatCurrency(data.totalSpend)}</p>
+                              </div>
+                            );
+                          }
+                          return null;
                         }}
-                      >
-                        {abcClassificationData.spendByClass.map((entry) => (
-                          <Cell key={`cell-abc-spend-${entry.name}`} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                      <Legend content={({ payload }) => (
-                        <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 mt-2 text-[10px]">
-                          {payload?.map((entry) => (
-                            <div key={`item-abc-spend-${entry.value}`} className="flex items-center">
-                              <span style={{ backgroundColor: entry.color }} className="inline-block w-2 h-2 rounded-full mr-1"></span>
-                              {entry.value} ({formatCurrency(entry.payload?.payload?.value as number || 0)})
-                            </div>
-                          ))}
-                        </div>
-                      )} />
-                    </PieChart>
+                      />
+                      <Legend wrapperStyle={{fontSize: "10px"}} />
+                      {abcClassificationData.classBubbleData.A && (
+                        <Scatter name="Class A" data={[abcClassificationData.classBubbleData.A]} fill={abcClassificationData.classBubbleData.A.fill} shape="circle" />
+                      )}
+                      {abcClassificationData.classBubbleData.B && (
+                        <Scatter name="Class B" data={[abcClassificationData.classBubbleData.B]} fill={abcClassificationData.classBubbleData.B.fill} shape="circle" />
+                      )}
+                      {abcClassificationData.classBubbleData.C && (
+                        <Scatter name="Class C" data={[abcClassificationData.classBubbleData.C]} fill={abcClassificationData.classBubbleData.C.fill} shape="circle" />
+                      )}
+                    </ScatterChart>
                   </ResponsiveContainer>
                 </ChartContainer>
               )}
@@ -449,3 +451,4 @@ export default function UpdatePartsTab({
     </Card>
   );
 }
+
