@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -17,12 +16,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input"; // Added for Excel Upload Dialog
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet } from "lucide-react"; // Added FileSpreadsheet
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Added for Excel Upload Dialog
+import * as XLSX from 'xlsx'; // Added for Excel processing
 
 export interface SpendDataPoint {
   name: string;
@@ -34,13 +36,6 @@ export interface CountDataPoint {
   count: number;
 }
 
-// ABCPieChartDataItem is no longer needed here as SummaryTab will calculate its own bubble chart data
-// export interface ABCPieChartDataItem {
-// name: string;
-// count: number;
-// fill: string;
-// }
-
 const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
@@ -49,13 +44,6 @@ const HOME_COUNTRY = "USA";
 const HEADER_HEIGHT_PX = 64;
 const SUMMARY_STATS_HEIGHT_PX = 122;
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
-
-// ABC_COLORS_CLASSES not needed here for page.tsx calculations anymore.
-// const ABC_COLORS_CLASSES = {
-// A: "hsl(var(--chart-1))",
-// B: "hsl(var(--chart-2))",
-// C: "hsl(var(--chart-3))",
-// };
 
 export default function SpendWiseCentralPage() {
   const { theme, setTheme } = useTheme();
@@ -76,6 +64,13 @@ export default function SpendWiseCentralPage() {
   const [isUploadingSuppliersCsv, setIsUploadingSuppliersCsv] = useState(false);
   const [isSourceMixUploadDialogOpen, setIsSourceMixUploadDialogOpen] = useState(false);
   const [isUploadingSourceMixCsv, setIsUploadingSourceMixCsv] = useState(false);
+
+  // NEW: Excel workbook upload states
+  const [isExcelUploadDialogOpen, setIsExcelUploadDialogOpen] = useState(false);
+  const [isUploadingExcel, setIsUploadingExcel] = useState(false);
+
+  // 1. Add this state for loading sample data (as per user request)
+  const [isLoadingSampleData, setIsLoadingSampleData] = useState(false);
 
   const [tariffChargePercent, setTariffChargePercent] = useState(100);
   const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100);
@@ -124,7 +119,7 @@ export default function SpendWiseCentralPage() {
         case '>': return '&gt;';
         case '&': return '&amp;';
         case '"': return '&quot;';
-        case "'": return '&apos;';
+        case "'": return '&apos;';  // ✅ ADD THIS LINE
         default: return c;
       }
     });
@@ -214,7 +209,7 @@ export default function SpendWiseCentralPage() {
       setCurrentFilename(DEFAULT_XML_FILENAME);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // parseAndSetXmlData is memoized
 
   useEffect(() => {
     let xmlString = '<SpendData>\n';
@@ -547,6 +542,281 @@ export default function SpendWiseCentralPage() {
     setIsSourceMixUploadDialogOpen(false);
   };
 
+  // SIMPLE EXCEL WORKBOOK UPLOAD - FIXED FOR ALL 3 SHEETS
+  const handleProcessExcelWorkbook = async (file: File) => {
+    setIsUploadingExcel(true);
+    
+    try {
+      console.log('=== EXCEL PROCESSING STARTED ===');
+      console.log('File name:', file.name);
+
+      const fileBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+
+      const workbook = XLSX.read(fileBuffer, {
+        cellStyles: true,
+        cellFormulas: true,
+        cellDates: true,
+        cellNF: true,
+        sheetStubs: true
+      });
+
+      console.log('Available sheets:', Object.keys(workbook.Sheets));
+      
+      const errors: string[] = [];
+      let totalProcessed = 0;
+      const newPartsArr: Part[] = [];
+      const newSuppliersArr: Supplier[] = [];
+      const newAssociations: PartSupplierAssociation[] = [];
+
+      const findActualSheetName = (searchNames: string[]) => {
+        return Object.keys(workbook.Sheets).find(actualSheetName => 
+          searchNames.some(searchName => 
+            actualSheetName.trim().toLowerCase() === searchName.toLowerCase()
+          )
+        );
+      };
+
+      // 1. PROCESS PARTS SHEET
+      console.log('=== PROCESSING PARTS ===');
+      const partsSheetName = findActualSheetName(['Parts', 'parts', 'PARTS']);
+      console.log('Parts sheet name found:', partsSheetName);
+      
+      if (partsSheetName) {
+        const partsData = XLSX.utils.sheet_to_json(workbook.Sheets[partsSheetName]);
+        console.log(`Processing ${partsData.length} parts`);
+        
+        partsData.forEach((row: any, index) => {
+          try {
+            const partNumber = String(row['PartNumber'] || '').trim();
+            const name = String(row['Name'] || '').trim();
+            const price = parseFloat(row['Price'] || '0');
+            const annualDemand = parseInt(row['AnnualDemand'] || '0', 10);
+            const freightOhdCost = 0; // Default since your Excel doesn't have this column
+
+            if (!partNumber || !name || isNaN(price) || isNaN(annualDemand)) {
+              errors.push(`Parts Row ${index + 2}: Invalid data`);
+              return;
+            }
+
+            if (parts.some(p => p.partNumber === partNumber) || newPartsArr.some(p => p.partNumber === partNumber)) {
+              return;
+            }
+
+            newPartsArr.push({
+              id: `p_excel_${Date.now()}_${index}`,
+              partNumber,
+              name,
+              price,
+              annualDemand,
+              freightOhdCost
+            });
+            totalProcessed++;
+          } catch (err) {
+            errors.push(`Parts Row ${index + 2}: ${err}`);
+          }
+        });
+      }
+
+      // 2. PROCESS SUPPLIERS SHEET
+      console.log('=== PROCESSING SUPPLIERS ===');
+      const suppliersSheetName = findActualSheetName(['Suppliers', 'suppliers', 'SUPPLIERS']);
+      console.log('Suppliers sheet name found:', suppliersSheetName);
+      
+      if (suppliersSheetName) {
+        const suppliersData = XLSX.utils.sheet_to_json(workbook.Sheets[suppliersSheetName]);
+        console.log(`Processing ${suppliersData.length} suppliers`);
+        
+        suppliersData.forEach((row: any, index) => {
+          try {
+            const supplierId = String(row['SupplierId'] || '').trim();
+            const name = String(row['Name'] || '').trim();
+            const description = String(row['Description'] || '').trim();
+            const city = String(row['City'] || '').trim();
+            const country = String(row['Country'] || '').trim();
+
+            if (!supplierId || !name) {
+              errors.push(`Suppliers Row ${index + 2}: Missing SupplierId or Name`);
+              return;
+            }
+
+            if (suppliers.some(s => s.supplierId === supplierId) || newSuppliersArr.some(s => s.supplierId === supplierId)) {
+              return;
+            }
+
+            const fullAddress = `${city}, ${country}`;
+
+            newSuppliersArr.push({
+              id: `s_excel_${Date.now()}_${index}`,
+              supplierId,
+              name,
+              description,
+              streetAddress: '',
+              city,
+              stateOrProvince: '',
+              postalCode: '',
+              country,
+              address: fullAddress
+            });
+            totalProcessed++;
+          } catch (err) {
+            errors.push(`Suppliers Row ${index + 2}: ${err}`);
+          }
+        });
+      } else {
+        console.log('No Suppliers sheet found');
+      }
+
+      // 3. PROCESS SUPPLIER MIX SHEET
+      console.log('=== PROCESSING SUPPLIER MIX ===');
+      const supplierMixSheetName = findActualSheetName([
+        'Supplier Mix', 'SupplierMix', 'SUPPLIER MIX', 'supplier mix'
+      ]);
+      console.log('Supplier Mix sheet name found:', supplierMixSheetName);
+      
+      if (supplierMixSheetName) {
+        const mixData = XLSX.utils.sheet_to_json(workbook.Sheets[supplierMixSheetName]);
+        console.log(`Processing ${mixData.length} supplier mix rows`);
+
+        const allParts = [...parts, ...newPartsArr];
+        const allSuppliers = [...suppliers, ...newSuppliersArr];
+
+        console.log(`Available: ${allParts.length} parts, ${allSuppliers.length} suppliers`);
+
+        mixData.forEach((row: any, index) => {
+          try {
+            const partNumber = String(row['PartNumber'] || '').trim();
+            const supplierIdVal = String(row['SupplierId'] || '').trim();
+
+            if (!partNumber || !supplierIdVal) {
+              errors.push(`Mix Row ${index + 2}: Missing PartNumber or SupplierId`);
+              return;
+            }
+
+            const foundPart = allParts.find(p => p.partNumber === partNumber);
+            const foundSupplier = allSuppliers.find(s => s.supplierId === supplierIdVal);
+
+            if (!foundPart) {
+              errors.push(`Mix Row ${index + 2}: PartNumber "${partNumber}" not found`);
+              return;
+            }
+
+            if (!foundSupplier) {
+              errors.push(`Mix Row ${index + 2}: SupplierId "${supplierIdVal}" not found`);
+              return;
+            }
+            
+            const exists = partSupplierAssociations.some(a => a.partId === foundPart.id && a.supplierId === foundSupplier.id) ||
+                          newAssociations.some(a => a.partId === foundPart.id && a.supplierId === foundSupplier.id);
+            
+            if (exists) {
+              return;
+            }
+
+            newAssociations.push({
+              id: `psa_excel_${Date.now()}_${index}`,
+              partId: foundPart.id,
+              supplierId: foundSupplier.id
+            });
+            totalProcessed++;
+          } catch (err) {
+            errors.push(`Mix Row ${index + 2}: ${err}`);
+          }
+        });
+      } else {
+        console.log('No Supplier Mix sheet found');
+      }
+
+      // 4. UPDATE ALL STATE
+      console.log('=== UPDATING STATE ===');
+      console.log(`Adding: ${newPartsArr.length} parts, ${newSuppliersArr.length} suppliers, ${newAssociations.length} associations`);
+      
+      if (newPartsArr.length > 0) {
+        setParts(prev => [...prev, ...newPartsArr]);
+      }
+      if (newSuppliersArr.length > 0) {
+        setSuppliers(prev => [...prev, ...newSuppliersArr]);
+      }
+      if (newAssociations.length > 0) {
+        setPartSupplierAssociations(prev => [...prev, ...newAssociations]);
+      }
+
+      // 5. SHOW RESULTS
+      const successMessage = `Successfully imported: ${newPartsArr.length} parts, ${newSuppliersArr.length} suppliers, ${newAssociations.length} associations`;
+      
+      if (errors.length > 0) {
+        console.warn('Errors:', errors.slice(0, 10));
+        toast({ 
+          variant: "destructive", 
+          title: "Partially Successful", 
+          description: `${successMessage}. ${errors.length} errors occurred.`,
+          duration: 5000 
+        });
+      } else {
+        toast({ 
+          title: "Excel Upload Complete", 
+          description: successMessage
+        });
+      }
+
+      setIsExcelUploadDialogOpen(false);
+    } catch (error) {
+      console.error("Excel processing error:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Upload Failed", 
+        description: `Could not process Excel file: ${error instanceof Error ? error.message : String(error)}`
+      });
+    } finally {
+      setIsUploadingExcel(false);
+    }
+  };
+
+  // 2. Add this function to load the sample Excel file (as per user request)
+  const handleLoadSampleData = async () => {
+    setIsLoadingSampleData(true);
+    
+    try {
+      console.log('Loading sample data...');
+      
+      // Fetch the Excel file from public folder
+      const response = await fetch('/Spend Analysis.xlsx'); // Ensure this file is in your /public directory
+      if (!response.ok) {
+        throw new Error(`Sample file not found at /Spend Analysis.xlsx (status: ${response.status})`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      
+      // Create a File object from the fetched data
+      const file = new File([arrayBuffer], 'Spend Analysis.xlsx', {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      
+      // Use your existing Excel processing function
+      await handleProcessExcelWorkbook(file);
+      
+      toast({ 
+        title: "Sample Data Loaded!", 
+        description: "Successfully loaded sample parts, suppliers, and associations from the built-in Excel file." 
+      });
+      
+    } catch (error) {
+      console.error('Error loading sample data:', error);
+      toast({ 
+        variant: "destructive", 
+        title: "Sample Data Error", 
+        description: `Could not load sample data. ${error instanceof Error ? error.message : String(error)} Make sure 'Spend Analysis.xlsx' is in the public folder.`
+      });
+    } finally {
+      setIsLoadingSampleData(false);
+    }
+  };
+
+
   const handleClearAllData = () => {
     setParts([]);
     setSuppliers([]);
@@ -665,32 +935,21 @@ export default function SpendWiseCentralPage() {
       .sort((a, b) => b.count - a.count);
   }, [partCategoryMappings]);
 
-  // abcSummaryPieData is no longer calculated here, SummaryTab will handle its own ABC data for bubble chart.
-  // const abcSummaryPieData = useMemo(() : ABCPieChartDataItem[] => {
-  //   if (partsWithSpend.length === 0) return [];
-  //   const sortedParts = [...partsWithSpend].sort((a, b) => b.annualSpend - a.annualSpend);
-  //   const totalSpendAllParts = sortedParts.reduce((sum, p) => sum + p.annualSpend, 0);
-  //   if (totalSpendAllParts === 0) return [];
-  //   let cumulativeSpend = 0;
-  //   const counts = { A: 0, B: 0, C: 0 };
-  //   for (const part of sortedParts) {
-  //     cumulativeSpend += part.annualSpend;
-  //     const cumulativePercent = cumulativeSpend / totalSpendAllParts;
-  //     if (cumulativePercent <= 0.80) {
-  //       counts.A++;
-  //     } else if (cumulativePercent <= 0.95) {
-  //       counts.B++;
-  //     } else {
-  //       counts.C++;
-  //     }
-  //   }
-  //   const pieData: ABCPieChartDataItem[] = [];
-  //   if (counts.A > 0) pieData.push({ name: 'Class A', count: counts.A, fill: ABC_COLORS_CLASSES.A });
-  //   if (counts.B > 0) pieData.push({ name: 'Class B', count: counts.B, fill: ABC_COLORS_CLASSES.B });
-  //   if (counts.C > 0) pieData.push({ name: 'Class C', count: counts.C, fill: ABC_COLORS_CLASSES.C });
-  //   return pieData;
-  // }, [partsWithSpend]);
-
+  // 4. OPTIONAL: Auto-load sample data on first visit (as per user request)
+  useEffect(() => {
+    // Check if this is the first time visiting (no data exists from localStorage or previous actions)
+    const hasExistingData = parts.length > 0 || suppliers.length > 0;
+    const lastFile = typeof window !== 'undefined' ? localStorage.getItem(LAST_LOADED_FILENAME_KEY) : null;
+    const defaultDataExists = typeof window !== 'undefined' ? localStorage.getItem(APP_CONFIG_DATA_KEY_PREFIX + DEFAULT_XML_FILENAME) : null;
+    
+    // Only auto-load if no parts/suppliers are currently loaded AND no specific file was last loaded (implying a fresh start or cleared data)
+    // AND default XML is not present (or we would have loaded that)
+    if (!hasExistingData && !lastFile && !defaultDataExists) {
+      // Auto-load sample data on first visit scenario
+      handleLoadSampleData();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   return (
     <TooltipProvider>
@@ -738,6 +997,45 @@ export default function SpendWiseCentralPage() {
             </div>
 
             <div className="ml-auto flex items-center space-x-2">
+              {/* 3. Add this button to your header section (as per user request) */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={handleLoadSampleData} 
+                    disabled={isLoadingSampleData || isUploadingExcel} 
+                    aria-label="Load Sample Data"
+                    className="bg-blue-50 hover:bg-blue-100 dark:bg-blue-900 dark:hover:bg-blue-800 border-blue-200 dark:border-blue-700"
+                  >
+                    {isLoadingSampleData ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
+                    ) : (
+                      <FileSpreadsheet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Load Sample Data (Excel)</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Existing "Upload Excel Workbook" button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={() => setIsExcelUploadDialogOpen(true)} disabled={isUploadingExcel || isLoadingSampleData} aria-label="Upload Excel Workbook">
+                    {isUploadingExcel ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <FileSpreadsheet className="h-5 w-5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Upload Excel Workbook</p>
+                </TooltipContent>
+              </Tooltip>
+
                <SpendWiseBot
                 parts={parts}
                 suppliers={suppliers}
@@ -905,11 +1203,10 @@ export default function SpendWiseCentralPage() {
             <TabsContent value="summary" className="mt-4">
               <SummaryTab 
                 suppliers={suppliers}
-                parts={parts} // Pass raw parts
-                partsWithSpend={partsWithSpend} // Pass parts with calculated spend
+                parts={parts} 
+                partsWithSpend={partsWithSpend} 
                 partSupplierAssociations={partSupplierAssociations}
                 spendByCategoryData={spendByCategoryData}
-                // abcSummaryPieData prop removed
               />
             </TabsContent>
             <TabsContent value="scenario" className="mt-4">
@@ -959,6 +1256,52 @@ export default function SpendWiseCentralPage() {
           uploadType="sourcemix"
           isUploading={isUploadingSourceMixCsv}
         />
+
+        {/* NEW: Excel Workbook Upload Dialog */}
+        <Dialog open={isExcelUploadDialogOpen} onOpenChange={setIsExcelUploadDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <FileSpreadsheet className="mr-2 h-5 w-5" />
+                Upload Excel Workbook
+              </DialogTitle>
+              <DialogDescription>
+                Upload a single Excel file (.xlsx, .xls) with up to 3 sheets: "Parts", "Suppliers", and "Supplier Mix" (or "SupplierMix", "SourceMix").
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid items-center gap-1.5">
+                <Label htmlFor="excelFile">Excel Workbook (.xlsx, .xls)</Label>
+                <Input
+                  id="excelFile"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                        handleProcessExcelWorkbook(file);
+                    }
+                    // Clear the input after selection so the same file can be re-uploaded
+                    if (e.target) e.target.value = '';
+                  }}
+                  className="text-xs file:text-xs file:font-medium file:text-primary file:bg-primary-foreground hover:file:bg-accent/20 h-9"
+                  disabled={isUploadingExcel || isLoadingSampleData}
+                />
+              </div>
+               {isUploadingExcel && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing workbook...
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsExcelUploadDialogOpen(false)} disabled={isUploadingExcel || isLoadingSampleData}>
+                Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );

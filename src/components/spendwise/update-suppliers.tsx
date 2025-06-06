@@ -85,7 +85,7 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
             {suppliers.length === 0 ? (
               <p className="text-muted-foreground text-center py-3">No suppliers available. Generate, add, or upload some suppliers.</p>
             ) : (
-              <ScrollArea className="max-h-80 overflow-x-auto">
+              <ScrollArea className="h-[calc(100vh-300px)] overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

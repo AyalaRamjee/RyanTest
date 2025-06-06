@@ -268,7 +268,7 @@ export default function UpdatePartsTab({
           {parts.length === 0 ? (
             <p className="text-muted-foreground text-center py-3">No parts available. Generate, add, or upload some parts.</p>
           ) : (
-            <ScrollArea className="max-h-[calc(100vh-480px)] min-h-[200px]">
+            <ScrollArea className="h-[calc(100vh-300px)]">
               <RadioGroup value={selectedPartId || undefined} onValueChange={setSelectedPartId} className="space-y-2 pr-2">
                 {parts.map((part) => (
                   <div key={part.id} className="flex items-center gap-2 p-2.5 rounded-md border bg-card shadow-sm hover:shadow-md transition-shadow">
