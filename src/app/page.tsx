@@ -1138,7 +1138,7 @@ export default function SpendWiseCentralPage() {
           <Tabs defaultValue="update-parts" className="w-full mt-4">
             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1">
-                <Package className="h-3.5 w-3.5" /> 1. Parts
+                <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts C
               </TabsTrigger>
               <TabsTrigger value="update-suppliers" className="flex items-center gap-1">
                 <Building className="h-3.5 w-3.5" /> 2. Suppliers
