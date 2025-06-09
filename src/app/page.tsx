@@ -44,7 +44,7 @@ const DEFAULT_HOME_COUNTRY = "USA";
 const BASE_TARIFF_RATE = 0.05; // 5% base tariff
 
 const HEADER_HEIGHT_PX = 64;
-const SUMMARY_STATS_HEIGHT_PX = 122;
+const SUMMARY_STATS_HEIGHT_PX = 122; // This might need adjustment if cards get significantly shorter and sticky behavior of TabsList is to be precise
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
 export default function SpendWiseCentralPage() {
@@ -919,7 +919,7 @@ export default function SpendWiseCentralPage() {
                 suppliers={suppliers}
                 partCategoryMappings={partCategoryMappings}
                 partSupplierAssociations={partSupplierAssociations}
-                tariffChargePercent={tariffRateMultiplierPercent}
+                tariffChargePercent={tariffRateMultiplierPercent} // This is the multiplier
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
                 homeCountry={appHomeCountry}
                 totalAnnualSpend={totalAnnualSpend}
@@ -997,23 +997,23 @@ export default function SpendWiseCentralPage() {
         </header>
 
         <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16">
-          <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background py-4 shadow-sm`}>
+          <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background py-2 shadow-sm`}>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {summaryStats.map(stat => (
                 <Card key={stat.label} className="shadow-md">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
                     <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
                     <stat.Icon className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
+                  <CardContent className="pt-1 pb-2">
+                    <div className="text-xl font-bold">{stat.value}</div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           </section>
 
-          <Tabs defaultValue="update-parts" className="w-full mt-4">
+          <Tabs defaultValue="update-parts" className="w-full mt-2">
             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1">
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
@@ -1045,10 +1045,10 @@ export default function SpendWiseCentralPage() {
                 suppliers={suppliers}
                 partSupplierAssociations={partSupplierAssociations}
                 partCategoryMappings={partCategoryMappings}
-                calculateSpendForSummary={calculateSpendForPart} // For Part360 specific calculation
-                homeCountry={appHomeCountry} // For Part360 context
-                tariffChargePercent={tariffRateMultiplierPercent} // For Part360 context
-                totalLogisticsCostPercent={totalLogisticsCostPercent} // For Part360 context
+                calculateSpendForSummary={calculateSpendForPart} 
+                homeCountry={appHomeCountry} 
+                tariffChargePercent={tariffRateMultiplierPercent} 
+                totalLogisticsCostPercent={totalLogisticsCostPercent} 
               />
             </TabsContent>
             <TabsContent value="update-suppliers" className="mt-4">
@@ -1191,5 +1191,7 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
