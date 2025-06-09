@@ -40,7 +40,8 @@ export interface CountDataPoint {
 const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
-const DEFAULT_HOME_COUNTRY = "USA"; // Renamed to avoid conflict with state
+const DEFAULT_HOME_COUNTRY = "USA";
+const BASE_TARIFF_RATE = 0.05; // 5% base tariff
 
 const HEADER_HEIGHT_PX = 64;
 const SUMMARY_STATS_HEIGHT_PX = 122;
@@ -70,7 +71,7 @@ export default function SpendWiseCentralPage() {
   const [isUploadingExcel, setIsUploadingExcel] = useState(false);
   const [isLoadingSampleData, setIsLoadingSampleData] = useState(false);
 
-  const [tariffChargePercent, setTariffChargePercent] = useState(100);
+  const [tariffRateMultiplierPercent, setTariffRateMultiplierPercent] = useState(100); // Renamed, represents a multiplier for the base 5%
   const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100);
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
@@ -687,7 +688,7 @@ export default function SpendWiseCentralPage() {
     setSuppliers([]);
     setPartCategoryMappings([]);
     setPartSupplierAssociations([]);
-    setTariffChargePercent(100);
+    setTariffRateMultiplierPercent(100);
     setTotalLogisticsCostPercent(100);
     setAppHomeCountry(DEFAULT_HOME_COUNTRY);
 
@@ -711,13 +712,13 @@ export default function SpendWiseCentralPage() {
 
   const calculateSpendForPart = useCallback((
     part: Part,
-    currentTariffChargePercent: number,
+    currentTariffMultiplierPercent: number,
     currentTotalLogisticsCostPercent: number,
     localSuppliers: Supplier[],
     localPartSupplierAssociations: PartSupplierAssociation[],
     homeCountryParam: string
   ): number => {
-    let priceMultiplier = 1.0;
+    let priceAfterTariff = part.price;
     const isImported = localPartSupplierAssociations
       .filter(assoc => assoc.partId === part.id)
       .some(assoc => {
@@ -726,14 +727,14 @@ export default function SpendWiseCentralPage() {
       });
 
     if (isImported) {
-      priceMultiplier = currentTariffChargePercent / 100;
+      const effectiveTariffRate = BASE_TARIFF_RATE * (currentTariffMultiplierPercent / 100);
+      priceAfterTariff = part.price * (1 + effectiveTariffRate);
     }
 
-    const effectivePrice = part.price * priceMultiplier;
     const logisticsRateMultiplier = currentTotalLogisticsCostPercent / 100;
     const effectiveFreightOhdRate = part.freightOhdCost * logisticsRateMultiplier;
 
-    return effectivePrice * part.annualDemand * (1 + effectiveFreightOhdRate);
+    return priceAfterTariff * part.annualDemand * (1 + effectiveFreightOhdRate);
   }, []);
 
   const partsWithSpend = useMemo(() => {
@@ -741,14 +742,14 @@ export default function SpendWiseCentralPage() {
       ...part,
       annualSpend: calculateSpendForPart(
         part,
-        tariffChargePercent,
+        tariffRateMultiplierPercent,
         totalLogisticsCostPercent,
         suppliers,
         partSupplierAssociations,
-        appHomeCountry // Use appHomeCountry here
+        appHomeCountry
       ),
     }));
-  }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, appHomeCountry, calculateSpendForPart]);
+  }, [parts, tariffRateMultiplierPercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, appHomeCountry, calculateSpendForPart]);
 
   const totalAnnualSpend = useMemo(() => {
     return partsWithSpend.reduce((sum, p) => sum + p.annualSpend, 0);
@@ -832,7 +833,7 @@ export default function SpendWiseCentralPage() {
                   <TooltipTrigger asChild>
                     <Home className="h-4 w-4 text-muted-foreground" />
                   </TooltipTrigger>
-                  <TooltipContent><p>Application Home Country</p></TooltipContent>
+                  <TooltipContent><p>Application Home Country (for base calculations)</p></TooltipContent>
                 </Tooltip>
                  <Select value={appHomeCountry} onValueChange={setAppHomeCountry}>
                     <SelectTrigger className="w-[100px] h-8 text-xs">
@@ -847,17 +848,17 @@ export default function SpendWiseCentralPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <Shield className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="tariffChargeSlider" className="text-xs text-muted-foreground whitespace-nowrap">Tariff:</Label>
+                <Label htmlFor="tariffRateMultiplierSlider" className="text-xs text-muted-foreground whitespace-nowrap">Tariff Mult:</Label>
                  <Slider
-                  id="tariffChargeSlider"
-                  min={50}
-                  max={200}
+                  id="tariffRateMultiplierSlider"
+                  min={0} // Min can be 0 for no tariff
+                  max={300} // Max multiplier e.g. 300% of base 5%
                   step={1}
-                  value={[tariffChargePercent]}
-                  onValueChange={(value) => setTariffChargePercent(value[0])}
+                  value={[tariffRateMultiplierPercent]}
+                  onValueChange={(value) => setTariffRateMultiplierPercent(value[0])}
                   className="w-24 h-2"
                 />
-                <span className="text-xs text-foreground w-8 text-right">{tariffChargePercent}%</span>
+                <span className="text-xs text-foreground w-8 text-right">{tariffRateMultiplierPercent}%</span>
               </div>
               <div className="flex items-center space-x-2">
                 <PercentCircle className="h-4 w-4 text-muted-foreground" />
@@ -918,9 +919,9 @@ export default function SpendWiseCentralPage() {
                 suppliers={suppliers}
                 partCategoryMappings={partCategoryMappings}
                 partSupplierAssociations={partSupplierAssociations}
-                tariffChargePercent={tariffChargePercent}
+                tariffChargePercent={tariffRateMultiplierPercent} // Pass the multiplier
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
-                homeCountry={appHomeCountry} // Use appHomeCountry
+                homeCountry={appHomeCountry}
                 totalAnnualSpend={totalAnnualSpend}
                 totalParts={totalParts}
                 totalSuppliers={totalSuppliers}
@@ -1041,11 +1042,11 @@ export default function SpendWiseCentralPage() {
                 onAddPart={handleAddPart}
                 spendByPartData={spendByPartData}
                 onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
-                tariffChargePercent={tariffChargePercent}
+                tariffChargePercent={tariffRateMultiplierPercent} // Pass multiplier
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
                 suppliers={suppliers}
                 partSupplierAssociations={partSupplierAssociations}
-                homeCountry={appHomeCountry} // Use appHomeCountry
+                homeCountry={appHomeCountry}
                 calculateSpendForSummary={calculateSpendForPart}
                 partsWithSpend={partsWithSpend}
               />
@@ -1084,9 +1085,6 @@ export default function SpendWiseCentralPage() {
                 partsWithSpend={partsWithSpend} 
                 partSupplierAssociations={partSupplierAssociations}
                 spendByCategoryData={spendByCategoryData}
-                // homeCountry={appHomeCountry} - Summary tab doesn't use this directly for its display
-                // tariffChargePercent, totalLogisticsCostPercent - these are applied via partsWithSpend
-                // calculateSpendForPart - calculations are encapsulated in partsWithSpend
               />
             </TabsContent>
             <TabsContent value="what-if-analysis" className="mt-4">
@@ -1096,9 +1094,9 @@ export default function SpendWiseCentralPage() {
                 partCategoryMappings={partCategoryMappings}
                 partSupplierAssociations={partSupplierAssociations}
                 originalTotalAnnualSpend={totalAnnualSpend}
-                originalTariffChargePercent={tariffChargePercent}
+                originalTariffMultiplierPercent={tariffRateMultiplierPercent} // Pass multiplier
                 originalTotalLogisticsCostPercent={totalLogisticsCostPercent}
-                defaultAnalysisHomeCountry={appHomeCountry} // Pass appHomeCountry here
+                defaultAnalysisHomeCountry={appHomeCountry}
               />
             </TabsContent>
           </Tabs>

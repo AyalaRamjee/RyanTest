@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { HelpCircle, Info, Percent, DollarSign, Trash2, PlusCircle, ChevronsUpDown, TrendingUp, Save, Upload, Edit3, Layers, BarChart3, Maximize, Minimize, Filter, PackageSearch, Palette, MapPin } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltipComponent } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltipComponent, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 
@@ -25,9 +25,9 @@ interface WhatIfAnalysisTabProps {
   partCategoryMappings: PartCategoryMapping[];
   partSupplierAssociations: PartSupplierAssociation[];
   originalTotalAnnualSpend: number;
-  originalTariffChargePercent: number; // Base tariff rate from main page
-  originalTotalLogisticsCostPercent: number; // Base logistics rate from main page
-  defaultAnalysisHomeCountry: string; // Default home country from app settings
+  originalTariffMultiplierPercent: number; 
+  originalTotalLogisticsCostPercent: number;
+  defaultAnalysisHomeCountry: string;
 }
 
 interface CategoryAdjustment {
@@ -37,7 +37,7 @@ interface CategoryAdjustment {
 
 interface CountryTariffAdjustment {
   countryName: string;
-  tariffAdjustmentPoints: number; // Points to add/subtract from existing tariff
+  tariffAdjustmentPoints: number; 
 }
 
 interface SavedScenario {
@@ -48,18 +48,17 @@ interface SavedScenario {
   globalLogisticsAdjustmentPoints: number;
   activeCategoryAdjustments: CategoryAdjustment[];
   activeCountryTariffAdjustments: CountryTariffAdjustment[];
-  // Demand adjustments will be added in a later step
 }
 
-const LOCAL_STORAGE_SCENARIO_LIST_KEY = "spendwise_scenario_list_v2"; // Updated key for new structure
+const LOCAL_STORAGE_SCENARIO_LIST_KEY = "spendwise_scenario_list_v2"; 
 const LOCAL_STORAGE_SCENARIO_DATA_PREFIX = "spendwise_scenario_data_v2_";
+const BASE_TARIFF_RATE_FOR_WHAT_IF = 0.05; // 5% base tariff for what-if calculations
 
-// Waterfall Chart data structure
 interface WaterfallDataPoint {
   name: string;
-  value: number; // The change amount
-  offset?: number; // For stacking to create waterfall effect
-  fill: string; // Color for the bar
+  value: number; 
+  offset?: number; 
+  fill: string; 
 }
 
 const chartConfigWaterfall = {
@@ -74,7 +73,7 @@ export default function WhatIfAnalysisTab({
   partCategoryMappings,
   partSupplierAssociations,
   originalTotalAnnualSpend,
-  originalTariffChargePercent,
+  originalTariffMultiplierPercent,
   originalTotalLogisticsCostPercent,
   defaultAnalysisHomeCountry,
 }: WhatIfAnalysisTabProps) {
@@ -100,12 +99,15 @@ export default function WhatIfAnalysisTab({
   const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
+    setAnalysisHomeCountry(defaultAnalysisHomeCountry);
+  }, [defaultAnalysisHomeCountry]);
+
+  useEffect(() => {
     const storedNames = localStorage.getItem(LOCAL_STORAGE_SCENARIO_LIST_KEY);
     if (storedNames) {
       setSavedScenarioNames(JSON.parse(storedNames));
     }
-    setAnalysisHomeCountry(defaultAnalysisHomeCountry); // Initialize with default from props
-  }, [defaultAnalysisHomeCountry]);
+  }, []);
 
   const uniqueCategories = useMemo(() => Array.from(new Set(partCategoryMappings.map(pcm => pcm.categoryName))).sort(), [partCategoryMappings]);
   
@@ -124,14 +126,13 @@ export default function WhatIfAnalysisTab({
   const calculateAdjustedSpendForPart = useCallback((
     part: Part,
     currentAnalysisHomeCountry: string,
-    currentGlobalTariffAdj: number,
-    currentGlobalLogisticsAdj: number,
+    currentGlobalTariffAdjPts: number, // now points
+    currentGlobalLogisticsAdjPts: number, // now points
     currentCategoryAdjs: CategoryAdjustment[],
     currentCountryTariffAdjs: CountryTariffAdjustment[]
   ): number => {
     let adjustedPrice = part.price;
 
-    // 1. Apply Category Cost Adjustments
     const categoryMappingsForPart = partCategoryMappings.filter(pcm => pcm.partId === part.id);
     for (const mapping of categoryMappingsForPart) {
       const categoryAdjustment = currentCategoryAdjs.find(adj => adj.categoryName === mapping.categoryName);
@@ -140,45 +141,42 @@ export default function WhatIfAnalysisTab({
       }
     }
     
-    // 2. Determine if imported & Apply Tariffs
+    let priceAfterTariff = adjustedPrice;
     const partSuppliers = partSupplierAssociations
       .filter(assoc => assoc.partId === part.id)
       .map(assoc => suppliers.find(s => s.id === assoc.supplierId))
       .filter(s => s !== undefined) as Supplier[];
 
-    let tariffMultiplier = 1.0; // Default for domestic
-    if (partSuppliers.length > 0) { // Only apply tariff if there's a supplier
-      // If any supplier is foreign relative to currentAnalysisHomeCountry, the part is considered imported
+    if (partSuppliers.length > 0) {
       const isEffectivelyImported = partSuppliers.some(s => s.country !== currentAnalysisHomeCountry);
-      
       if (isEffectivelyImported) {
-        let effectiveTariffPercent = originalTariffChargePercent + currentGlobalTariffAdj;
-        // Apply country-specific tariff adjustment (if one matches, it takes precedence for this part's suppliers)
-        // For simplicity, using the first matching supplier's country adjustment if multiple foreign suppliers
-        const foreignSupplierCountries = partSuppliers.filter(s => s.country !== currentAnalysisHomeCountry).map(s => s.country);
+        let effectiveBaseTariffRate = BASE_TARIFF_RATE_FOR_WHAT_IF * (originalTariffMultiplierPercent / 100);
+        let finalScenarioTariffRate = effectiveBaseTariffRate + (currentGlobalTariffAdjPts / 100);
+        
         let countrySpecificApplied = false;
-        for (const country of foreignSupplierCountries) {
-            const countryAdjustment = currentCountryTariffAdjs.find(adj => adj.countryName === country);
-            if (countryAdjustment) {
-                effectiveTariffPercent += countryAdjustment.tariffAdjustmentPoints;
-                countrySpecificApplied = true; 
-                break; 
+        for (const supplier of partSuppliers) {
+            if (supplier.country !== currentAnalysisHomeCountry) {
+                const countryAdjustment = currentCountryTariffAdjs.find(adj => adj.countryName === supplier.country);
+                if (countryAdjustment) {
+                    finalScenarioTariffRate = effectiveBaseTariffRate + (currentGlobalTariffAdjPts / 100) + (countryAdjustment.tariffAdjustmentPoints / 100);
+                    countrySpecificApplied = true;
+                    break; 
+                }
             }
         }
-        tariffMultiplier = Math.max(0, effectiveTariffPercent / 100);
+        priceAfterTariff = adjustedPrice * (1 + Math.max(0, finalScenarioTariffRate)); // Ensure tariff rate isn't negative
       }
     }
-    adjustedPrice *= tariffMultiplier;
     
-    // 3. Apply Logistics Costs
-    const effectiveLogisticsPercent = originalTotalLogisticsCostPercent + currentGlobalLogisticsAdj;
-    const logisticsRateMultiplier = Math.max(0, effectiveLogisticsPercent / 100);
+    const effectiveLogisticsBasePercent = originalTotalLogisticsCostPercent;
+    const finalLogisticsPercent = effectiveLogisticsBasePercent + currentGlobalLogisticsAdjPts;
+    const logisticsRateMultiplier = Math.max(0, finalLogisticsPercent / 100);
     const effectiveFreightOhdRate = part.freightOhdCost * logisticsRateMultiplier;
     
-    return adjustedPrice * part.annualDemand * (1 + effectiveFreightOhdRate);
+    return priceAfterTariff * part.annualDemand * (1 + effectiveFreightOhdRate);
   }, [
     partCategoryMappings, partSupplierAssociations, suppliers,
-    originalTariffChargePercent, originalTotalLogisticsCostPercent
+    originalTariffMultiplierPercent, originalTotalLogisticsCostPercent
   ]);
 
   const scenarioImpacts = useMemo(() => {
@@ -191,26 +189,21 @@ export default function WhatIfAnalysisTab({
       impactGlobalTariff: 0,
       impactGlobalLogistics: 0,
       impactCategory: 0,
-      impactCountryTariff: 0, // This will be part of the final spend calculation
+      impactCountryTariff: 0,
     };
 
     if (!parts || parts.length === 0) return results;
 
-    // Calculate spend with only global tariff adjustment
     results.afterGlobalTariff = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, 0, [], []), 0);
     results.impactGlobalTariff = results.afterGlobalTariff - results.baseSpend;
 
-    // Calculate spend with global tariff AND global logistics
     results.afterGlobalLogistics = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, [], []), 0);
     results.impactGlobalLogistics = results.afterGlobalLogistics - results.afterGlobalTariff;
     
-    // Calculate spend with global tariff, global logistics, AND category changes
     results.afterCategoryChanges = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, []), 0);
     results.impactCategory = results.afterCategoryChanges - results.afterGlobalLogistics;
 
-    // Final What-if Spend (includes all adjustments, including country-specific tariffs)
     results.finalWhatIfSpend = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, activeCountryTariffAdjustments), 0);
-    // The impact of country-specific tariffs is the remainder to reach the final spend
     results.impactCountryTariff = results.finalWhatIfSpend - results.afterCategoryChanges;
     
     return results;
@@ -236,7 +229,7 @@ export default function WhatIfAnalysisTab({
         name: "Tariff Adj.", 
         value: scenarioImpacts.impactGlobalTariff, 
         offset: scenarioImpacts.impactGlobalTariff < 0 ? cumulative + scenarioImpacts.impactGlobalTariff : cumulative,
-        fill: scenarioImpacts.impactGlobalTariff < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))" // Green for decrease, Red for increase
+        fill: scenarioImpacts.impactGlobalTariff < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))" 
       });
       cumulative += scenarioImpacts.impactGlobalTariff;
     }
@@ -377,7 +370,7 @@ export default function WhatIfAnalysisTab({
     const scenarioDataString = localStorage.getItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + scenarioName);
     if (scenarioDataString) {
       const scenarioData: SavedScenario = JSON.parse(scenarioDataString);
-      setAnalysisHomeCountry(scenarioData.analysisHomeCountry);
+      setAnalysisHomeCountry(scenarioData.analysisHomeCountry || defaultAnalysisHomeCountry); // Fallback
       setGlobalTariffAdjustmentPoints(scenarioData.globalTariffAdjustmentPoints);
       setGlobalLogisticsAdjustmentPoints(scenarioData.globalLogisticsAdjustmentPoints);
       setActiveCategoryAdjustments(scenarioData.activeCategoryAdjustments);
@@ -402,7 +395,6 @@ export default function WhatIfAnalysisTab({
     localStorage.setItem(LOCAL_STORAGE_SCENARIO_LIST_KEY, JSON.stringify(newNames));
     toast({ title: "Scenario Deleted", description: `Scenario "${selectedScenarioToLoad}" has been deleted.`});
     setSelectedScenarioToLoad(""); 
-    // Reset controls to default
     setAnalysisHomeCountry(defaultAnalysisHomeCountry);
     setGlobalTariffAdjustmentPoints(0);
     setGlobalLogisticsAdjustmentPoints(0);
@@ -410,6 +402,9 @@ export default function WhatIfAnalysisTab({
     setActiveCountryTariffAdjustments([]);
   };
   
+  const effectiveBaseTariffForDisplay = (BASE_TARIFF_RATE_FOR_WHAT_IF * (originalTariffMultiplierPercent / 100) * 100).toFixed(1);
+  const effectiveBaseLogisticsForDisplay = originalTotalLogisticsCostPercent.toFixed(0);
+
   return (
     <TooltipProvider>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -449,7 +444,7 @@ export default function WhatIfAnalysisTab({
                 </div>
             </div>
              <CardDescription className="text-xs mt-1">
-              Adjust cost factors to see potential impact. Scenarios can be saved and loaded.
+              Adjust cost factors to see potential impact. Scenarios can be saved and loaded. Base Tariff Rate for imports is {BASE_TARIFF_RATE_FOR_WHAT_IF * 100}%.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -460,11 +455,11 @@ export default function WhatIfAnalysisTab({
               <ScrollArea className="h-24 text-xs">
                 <ul className="list-disc list-inside space-y-1">
                   <li>Analysis Home Country: <strong>{analysisHomeCountry}</strong></li>
-                  <li>Global Tariff Adjustment: {globalTariffAdjustmentPoints >= 0 ? "+" : ""}{globalTariffAdjustmentPoints} points
-                    <span className="text-muted-foreground text-2xs"> (Base App Tariff: {originalTariffChargePercent}%)</span>
+                  <li>Global Tariff Adjustment: {globalTariffAdjustmentPoints >= 0 ? "+" : ""}{globalTariffAdjustmentPoints} pts
+                    <span className="text-muted-foreground text-2xs"> (Effective Base: {effectiveBaseTariffForDisplay}%)</span>
                   </li>
-                  <li>Global Logistics Adj.: {globalLogisticsAdjustmentPoints >= 0 ? "+" : ""}{globalLogisticsAdjustmentPoints} points
-                     <span className="text-muted-foreground text-2xs"> (Base App Logistics: {originalTotalLogisticsCostPercent}%)</span>
+                  <li>Global Logistics Adj.: {globalLogisticsAdjustmentPoints >= 0 ? "+" : ""}{globalLogisticsAdjustmentPoints} pts
+                     <span className="text-muted-foreground text-2xs"> (Base: {effectiveBaseLogisticsForDisplay}%)</span>
                   </li>
                   {activeCategoryAdjustments.map(adj => (
                     <li key={adj.categoryName}>
@@ -473,11 +468,11 @@ export default function WhatIfAnalysisTab({
                   ))}
                   {activeCountryTariffAdjustments.map(adj => (
                     <li key={adj.countryName}>
-                      Country '{adj.countryName}' Add. Tariff: {adj.tariffAdjustmentPoints >= 0 ? "+" : ""}{adj.tariffAdjustmentPoints} points
+                      Country '{adj.countryName}' Add. Tariff: {adj.tariffAdjustmentPoints >= 0 ? "+" : ""}{adj.tariffAdjustmentPoints} pts
                     </li>
                   ))}
                   {(globalTariffAdjustmentPoints === 0 && globalLogisticsAdjustmentPoints === 0 && activeCategoryAdjustments.length === 0 && activeCountryTariffAdjustments.length === 0 && analysisHomeCountry === defaultAnalysisHomeCountry) && (
-                    <li className="text-muted-foreground italic">No custom scenario adjustments applied. Using base settings.</li>
+                    <li className="text-muted-foreground italic">No custom scenario adjustments applied. Using app base settings.</li>
                   )}
                 </ul>
               </ScrollArea>
@@ -501,7 +496,7 @@ export default function WhatIfAnalysisTab({
             <div className="space-y-3 p-3 border rounded-md">
               <h4 className="font-medium text-sm flex items-center"><Maximize className="h-4 w-4 mr-1.5"/>Global Adjustments</h4>
               <div>
-                <Label htmlFor="globalTariffSlider" className="text-xs">Global Tariff Adjustment (percentage points on Base: {originalTariffChargePercent}%)</Label>
+                <Label htmlFor="globalTariffSlider" className="text-xs">Global Tariff Adjustment (pts on effective rate: {effectiveBaseTariffForDisplay}%)</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <Slider id="globalTariffSlider" min={-100} max={100} step={1} value={[globalTariffAdjustmentPoints]} onValueChange={(val) => setGlobalTariffAdjustmentPoints(val[0])} className="flex-grow" />
                   <Input type="number" value={globalTariffAdjustmentPoints} onChange={(e)=> setGlobalTariffAdjustmentPoints(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right"/>
@@ -509,7 +504,7 @@ export default function WhatIfAnalysisTab({
                 </div>
               </div>
               <div>
-                <Label htmlFor="globalLogisticsSlider" className="text-xs">Global Logistics Cost Adj. (percentage points on Base: {originalTotalLogisticsCostPercent}%)</Label>
+                <Label htmlFor="globalLogisticsSlider" className="text-xs">Global Logistics Cost Adj. (pts on base: {effectiveBaseLogisticsForDisplay}%)</Label>
                  <div className="flex items-center gap-2 mt-1">
                   <Slider id="globalLogisticsSlider" min={-100} max={100} step={1} value={[globalLogisticsAdjustmentPoints]} onValueChange={(val) => setGlobalLogisticsAdjustmentPoints(val[0])} className="flex-grow" />
                   <Input type="number" value={globalLogisticsAdjustmentPoints} onChange={(e)=> setGlobalLogisticsAdjustmentPoints(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right"/>
@@ -609,9 +604,9 @@ export default function WhatIfAnalysisTab({
 
             <div className="my-2">
                 <h4 className="text-xs font-semibold mb-1.5 text-muted-foreground">Waterfall Chart: Spend Breakdown</h4>
-                {waterfallChartData.length <= 2 ? ( // Base and Final only
-                     <p className="text-xs text-muted-foreground text-center py-4">Adjust parameters to see detailed breakdown.</p>
-                ) : (
+                {waterfallChartData.length <= 2 ? 
+                     (<p className="text-xs text-muted-foreground text-center py-4">Adjust parameters to see detailed breakdown.</p>)
+                : (
                 <ChartContainer config={chartConfigWaterfall} className="min-h-[200px] w-full text-xs">
                     <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={waterfallChartData} layout="vertical" margin={{left: 10, right: 30, top:5, bottom:5}}>
@@ -655,21 +650,28 @@ export default function WhatIfAnalysisTab({
                                 <TableCell className="p-1 text-right font-semibold">{formatCurrency(row.scenarioValue)}</TableCell>
                             </TableRow>
                         ))}
+                         <TableRow className="border-t-2 border-foreground/50">
+                            <TableCell className="p-1 font-bold">What-if Total Spend</TableCell>
+                            <TableCell className="p-1 text-right font-bold"></TableCell>
+                            <TableCell className="p-1 text-right font-bold">{formatCurrency(whatIfTotalAnnualSpend)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableCell className="p-1 font-bold">Net Change vs. Original</TableCell>
+                             <TableCell 
+                                className={`p-1 text-right font-bold ${netChangeAmount <= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                            >
+                                {netChangeAmount >= 0 ? "+" : ""}{formatCurrency(netChangeAmount)}
+                            </TableCell>
+                            <TableCell 
+                                className={`p-1 text-right font-bold ${netChangeAmount <= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                            >
+                                ({netChangeAmount >= 0 ? "+" : ""}{netChangePercent.toFixed(2)}%)
+                            </TableCell>
+                        </TableRow>
                     </TableBody>
                 </Table>
             </div>
             <hr />
-            <div>
-              <Label className="text-xs text-muted-foreground">What-if Total Annual Spend</Label>
-              <p className="font-semibold text-base">{formatCurrency(whatIfTotalAnnualSpend)}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Net Change vs. Original</Label>
-              <p className={`font-semibold ${netChangeAmount <= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {netChangeAmount >= 0 ? "+" : ""}{formatCurrency(netChangeAmount)} 
-                ({netChangeAmount >= 0 ? "+" : ""}{netChangePercent.toFixed(2)}%)
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
