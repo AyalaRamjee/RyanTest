@@ -8,7 +8,7 @@ import UpdatePartsTab from "@/components/spendwise/update-parts";
 import UpdateSuppliersTab from "@/components/spendwise/update-suppliers";
 import PartSupplierMappingTab from "@/components/spendwise/part-supplier-mapping";
 import UploadPartCategoryTab from "@/components/spendwise/upload-part-category";
-import WhatIfAnalysisTab from "@/components/spendwise/what-if-analysis-tab"; // Changed
+import WhatIfAnalysisTab from "@/components/spendwise/what-if-analysis-tab";
 import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import UploadCsvDialog from "@/components/spendwise/upload-csv-dialog";
 import SpendWiseBot from "@/components/spendwise/spendwise-bot";
@@ -20,7 +20,7 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle } from "lucide-react"; // Added HelpCircle for What-if
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -40,7 +40,7 @@ export interface CountDataPoint {
 const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
-const HOME_COUNTRY = "USA";
+const DEFAULT_HOME_COUNTRY = "USA"; // Renamed to avoid conflict with state
 
 const HEADER_HEIGHT_PX = 64;
 const SUMMARY_STATS_HEIGHT_PX = 122;
@@ -77,6 +77,17 @@ export default function SpendWiseCentralPage() {
   const [currentFilename, setCurrentFilename] = useState<string>(DEFAULT_XML_FILENAME);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formattedDateTime, setFormattedDateTime] = useState<string>('');
+
+  const [appHomeCountry, setAppHomeCountry] = useState<string>(DEFAULT_HOME_COUNTRY);
+
+  const uniqueSupplierCountriesForApp = useMemo(() => {
+    const countries = Array.from(new Set(suppliers.map(s => s.country)));
+    if (!countries.includes(DEFAULT_HOME_COUNTRY)) {
+        countries.push(DEFAULT_HOME_COUNTRY);
+    }
+    return countries.sort();
+  }, [suppliers]);
+
 
   useEffect(() => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -193,7 +204,7 @@ export default function SpendWiseCentralPage() {
       console.error("Error processing XML data:", error);
       toast({ variant: "destructive", title: "Error Loading Data", description: "Could not process the XML data." });
     }
-  }, [toast, escapeXml]); // Added escapeXml to dependencies
+  }, [toast, escapeXml]);
 
   useEffect(() => {
     const lastLoadedFile = typeof window !== 'undefined' ? localStorage.getItem(LAST_LOADED_FILENAME_KEY) : null;
@@ -205,13 +216,12 @@ export default function SpendWiseCentralPage() {
       parseAndSetXmlData(storedXmlData, filenameToLoad);
     } else {
       setCurrentFilename(DEFAULT_XML_FILENAME);
-      // Auto-load sample data on first visit if no XML is found
-      if (!parts.length && !suppliers.length) { // Check if data is already loaded
+      if (!parts.length && !suppliers.length) { 
          handleLoadSampleData();
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parseAndSetXmlData]); // parseAndSetXmlData is memoized, handleLoadSampleData causes loop if included
+  }, [parseAndSetXmlData]); 
 
   useEffect(() => {
     let xmlStringGen = '<SpendData>\n';
@@ -454,7 +464,7 @@ export default function SpendWiseCentralPage() {
                 const [partNumber, name, priceStr, annualDemandStr, freightOhdCostStr] = columns;
                 const price = parseFloat(priceStr);
                 const annualDemand = parseInt(annualDemandStr, 10);
-                const freightOhdCost = parseFloat(freightOhdCostStr) / 100; // Assume FreightOhdCost is given as percentage
+                const freightOhdCost = parseFloat(freightOhdCostStr) / 100; 
                 if (!partNumber || !name || isNaN(price) || isNaN(annualDemand) || isNaN(freightOhdCost)) { errors.push(`Row ${i+1}: Invalid data for PartNumber, Name, Price, AnnualDemand, or FreightOhdCost.`); skippedCount++; continue; }
                 if (parts.some(p => p.partNumber === partNumber)) { errors.push(`Row ${i+1}: PartNumber "${partNumber}" already exists. Skipped.`); skippedCount++; continue; }
                 newPartsArr.push({ id: `p_csv_${Date.now()}_${i}`, partNumber, name, price, annualDemand, freightOhdCost });
@@ -578,7 +588,7 @@ export default function SpendWiseCentralPage() {
             if (typeof freightOhdCostRaw === 'string' && freightOhdCostRaw.includes('%')) {
                 freightOhdCost = parseFloat(freightOhdCostRaw.replace('%','')) / 100;
             } else {
-                freightOhdCost = parseFloat(freightOhdCostRaw) / 100; // Assume it's a percentage value if not explicitly %
+                freightOhdCost = parseFloat(freightOhdCostRaw) / 100; 
             }
 
             if (!partNumber || !name || isNaN(price) || isNaN(annualDemand) || isNaN(freightOhdCost)) {
@@ -669,7 +679,7 @@ export default function SpendWiseCentralPage() {
       setIsLoadingSampleData(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast]); // handleProcessExcelWorkbook is complex, toast is stable
+  }, [toast]); 
 
 
   const handleClearAllData = () => {
@@ -679,6 +689,7 @@ export default function SpendWiseCentralPage() {
     setPartSupplierAssociations([]);
     setTariffChargePercent(100);
     setTotalLogisticsCostPercent(100);
+    setAppHomeCountry(DEFAULT_HOME_COUNTRY);
 
     if (typeof window !== 'undefined' && currentFilename) {
       localStorage.removeItem(APP_CONFIG_DATA_KEY_PREFIX + currentFilename);
@@ -734,10 +745,10 @@ export default function SpendWiseCentralPage() {
         totalLogisticsCostPercent,
         suppliers,
         partSupplierAssociations,
-        HOME_COUNTRY
+        appHomeCountry // Use appHomeCountry here
       ),
     }));
-  }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, calculateSpendForPart]);
+  }, [parts, tariffChargePercent, totalLogisticsCostPercent, suppliers, partSupplierAssociations, appHomeCountry, calculateSpendForPart]);
 
   const totalAnnualSpend = useMemo(() => {
     return partsWithSpend.reduce((sum, p) => sum + p.annualSpend, 0);
@@ -799,7 +810,7 @@ export default function SpendWiseCentralPage() {
         handleLoadSampleData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount by design
+  }, []); 
 
   return (
     <TooltipProvider>
@@ -816,6 +827,24 @@ export default function SpendWiseCentralPage() {
             Spend by TADA
           </h1>
             <div className="flex-grow flex items-center space-x-4 ml-4">
+              <div className="flex items-center space-x-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Home className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent><p>Application Home Country</p></TooltipContent>
+                </Tooltip>
+                 <Select value={appHomeCountry} onValueChange={setAppHomeCountry}>
+                    <SelectTrigger className="w-[100px] h-8 text-xs">
+                        <SelectValue placeholder="Home Country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {uniqueSupplierCountriesForApp.map(country => (
+                            <SelectItem key={country} value={country} className="text-xs">{country}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center space-x-2">
                 <Shield className="h-4 w-4 text-muted-foreground" />
                 <Label htmlFor="tariffChargeSlider" className="text-xs text-muted-foreground whitespace-nowrap">Tariff:</Label>
@@ -891,7 +920,7 @@ export default function SpendWiseCentralPage() {
                 partSupplierAssociations={partSupplierAssociations}
                 tariffChargePercent={tariffChargePercent}
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
-                homeCountry={HOME_COUNTRY}
+                homeCountry={appHomeCountry} // Use appHomeCountry
                 totalAnnualSpend={totalAnnualSpend}
                 totalParts={totalParts}
                 totalSuppliers={totalSuppliers}
@@ -1016,7 +1045,7 @@ export default function SpendWiseCentralPage() {
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
                 suppliers={suppliers}
                 partSupplierAssociations={partSupplierAssociations}
-                homeCountry={HOME_COUNTRY}
+                homeCountry={appHomeCountry} // Use appHomeCountry
                 calculateSpendForSummary={calculateSpendForPart}
                 partsWithSpend={partsWithSpend}
               />
@@ -1055,10 +1084,9 @@ export default function SpendWiseCentralPage() {
                 partsWithSpend={partsWithSpend} 
                 partSupplierAssociations={partSupplierAssociations}
                 spendByCategoryData={spendByCategoryData}
-                homeCountry={HOME_COUNTRY}
-                tariffChargePercent={tariffChargePercent}
-                totalLogisticsCostPercent={totalLogisticsCostPercent}
-                calculateSpendForPart={calculateSpendForPart}
+                // homeCountry={appHomeCountry} - Summary tab doesn't use this directly for its display
+                // tariffChargePercent, totalLogisticsCostPercent - these are applied via partsWithSpend
+                // calculateSpendForPart - calculations are encapsulated in partsWithSpend
               />
             </TabsContent>
             <TabsContent value="what-if-analysis" className="mt-4">
@@ -1070,7 +1098,7 @@ export default function SpendWiseCentralPage() {
                 originalTotalAnnualSpend={totalAnnualSpend}
                 originalTariffChargePercent={tariffChargePercent}
                 originalTotalLogisticsCostPercent={totalLogisticsCostPercent}
-                homeCountry={HOME_COUNTRY}
+                defaultAnalysisHomeCountry={appHomeCountry} // Pass appHomeCountry here
               />
             </TabsContent>
           </Tabs>
@@ -1165,6 +1193,3 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
-
-
-    
