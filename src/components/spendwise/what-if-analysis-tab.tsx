@@ -9,14 +9,14 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { HelpCircle, Info, Percent, DollarSign, Trash2, PlusCircle, ChevronsUpDown, TrendingUp, Save, Upload, Edit3, Layers, BarChart3, Maximize, Minimize, Filter, PackageSearch, Palette, MapPin } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { HelpCircle, Info, Percent, DollarSign, Trash2, PlusCircle, ChevronsUpDown, TrendingUp, Save, Upload, Edit3, Layers, BarChart3, Maximize, Minimize, Filter, PackageSearch, Palette, MapPin, Activity } from "lucide-react"; // Added Activity
+import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltipComponent, Cell } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartContainer } from "@/components/ui/chart";
 
 
 interface WhatIfAnalysisTabProps {
@@ -40,6 +40,14 @@ interface CountryTariffAdjustment {
   tariffAdjustmentPoints: number; 
 }
 
+interface DemandAdjustment {
+  id: string; // For unique key in lists
+  type: 'global' | 'category' | 'part';
+  targetName?: string; // Category name or Part name/number
+  targetId?: string;   // Category name or Part ID
+  adjustmentPercent: number;
+}
+
 interface SavedScenario {
   name: string;
   description: string;
@@ -48,11 +56,12 @@ interface SavedScenario {
   globalLogisticsAdjustmentPoints: number;
   activeCategoryAdjustments: CategoryAdjustment[];
   activeCountryTariffAdjustments: CountryTariffAdjustment[];
+  activeDemandAdjustments: DemandAdjustment[]; // Added
 }
 
 const LOCAL_STORAGE_SCENARIO_LIST_KEY = "spendwise_scenario_list_v2"; 
 const LOCAL_STORAGE_SCENARIO_DATA_PREFIX = "spendwise_scenario_data_v2_";
-const BASE_TARIFF_RATE_FOR_WHAT_IF = 0.05; // 5% base tariff for what-if calculations
+const BASE_TARIFF_RATE_FOR_WHAT_IF = 0.05; 
 
 interface WaterfallDataPoint {
   name: string;
@@ -90,6 +99,13 @@ export default function WhatIfAnalysisTab({
   const [selectedCountryForTariff, setSelectedCountryForTariff] = useState<string>("");
   const [countryTariffAdjustmentValue, setCountryTariffAdjustmentValue] = useState(0);
   const [activeCountryTariffAdjustments, setActiveCountryTariffAdjustments] = useState<CountryTariffAdjustment[]>([]);
+
+  // New state for Demand Adjustments
+  const [demandAdjustmentType, setDemandAdjustmentType] = useState<'global' | 'category' | 'part'>('global');
+  const [selectedCategoryForDemand, setSelectedCategoryForDemand] = useState<string>("");
+  const [selectedPartForDemand, setSelectedPartForDemand] = useState<string>("");
+  const [demandAdjustmentValue, setDemandAdjustmentValue] = useState(0); // Percentage
+  const [activeDemandAdjustments, setActiveDemandAdjustments] = useState<DemandAdjustment[]>([]);
   
   const [isSaveScenarioDialogOpen, setIsSaveScenarioDialogOpen] = useState(false);
   const [currentScenarioName, setCurrentScenarioName] = useState("");
@@ -110,6 +126,7 @@ export default function WhatIfAnalysisTab({
   }, []);
 
   const uniqueCategories = useMemo(() => Array.from(new Set(partCategoryMappings.map(pcm => pcm.categoryName))).sort(), [partCategoryMappings]);
+  const partsForSelect = useMemo(() => parts.map(p => ({ value: p.id, label: `${p.partNumber} - ${p.name}` })).sort((a,b) => a.label.localeCompare(b.label)), [parts]);
   
   const uniqueSupplierCountriesForAnalysis = useMemo(() => {
     const countries = Array.from(new Set(suppliers.map(s => s.country)));
@@ -126,13 +143,34 @@ export default function WhatIfAnalysisTab({
   const calculateAdjustedSpendForPart = useCallback((
     part: Part,
     currentAnalysisHomeCountry: string,
-    currentGlobalTariffAdjPts: number, // now points
-    currentGlobalLogisticsAdjPts: number, // now points
+    currentGlobalTariffAdjPts: number,
+    currentGlobalLogisticsAdjPts: number,
     currentCategoryAdjs: CategoryAdjustment[],
-    currentCountryTariffAdjs: CountryTariffAdjustment[]
+    currentCountryTariffAdjs: CountryTariffAdjustment[],
+    currentDemandAdjs: DemandAdjustment[] // Added
   ): number => {
     let adjustedPrice = part.price;
+    let adjustedDemand = part.annualDemand;
 
+    // Apply Demand Adjustments (most specific wins: part > category > global)
+    const partSpecificDemandAdj = currentDemandAdjs.find(adj => adj.type === 'part' && adj.targetId === part.id);
+    const categorySpecificDemandAdjs = currentDemandAdjs.filter(adj => 
+        adj.type === 'category' && 
+        partCategoryMappings.some(pcm => pcm.partId === part.id && pcm.categoryName === adj.targetId)
+    );
+    const globalDemandAdj = currentDemandAdjs.find(adj => adj.type === 'global');
+
+    if (partSpecificDemandAdj) {
+        adjustedDemand = part.annualDemand * (1 + partSpecificDemandAdj.adjustmentPercent / 100);
+    } else if (categorySpecificDemandAdjs.length > 0) {
+        // If multiple category adjustments match, take the first one (or average, sum, etc. - current simple: first)
+        adjustedDemand = part.annualDemand * (1 + categorySpecificDemandAdjs[0].adjustmentPercent / 100);
+    } else if (globalDemandAdj) {
+        adjustedDemand = part.annualDemand * (1 + globalDemandAdj.adjustmentPercent / 100);
+    }
+    adjustedDemand = Math.max(0, adjustedDemand); // Ensure demand is not negative
+
+    // Apply Category Cost Adjustments
     const categoryMappingsForPart = partCategoryMappings.filter(pcm => pcm.partId === part.id);
     for (const mapping of categoryMappingsForPart) {
       const categoryAdjustment = currentCategoryAdjs.find(adj => adj.categoryName === mapping.categoryName);
@@ -164,7 +202,7 @@ export default function WhatIfAnalysisTab({
                 }
             }
         }
-        priceAfterTariff = adjustedPrice * (1 + Math.max(0, finalScenarioTariffRate)); // Ensure tariff rate isn't negative
+        priceAfterTariff = adjustedPrice * (1 + Math.max(0, finalScenarioTariffRate));
       }
     }
     
@@ -173,7 +211,7 @@ export default function WhatIfAnalysisTab({
     const logisticsRateMultiplier = Math.max(0, finalLogisticsPercent / 100);
     const effectiveFreightOhdRate = part.freightOhdCost * logisticsRateMultiplier;
     
-    return priceAfterTariff * part.annualDemand * (1 + effectiveFreightOhdRate);
+    return priceAfterTariff * adjustedDemand * (1 + effectiveFreightOhdRate);
   }, [
     partCategoryMappings, partSupplierAssociations, suppliers,
     originalTariffMultiplierPercent, originalTotalLogisticsCostPercent
@@ -185,84 +223,83 @@ export default function WhatIfAnalysisTab({
       afterGlobalTariff: originalTotalAnnualSpend,
       afterGlobalLogistics: originalTotalAnnualSpend,
       afterCategoryChanges: originalTotalAnnualSpend,
-      finalWhatIfSpend: originalTotalAnnualSpend,
+      afterCountryTariffChanges: originalTotalAnnualSpend, // New intermediate step
+      finalWhatIfSpend: originalTotalAnnualSpend, // This will be after demand changes
       impactGlobalTariff: 0,
       impactGlobalLogistics: 0,
       impactCategory: 0,
       impactCountryTariff: 0,
+      impactDemand: 0, // New impact
     };
 
     if (!parts || parts.length === 0) return results;
 
-    results.afterGlobalTariff = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, 0, [], []), 0);
+    const calculateTotalWithSpecificAdjustments = (
+        demandAdjsToUse: DemandAdjustment[] = [] // Allow specifying which demand adjustments for intermediate steps
+    ) => {
+        return parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
+            part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, 
+            activeCategoryAdjustments, activeCountryTariffAdjustments, demandAdjsToUse
+        ), 0);
+    };
+    
+    // Calculate spend before demand adjustments for accurate demand impact
+    const spendBeforeDemandAdjustments = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
+      part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints,
+      activeCategoryAdjustments, activeCountryTariffAdjustments, [] // No demand adjustments yet
+    ), 0);
+
+
+    results.afterGlobalTariff = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, 0, [], [], []), 0);
     results.impactGlobalTariff = results.afterGlobalTariff - results.baseSpend;
 
-    results.afterGlobalLogistics = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, [], []), 0);
+    results.afterGlobalLogistics = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, [], [], []), 0);
     results.impactGlobalLogistics = results.afterGlobalLogistics - results.afterGlobalTariff;
     
-    results.afterCategoryChanges = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, []), 0);
+    results.afterCategoryChanges = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, [], []), 0);
     results.impactCategory = results.afterCategoryChanges - results.afterGlobalLogistics;
 
-    results.finalWhatIfSpend = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, activeCountryTariffAdjustments), 0);
-    results.impactCountryTariff = results.finalWhatIfSpend - results.afterCategoryChanges;
+    results.afterCountryTariffChanges = spendBeforeDemandAdjustments; // This is the total before demand is applied
+    results.impactCountryTariff = results.afterCountryTariffChanges - results.afterCategoryChanges;
+
+    results.finalWhatIfSpend = calculateTotalWithSpecificAdjustments(activeDemandAdjustments);
+    results.impactDemand = results.finalWhatIfSpend - results.afterCountryTariffChanges;
     
     return results;
   }, [
     parts, originalTotalAnnualSpend, calculateAdjustedSpendForPart,
     analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints,
-    activeCategoryAdjustments, activeCountryTariffAdjustments
+    activeCategoryAdjustments, activeCountryTariffAdjustments, activeDemandAdjustments // Added
   ]);
   
   const whatIfTotalAnnualSpend = scenarioImpacts.finalWhatIfSpend;
   const netChangeAmount = whatIfTotalAnnualSpend - originalTotalAnnualSpend;
   const netChangePercent = originalTotalAnnualSpend !== 0 ? (netChangeAmount / originalTotalAnnualSpend) * 100 : 0;
 
-  const waterfallChartData = useMemo(() => {
+ const waterfallChartData = useMemo(() => {
     const data: WaterfallDataPoint[] = [];
     let cumulative = 0;
 
     data.push({ name: "Base Spend", value: scenarioImpacts.baseSpend, offset: 0, fill: "hsl(var(--chart-3))" });
     cumulative = scenarioImpacts.baseSpend;
 
-    if (scenarioImpacts.impactGlobalTariff !== 0) {
-      data.push({ 
-        name: "Tariff Adj.", 
-        value: scenarioImpacts.impactGlobalTariff, 
-        offset: scenarioImpacts.impactGlobalTariff < 0 ? cumulative + scenarioImpacts.impactGlobalTariff : cumulative,
-        fill: scenarioImpacts.impactGlobalTariff < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))" 
-      });
-      cumulative += scenarioImpacts.impactGlobalTariff;
-    }
+    const addImpactToWaterfall = (name: string, impact: number) => {
+        if (impact !== 0) {
+            data.push({
+                name,
+                value: impact,
+                offset: impact < 0 ? cumulative + impact : cumulative,
+                fill: impact < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))"
+            });
+            cumulative += impact;
+        }
+    };
 
-    if (scenarioImpacts.impactGlobalLogistics !== 0) {
-      data.push({ 
-        name: "Logistics Adj.", 
-        value: scenarioImpacts.impactGlobalLogistics, 
-        offset: scenarioImpacts.impactGlobalLogistics < 0 ? cumulative + scenarioImpacts.impactGlobalLogistics : cumulative,
-        fill: scenarioImpacts.impactGlobalLogistics < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))"
-      });
-      cumulative += scenarioImpacts.impactGlobalLogistics;
-    }
-    
-    if (scenarioImpacts.impactCategory !== 0) {
-      data.push({ 
-        name: "Category Adj.", 
-        value: scenarioImpacts.impactCategory, 
-        offset: scenarioImpacts.impactCategory < 0 ? cumulative + scenarioImpacts.impactCategory : cumulative,
-        fill: scenarioImpacts.impactCategory < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))"
-      });
-      cumulative += scenarioImpacts.impactCategory;
-    }
-
-    if (scenarioImpacts.impactCountryTariff !== 0) {
-       data.push({ 
-        name: "Country Tariff Adj.", 
-        value: scenarioImpacts.impactCountryTariff, 
-        offset: scenarioImpacts.impactCountryTariff < 0 ? cumulative + scenarioImpacts.impactCountryTariff : cumulative,
-        fill: scenarioImpacts.impactCountryTariff < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))"
-      });
-      cumulative += scenarioImpacts.impactCountryTariff;
-    }
+    addImpactToWaterfall("Tariff Adj.", scenarioImpacts.impactGlobalTariff);
+    addImpactToWaterfall("Logistics Adj.", scenarioImpacts.impactGlobalLogistics);
+    addImpactToWaterfall("Category Adj.", scenarioImpacts.impactCategory);
+    addImpactToWaterfall("Country Tariff Adj.", scenarioImpacts.impactCountryTariff);
+    addImpactToWaterfall("Demand Adj.", scenarioImpacts.impactDemand); // Added
 
     data.push({ name: "What-if Spend", value: cumulative, offset: 0, fill: "hsl(var(--chart-1))" });
     
@@ -274,7 +311,8 @@ export default function WhatIfAnalysisTab({
     { component: "Global Tariff Impact", impact: scenarioImpacts.impactGlobalTariff, scenarioValue: scenarioImpacts.baseSpend + scenarioImpacts.impactGlobalTariff },
     { component: "Global Logistics Impact", impact: scenarioImpacts.impactGlobalLogistics, scenarioValue: scenarioImpacts.baseSpend + scenarioImpacts.impactGlobalTariff + scenarioImpacts.impactGlobalLogistics },
     { component: "Category Adjustments Impact", impact: scenarioImpacts.impactCategory, scenarioValue: scenarioImpacts.baseSpend + scenarioImpacts.impactGlobalTariff + scenarioImpacts.impactGlobalLogistics + scenarioImpacts.impactCategory },
-    { component: "Country Tariff Impact", impact: scenarioImpacts.impactCountryTariff, scenarioValue: scenarioImpacts.finalWhatIfSpend },
+    { component: "Country Tariff Impact", impact: scenarioImpacts.impactCountryTariff, scenarioValue: scenarioImpacts.baseSpend + scenarioImpacts.impactGlobalTariff + scenarioImpacts.impactGlobalLogistics + scenarioImpacts.impactCategory + scenarioImpacts.impactCountryTariff },
+    { component: "Demand Adjustments Impact", impact: scenarioImpacts.impactDemand, scenarioValue: scenarioImpacts.finalWhatIfSpend }, // Added
   ];
 
 
@@ -318,6 +356,60 @@ export default function WhatIfAnalysisTab({
     setActiveCountryTariffAdjustments(prev => prev.filter(adj => adj.countryName !== countryName));
   };
 
+  const handleAddDemandAdjustment = () => {
+    let id = `demand_${Date.now()}`;
+    let targetName: string | undefined = undefined;
+    let targetId: string | undefined = undefined;
+
+    if (demandAdjustmentType === 'category') {
+      if (!selectedCategoryForDemand) {
+        toast({ title: "Select Category", description: "Please select a category for demand adjustment.", variant: "destructive" });
+        return;
+      }
+      targetName = selectedCategoryForDemand;
+      targetId = selectedCategoryForDemand; // Using name as ID for categories for simplicity here
+      id = `demand_cat_${selectedCategoryForDemand}`;
+    } else if (demandAdjustmentType === 'part') {
+      if (!selectedPartForDemand) {
+        toast({ title: "Select Part", description: "Please select a part for demand adjustment.", variant: "destructive" });
+        return;
+      }
+      const partInfo = parts.find(p => p.id === selectedPartForDemand);
+      targetName = partInfo ? `${partInfo.partNumber} - ${partInfo.name}` : "Unknown Part";
+      targetId = selectedPartForDemand;
+      id = `demand_part_${selectedPartForDemand}`;
+    } else { // global
+       id = `demand_global`;
+    }
+    
+    // For global, category, and part, if an adjustment of the same type/target already exists, update it. Otherwise, add new.
+    const existingAdjustmentIndex = activeDemandAdjustments.findIndex(adj => 
+        adj.type === demandAdjustmentType && 
+        (demandAdjustmentType === 'global' || adj.targetId === targetId)
+    );
+
+    if (existingAdjustmentIndex > -1) {
+        setActiveDemandAdjustments(prev => prev.map((adj, index) => 
+            index === existingAdjustmentIndex ? { ...adj, adjustmentPercent: demandAdjustmentValue } : adj
+        ));
+    } else {
+        setActiveDemandAdjustments(prev => [...prev, { id, type: demandAdjustmentType, targetName, targetId, adjustmentPercent: demandAdjustmentValue }]);
+    }
+
+    // Reset inputs
+    if(demandAdjustmentType !== 'global') { // Keep global selected by default if type is global
+      // setDemandAdjustmentType('global'); // Or clear selection, depending on desired UX
+    }
+    setSelectedCategoryForDemand("");
+    setSelectedPartForDemand("");
+    setDemandAdjustmentValue(0);
+  };
+
+  const handleRemoveDemandAdjustment = (idToRemove: string) => {
+    setActiveDemandAdjustments(prev => prev.filter(adj => adj.id !== idToRemove));
+  };
+
+
   const handleOpenSaveDialog = (edit = false) => {
     setIsEditMode(edit);
     if (edit && selectedScenarioToLoad) {
@@ -351,6 +443,7 @@ export default function WhatIfAnalysisTab({
       globalLogisticsAdjustmentPoints,
       activeCategoryAdjustments,
       activeCountryTariffAdjustments,
+      activeDemandAdjustments, // Added
     };
     localStorage.setItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + scenarioData.name, JSON.stringify(scenarioData));
     
@@ -370,11 +463,12 @@ export default function WhatIfAnalysisTab({
     const scenarioDataString = localStorage.getItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + scenarioName);
     if (scenarioDataString) {
       const scenarioData: SavedScenario = JSON.parse(scenarioDataString);
-      setAnalysisHomeCountry(scenarioData.analysisHomeCountry || defaultAnalysisHomeCountry); // Fallback
+      setAnalysisHomeCountry(scenarioData.analysisHomeCountry || defaultAnalysisHomeCountry);
       setGlobalTariffAdjustmentPoints(scenarioData.globalTariffAdjustmentPoints);
       setGlobalLogisticsAdjustmentPoints(scenarioData.globalLogisticsAdjustmentPoints);
       setActiveCategoryAdjustments(scenarioData.activeCategoryAdjustments);
       setActiveCountryTariffAdjustments(scenarioData.activeCountryTariffAdjustments);
+      setActiveDemandAdjustments(scenarioData.activeDemandAdjustments || []); // Added
       setSelectedScenarioToLoad(scenarioName);
       setCurrentScenarioName(scenarioData.name); 
       setCurrentScenarioDescription(scenarioData.description); 
@@ -395,11 +489,13 @@ export default function WhatIfAnalysisTab({
     localStorage.setItem(LOCAL_STORAGE_SCENARIO_LIST_KEY, JSON.stringify(newNames));
     toast({ title: "Scenario Deleted", description: `Scenario "${selectedScenarioToLoad}" has been deleted.`});
     setSelectedScenarioToLoad(""); 
+    // Reset to defaults
     setAnalysisHomeCountry(defaultAnalysisHomeCountry);
     setGlobalTariffAdjustmentPoints(0);
     setGlobalLogisticsAdjustmentPoints(0);
     setActiveCategoryAdjustments([]);
     setActiveCountryTariffAdjustments([]);
+    setActiveDemandAdjustments([]); // Added
   };
   
   const effectiveBaseTariffForDisplay = (BASE_TARIFF_RATE_FOR_WHAT_IF * (originalTariffMultiplierPercent / 100) * 100).toFixed(1);
@@ -444,7 +540,7 @@ export default function WhatIfAnalysisTab({
                 </div>
             </div>
              <CardDescription className="text-xs mt-1">
-              Adjust cost factors to see potential impact. Scenarios can be saved and loaded. Base Tariff Rate for imports is {BASE_TARIFF_RATE_FOR_WHAT_IF * 100}%.
+              Adjust cost and demand factors to see potential impact. Scenarios can be saved and loaded. Base Tariff Rate for imports is {BASE_TARIFF_RATE_FOR_WHAT_IF * 100}%.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -452,7 +548,7 @@ export default function WhatIfAnalysisTab({
               <CardTitle className="text-sm font-medium mb-2 flex items-center">
                 <Filter className="mr-2 h-4 w-4"/>Applied What-if Parameters
               </CardTitle>
-              <ScrollArea className="h-24 text-xs">
+              <ScrollArea className="h-28 text-xs"> {/* Increased height slightly */}
                 <ul className="list-disc list-inside space-y-1">
                   <li>Analysis Home Country: <strong>{analysisHomeCountry}</strong></li>
                   <li>Global Tariff Adjustment: {globalTariffAdjustmentPoints >= 0 ? "+" : ""}{globalTariffAdjustmentPoints} pts
@@ -471,7 +567,12 @@ export default function WhatIfAnalysisTab({
                       Country '{adj.countryName}' Add. Tariff: {adj.tariffAdjustmentPoints >= 0 ? "+" : ""}{adj.tariffAdjustmentPoints} pts
                     </li>
                   ))}
-                  {(globalTariffAdjustmentPoints === 0 && globalLogisticsAdjustmentPoints === 0 && activeCategoryAdjustments.length === 0 && activeCountryTariffAdjustments.length === 0 && analysisHomeCountry === defaultAnalysisHomeCountry) && (
+                  {activeDemandAdjustments.map(adj => (
+                    <li key={adj.id}>
+                      Demand '{adj.type === 'global' ? 'Global' : adj.type === 'category' ? `Category: ${adj.targetName}` : `Part: ${adj.targetName}`}' Change: {adj.adjustmentPercent >= 0 ? "+" : ""}{adj.adjustmentPercent}%
+                    </li>
+                  ))}
+                  {(globalTariffAdjustmentPoints === 0 && globalLogisticsAdjustmentPoints === 0 && activeCategoryAdjustments.length === 0 && activeCountryTariffAdjustments.length === 0 && activeDemandAdjustments.length === 0 && analysisHomeCountry === defaultAnalysisHomeCountry) && (
                     <li className="text-muted-foreground italic">No custom scenario adjustments applied. Using app base settings.</li>
                   )}
                 </ul>
@@ -494,7 +595,7 @@ export default function WhatIfAnalysisTab({
             </div>
 
             <div className="space-y-3 p-3 border rounded-md">
-              <h4 className="font-medium text-sm flex items-center"><Maximize className="h-4 w-4 mr-1.5"/>Global Adjustments</h4>
+              <h4 className="font-medium text-sm flex items-center"><Maximize className="h-4 w-4 mr-1.5"/>Global Cost Adjustments</h4>
               <div>
                 <Label htmlFor="globalTariffSlider" className="text-xs">Global Tariff Adjustment (pts on effective rate: {effectiveBaseTariffForDisplay}%)</Label>
                 <div className="flex items-center gap-2 mt-1">
@@ -584,6 +685,81 @@ export default function WhatIfAnalysisTab({
                 </ScrollArea>
               )}
             </div>
+
+            {/* Demand Adjustment Section */}
+            <div className="space-y-1 p-3 border rounded-md">
+              <h4 className="font-medium text-sm flex items-center"><Activity className="h-4 w-4 mr-1.5"/>Demand Adjustments</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-1">
+                <div className="sm:col-span-3">
+                  <Label htmlFor="demandAdjustmentTypeSelect" className="text-xs">Type</Label>
+                  <Select value={demandAdjustmentType} onValueChange={(val) => setDemandAdjustmentType(val as 'global' | 'category' | 'part')}>
+                    <SelectTrigger id="demandAdjustmentTypeSelect" className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="global" className="text-xs">Global</SelectItem>
+                      <SelectItem value="category" className="text-xs">By Category</SelectItem>
+                      <SelectItem value="part" className="text-xs">By Part</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {demandAdjustmentType === 'category' && (
+                  <div className="sm:col-span-4">
+                    <Label htmlFor="selectCategoryForDemand" className="text-xs">Category</Label>
+                    <Select value={selectedCategoryForDemand} onValueChange={setSelectedCategoryForDemand}>
+                      <SelectTrigger id="selectCategoryForDemand" className="h-9 text-xs"><SelectValue placeholder="Select Category" /></SelectTrigger>
+                      <SelectContent>
+                        {uniqueCategories.map(cat => <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {demandAdjustmentType === 'part' && (
+                  <div className="sm:col-span-4">
+                    <Label htmlFor="selectPartForDemand" className="text-xs">Part</Label>
+                    <Select value={selectedPartForDemand} onValueChange={setSelectedPartForDemand}>
+                      <SelectTrigger id="selectPartForDemand" className="h-9 text-xs"><SelectValue placeholder="Select Part" /></SelectTrigger>
+                      <SelectContent>
+                        {partsForSelect.map(p => <SelectItem key={p.value} value={p.value} className="text-xs">{p.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className={`sm:col-span-${demandAdjustmentType === 'global' ? '7' : '3'}`}>
+                  <Label htmlFor="demandAdjustmentSlider" className="text-xs">Demand Change (%)</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Slider id="demandAdjustmentSlider" min={-100} max={200} step={1} value={[demandAdjustmentValue]} onValueChange={(val) => setDemandAdjustmentValue(val[0])} className="flex-grow" />
+                    <Input type="number" value={demandAdjustmentValue} onChange={(e) => setDemandAdjustmentValue(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right" />
+                    <span className="text-xs w-5">%</span>
+                  </div>
+                </div>
+                <Button 
+                    onClick={handleAddDemandAdjustment} 
+                    size="sm" 
+                    className="h-9 text-xs sm:col-span-2"
+                    disabled={
+                        (demandAdjustmentType === 'category' && !selectedCategoryForDemand) ||
+                        (demandAdjustmentType === 'part' && !selectedPartForDemand)
+                    }
+                >
+                  <PlusCircle className="mr-1 h-4 w-4" /> Add
+                </Button>
+              </div>
+              {activeDemandAdjustments.length > 0 && (
+                <ScrollArea className="mt-2 space-y-1 text-xs max-h-24 border rounded-md p-1.5 bg-background">
+                  {activeDemandAdjustments.map(adj => (
+                    <div key={adj.id} className="flex justify-between items-center p-1 bg-muted/60 rounded text-2xs my-0.5">
+                      <span>
+                        {adj.type === 'global' ? 'Global Demand' : adj.type === 'category' ? `Category: ${adj.targetName}` : `Part: ${adj.targetName}`}
+                        : {adj.adjustmentPercent > 0 ? '+':''}{adj.adjustmentPercent}%
+                      </span>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/10" onClick={() => handleRemoveDemandAdjustment(adj.id)}><Trash2 className="h-3 w-3 text-destructive"/></Button>
+                    </div>
+                  ))}
+                </ScrollArea>
+              )}
+            </div>
+
           </CardContent>
         </Card>
 
