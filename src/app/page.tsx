@@ -71,7 +71,7 @@ export default function SpendWiseCentralPage() {
   const [isUploadingExcel, setIsUploadingExcel] = useState(false);
   const [isLoadingSampleData, setIsLoadingSampleData] = useState(false);
 
-  const [tariffRateMultiplierPercent, setTariffRateMultiplierPercent] = useState(100); // Renamed, represents a multiplier for the base 5%
+  const [tariffRateMultiplierPercent, setTariffRateMultiplierPercent] = useState(100);
   const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100);
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
@@ -851,8 +851,8 @@ export default function SpendWiseCentralPage() {
                 <Label htmlFor="tariffRateMultiplierSlider" className="text-xs text-muted-foreground whitespace-nowrap">Tariff Mult:</Label>
                  <Slider
                   id="tariffRateMultiplierSlider"
-                  min={0} // Min can be 0 for no tariff
-                  max={300} // Max multiplier e.g. 300% of base 5%
+                  min={0} 
+                  max={300} 
                   step={1}
                   value={[tariffRateMultiplierPercent]}
                   onValueChange={(value) => setTariffRateMultiplierPercent(value[0])}
@@ -919,7 +919,7 @@ export default function SpendWiseCentralPage() {
                 suppliers={suppliers}
                 partCategoryMappings={partCategoryMappings}
                 partSupplierAssociations={partSupplierAssociations}
-                tariffChargePercent={tariffRateMultiplierPercent} // Pass the multiplier
+                tariffChargePercent={tariffRateMultiplierPercent}
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
                 homeCountry={appHomeCountry}
                 totalAnnualSpend={totalAnnualSpend}
@@ -1016,7 +1016,7 @@ export default function SpendWiseCentralPage() {
           <Tabs defaultValue="update-parts" className="w-full mt-4">
             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1">
-                <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts C
+                <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
               </TabsTrigger>
               <TabsTrigger value="update-suppliers" className="flex items-center gap-1">
                 <Building className="h-3.5 w-3.5" /> 2. Suppliers
@@ -1042,10 +1042,11 @@ export default function SpendWiseCentralPage() {
                 onAddPart={handleAddPart}
                 spendByPartData={spendByPartData}
                 onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
-                tariffChargePercent={tariffRateMultiplierPercent} // Pass multiplier
+                tariffChargePercent={tariffRateMultiplierPercent}
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
                 suppliers={suppliers}
                 partSupplierAssociations={partSupplierAssociations}
+                partCategoryMappings={partCategoryMappings}
                 homeCountry={appHomeCountry}
                 calculateSpendForSummary={calculateSpendForPart}
                 partsWithSpend={partsWithSpend}
@@ -1094,7 +1095,7 @@ export default function SpendWiseCentralPage() {
                 partCategoryMappings={partCategoryMappings}
                 partSupplierAssociations={partSupplierAssociations}
                 originalTotalAnnualSpend={totalAnnualSpend}
-                originalTariffMultiplierPercent={tariffRateMultiplierPercent} // Pass multiplier
+                originalTariffMultiplierPercent={tariffRateMultiplierPercent}
                 originalTotalLogisticsCostPercent={totalLogisticsCostPercent}
                 defaultAnalysisHomeCountry={appHomeCountry}
               />
