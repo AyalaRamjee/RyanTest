@@ -1040,16 +1040,15 @@ export default function SpendWiseCentralPage() {
                 parts={parts}
                 setParts={setParts}
                 onAddPart={handleAddPart}
-                spendByPartData={spendByPartData}
                 onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
-                tariffChargePercent={tariffRateMultiplierPercent}
-                totalLogisticsCostPercent={totalLogisticsCostPercent}
+                partsWithSpend={partsWithSpend}
                 suppliers={suppliers}
                 partSupplierAssociations={partSupplierAssociations}
                 partCategoryMappings={partCategoryMappings}
-                homeCountry={appHomeCountry}
-                calculateSpendForSummary={calculateSpendForPart}
-                partsWithSpend={partsWithSpend}
+                calculateSpendForSummary={calculateSpendForPart} // For Part360 specific calculation
+                homeCountry={appHomeCountry} // For Part360 context
+                tariffChargePercent={tariffRateMultiplierPercent} // For Part360 context
+                totalLogisticsCostPercent={totalLogisticsCostPercent} // For Part360 context
               />
             </TabsContent>
             <TabsContent value="update-suppliers" className="mt-4">
@@ -1192,3 +1191,5 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
+
+    

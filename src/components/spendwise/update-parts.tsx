@@ -1,31 +1,31 @@
 
 "use client";
 
-import type { Part, Supplier, PartSupplierAssociation } from '@/types/spendwise';
+import type { Part, Supplier, PartSupplierAssociation, PartCategoryMapping } from '@/types/spendwise';
 import type { SpendDataPoint } from '@/app/page';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus } from "lucide-react"; 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, ScatterChart, Scatter, ZAxis, Tooltip as RechartsTooltip, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
+import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus, X, TrendingUp, BarChart3, BadgeDollarSign, Boxes, Users2, Tag, ShoppingCart, Banknote } from "lucide-react"; 
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Badge } from "@/components/ui/badge";
 
 interface UpdatePartsTabProps {
   parts: Part[];
   setParts: React.Dispatch<React.SetStateAction<Part[]>>;
   onAddPart: () => void;
-  spendByPartData: SpendDataPoint[]; // This uses partsWithSpend indirectly from page.tsx
   onOpenUploadDialog: () => void;
-  tariffChargePercent: number;
-  totalLogisticsCostPercent: number;
+  partsWithSpend: (Part & { annualSpend: number })[];
   suppliers: Supplier[];
   partSupplierAssociations: PartSupplierAssociation[];
-  homeCountry: string;
-  calculateSpendForSummary: ( // This function is now primarily for calculating part-specific spend for display if needed, overall totals are from partsWithSpend
+  partCategoryMappings: PartCategoryMapping[];
+  calculateSpendForSummary: (
     part: Part,
     currentTariffChargePercent: number,
     currentTotalLogisticsCostPercent: number,
@@ -33,7 +33,9 @@ interface UpdatePartsTabProps {
     localPartSupplierAssociations: PartSupplierAssociation[],
     localHomeCountry: string
   ) => number;
-  partsWithSpend: (Part & { annualSpend: number })[]; // Directly pass partsWithSpend for ABC analysis
+  homeCountry: string;
+  tariffChargePercent: number; // This is the tariffRateMultiplierPercent from page.tsx
+  totalLogisticsCostPercent: number;
 }
 
 const spendByPartChartConfig = {
@@ -49,50 +51,38 @@ const ABC_COLORS = {
   C: "hsl(var(--chart-3))", 
 };
 
-const abcBubbleChartConfig = {
-  numParts: { label: "Number of Parts" },
-  avgSpend: { label: "Avg. Spend/Part" },
-  totalSpend: { label: "Total Spend (Bubble Size)" },
-  "Class A": { label: "Class A", color: ABC_COLORS.A },
-  "Class B": { label: "Class B", color: ABC_COLORS.B },
-  "Class C": { label: "Class C", color: ABC_COLORS.C },
-} satisfies import("@/components/ui/chart").ChartConfig;
-
+interface Part360Details extends Part {
+  categories: string[];
+  abcClass: 'A' | 'B' | 'C' | 'N/A';
+  supplierCount: number;
+  associatedSuppliers: { id: string; supplierId: string; name: string }[];
+  currentSpend: number;
+}
 
 export default function UpdatePartsTab({
   parts,
   setParts,
   onAddPart,
-  spendByPartData,
   onOpenUploadDialog,
-  partsWithSpend, // Use this for ABC
-  // The following are still needed for any direct spend calculations if they occur here, though primarily they feed into partsWithSpend in page.tsx
+  partsWithSpend,
+  suppliers,
+  partSupplierAssociations,
+  partCategoryMappings,
+  calculateSpendForSummary,
+  homeCountry,
   tariffChargePercent,
   totalLogisticsCostPercent,
-  suppliers, 
-  partSupplierAssociations, 
-  homeCountry,
-  calculateSpendForSummary
 }: UpdatePartsTabProps) {
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  const [isPart360Open, setIsPart360Open] = useState(false);
+  const [part360Details, setPart360Details] = useState<Part360Details | null>(null);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
-  };
-  
-  const formatCurrencyWithDecimals = (value: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  const formatCurrency = (value: number, decimals = 0) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value);
   };
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-US').format(value);
-  };
-
-  const formatYAxisTick = (value: number) => {
-    if (Math.abs(value) >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
-    if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-    if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
-    return `$${value.toFixed(0)}`;
   };
 
   const formatPriceForInput = (value: number): string => {
@@ -150,111 +140,188 @@ export default function UpdatePartsTab({
     setParts(prevParts => prevParts.filter(p => p.id !== partId));
     if (selectedPartId === partId) {
       setSelectedPartId(null);
+      setIsPart360Open(false);
+      setPart360Details(null);
     }
   };
 
-  const totalPartsCount = useMemo(() => parts.length, [parts]);
-
-  const abcClassificationData = useMemo(() => {
-    if (partsWithSpend.length === 0) {
-      return { classBubbleData: { A: null, B: null, C: null } };
-    }
-
+  const individualPartAbcClasses = useMemo(() => {
+    if (partsWithSpend.length === 0) return {};
     const sortedParts = [...partsWithSpend].sort((a, b) => b.annualSpend - a.annualSpend);
-    const totalAnnualSpendAllParts = sortedParts.reduce((sum, p) => sum + p.annualSpend, 0);
+    const totalSpendAll = sortedParts.reduce((sum, p) => sum + p.annualSpend, 0);
+    if (totalSpendAll === 0) return {};
 
-    if (totalAnnualSpendAllParts === 0) {
-      return { classBubbleData: { A: null, B: null, C: null } };
-    }
-
+    const classifications: { [partId: string]: 'A' | 'B' | 'C' } = {};
     let cumulativeSpend = 0;
-    const classifiedParts: { part: Part; annualSpend: number; class: 'A' | 'B' | 'C' }[] = [];
-
     for (const part of sortedParts) {
       cumulativeSpend += part.annualSpend;
-      const cumulativePercent = cumulativeSpend / totalAnnualSpendAllParts;
+      const cumulativePercent = cumulativeSpend / totalSpendAll;
       if (cumulativePercent <= 0.80) {
-        classifiedParts.push({ ...part, class: 'A' });
+        classifications[part.id] = 'A';
       } else if (cumulativePercent <= 0.95) {
-        classifiedParts.push({ ...part, class: 'B' });
+        classifications[part.id] = 'B';
       } else {
-        classifiedParts.push({ ...part, class: 'C' });
+        classifications[part.id] = 'C';
       }
     }
-    
-    const classAggregatedData: { A: any; B: any; C: any; } = { A: null, B: null, C: null };
-    const classTypes: ('A' | 'B' | 'C')[] = ['A', 'B', 'C'];
+    return classifications;
+  }, [partsWithSpend]);
 
-    classTypes.forEach(className => {
-      const partsInThisClass = classifiedParts.filter(p => p.class === className);
-      if (partsInThisClass.length > 0) {
-        const totalSpendInClass = partsInThisClass.reduce((sum, p) => sum + p.annualSpend, 0);
-        classAggregatedData[className] = {
-          name: `Class ${className}`,
-          numParts: partsInThisClass.length,
-          totalSpend: totalSpendInClass,
-          avgSpend: totalSpendInClass / partsInThisClass.length,
-          fill: ABC_COLORS[className],
-        };
+  const abcClassSummary = useMemo(() => {
+    const summary = {
+      A: { count: 0, spend: 0 },
+      B: { count: 0, spend: 0 },
+      C: { count: 0, spend: 0 },
+    };
+    partsWithSpend.forEach(part => {
+      const abcClass = individualPartAbcClasses[part.id];
+      if (abcClass) {
+        summary[abcClass].count++;
+        summary[abcClass].spend += part.annualSpend;
       }
     });
-    
-    return { classBubbleData: classAggregatedData };
+    return summary;
+  }, [partsWithSpend, individualPartAbcClasses]);
 
+
+  useEffect(() => {
+    if (selectedPartId) {
+      const partData = parts.find(p => p.id === selectedPartId);
+      if (partData) {
+        const categories = partCategoryMappings
+          .filter(pcm => pcm.partId === selectedPartId)
+          .map(pcm => pcm.categoryName);
+        
+        const associatedSuppliersList = partSupplierAssociations
+          .filter(psa => psa.partId === selectedPartId)
+          .map(psa => {
+            const supplier = suppliers.find(s => s.id === psa.supplierId);
+            return supplier ? { id: supplier.id, supplierId: supplier.supplierId, name: supplier.name } : null;
+          })
+          .filter(s => s !== null) as { id: string; supplierId: string; name: string }[];
+
+        const currentSpend = calculateSpendForSummary(
+            partData,
+            tariffChargePercent,
+            totalLogisticsCostPercent,
+            suppliers,
+            partSupplierAssociations,
+            homeCountry
+        );
+
+        setPart360Details({
+          ...partData,
+          categories,
+          abcClass: individualPartAbcClasses[selectedPartId] || 'N/A',
+          supplierCount: associatedSuppliersList.length,
+          associatedSuppliers: associatedSuppliersList,
+          currentSpend,
+        });
+        setIsPart360Open(true);
+      }
+    } else {
+      setIsPart360Open(false);
+      setPart360Details(null);
+    }
+  }, [selectedPartId, parts, partCategoryMappings, partSupplierAssociations, suppliers, individualPartAbcClasses, calculateSpendForSummary, homeCountry, tariffChargePercent, totalLogisticsCostPercent]);
+
+
+  const totalPartsCount = useMemo(() => parts.length, [parts]);
+  const totalSpend = useMemo(() => partsWithSpend.reduce((sum, p) => sum + p.annualSpend, 0), [partsWithSpend]);
+  const totalVolume = useMemo(() => parts.reduce((sum, p) => sum + p.annualDemand, 0), [parts]);
+  
+  const top10SpendByPartData: SpendDataPoint[] = useMemo(() => {
+    return partsWithSpend
+      .map(part => ({
+        name: part.partNumber,
+        spend: part.annualSpend,
+      }))
+      .sort((a,b) => b.spend - a.spend)
+      .slice(0,10);
   }, [partsWithSpend]);
-
-
-  const totalSpend = useMemo(() => {
-    return partsWithSpend.reduce((sum, p) => sum + p.annualSpend, 0);
-  }, [partsWithSpend]);
-
-
-  const totalVolume = useMemo(() => {
-    return parts.reduce((sum, p) => sum + p.annualDemand, 0);
-  }, [parts]);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center">
-          <Package className="mr-2 h-5 w-5" />
-          <CardTitle className="text-lg">1A - Add/Update/Select Part</CardTitle>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="ml-2 h-5 w-5">
-                <Info className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs max-w-xs">Manage individual parts, their pricing, and estimated annual demand. View spend analysis by part and category. Upload parts via CSV.</p>
-            </TooltipContent>
-          </Tooltip>
-           <div className="ml-auto flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={onOpenUploadDialog} size="icon" variant="outline" aria-label="Upload Parts CSV">
-                  <FileUp className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Upload Parts CSV</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={onAddPart} size="icon" aria-label="Add New Part">
-                  <PlusCircle className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Add New Part</p>
-              </TooltipContent>
-            </Tooltip>
+    <div className="flex">
+      <Card className="flex-grow">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div className="flex items-center">
+              <Package className="mr-2 h-5 w-5" />
+              <CardTitle className="text-lg whitespace-nowrap">1A - Add/Update/Select Part</CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="ml-2 h-5 w-5">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">Manage parts, pricing, and demand. Select a part to view its Part360 details.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="flex items-center gap-2">
+              {['A', 'B', 'C'].map((className) => {
+                const classData = abcClassSummary[className as 'A' | 'B' | 'C'];
+                return (
+                  <Badge key={className} variant="outline" className="px-2 py-1 h-auto text-xs" style={{borderColor: ABC_COLORS[className as 'A' | 'B' | 'C']}}>
+                    Class {className}: {classData.count} Parts, {formatCurrency(classData.spend)}
+                  </Badge>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2 ml-auto sm:ml-0 self-start sm:self-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button onClick={onOpenUploadDialog} size="icon" variant="outline" aria-label="Upload Parts CSV">
+                    <FileUp className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Upload Parts CSV</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button onClick={onAddPart} size="icon" aria-label="Add New Part">
+                    <PlusCircle className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Add New Part</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="grid md:grid-cols-8 gap-6 text-xs">
-        <div className="md:col-span-5 space-y-3">
+        </CardHeader>
+        <CardContent className="space-y-3 text-xs">
+          <Card className="mt-2">
+              <CardHeader className="p-3 pb-2">
+                <CardTitle className="text-sm flex items-center"><BarChart3 className="mr-1.5 h-4 w-4"/>Part Spend Analysis</CardTitle>
+                <CardDescription className="text-xs">Top 10 parts by current calculated spend.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                {top10SpendByPartData.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-3">No spend data to display.</p>
+                ) : (
+                  <ChartContainer config={spendByPartChartConfig} className="min-h-[160px] w-full aspect-[16/7]">
+                    <ResponsiveContainer width="100%" height={160}>
+                      <BarChart accessibilityLayer data={top10SpendByPartData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
+                        <CartesianGrid horizontal={false} />
+                        <XAxis type="number" dataKey="spend" tickFormatter={(val) => formatCurrency(val).replace('$', '')[0] + (Math.abs(val) > 1e6 ? (val/1e6).toFixed(0)+'M' : Math.abs(val) > 1e3 ? (val/1e3).toFixed(0)+'K' : val ) } tick={{ fontSize: 9 }} />
+                        <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={60} tick={{ fontSize: 9 }} />
+                        <RechartsTooltip
+                          cursor={{fill: 'hsla(var(--muted)/0.3)'}}
+                          contentStyle={{fontSize:'10px', padding:'2px 8px'}}
+                          formatter={(value: number) => formatCurrency(value)}
+                        />
+                        <Bar dataKey="spend" fill="var(--color-spend)" radius={3} barSize={8} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                )}
+              </CardContent>
+          </Card>
+
           <div className="flex items-center gap-2 px-2 py-1 text-xs font-medium text-muted-foreground">
             <div className="w-10"> {/* Spacer for radio */} </div>
             <div className="w-24 flex-shrink-0">Part #</div>
@@ -268,7 +335,7 @@ export default function UpdatePartsTab({
           {parts.length === 0 ? (
             <p className="text-muted-foreground text-center py-3">No parts available. Generate, add, or upload some parts.</p>
           ) : (
-            <ScrollArea className="h-[calc(100vh-300px)]">
+            <ScrollArea className="h-[calc(100vh-480px)]">
               <RadioGroup value={selectedPartId || undefined} onValueChange={setSelectedPartId} className="space-y-2 pr-2">
                 {parts.map((part) => (
                   <div key={part.id} className="flex items-center gap-2 p-2.5 rounded-md border bg-card shadow-sm hover:shadow-md transition-shadow">
@@ -340,110 +407,95 @@ export default function UpdatePartsTab({
               </div>
             </div>
           </div>
-        </div>
-        <div className="md:col-span-3 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center">
-                 Part Spend Analysis
-              </CardTitle>
-               <Tooltip>
-                <TooltipTrigger asChild>
-                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Top 10 parts by spend <Info className="ml-1 h-3 w-3" /></span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Top 10 parts by calculated spend (Base Cost x Annual Volume, adjusted by Tariff & Logistics).</p>
-                </TooltipContent>
-              </Tooltip>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {spendByPartData.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3">No spend data to display.</p>
-              ) : (
-                <ChartContainer config={spendByPartChartConfig} className="min-h-[180px] w-full aspect-video">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart accessibilityLayer data={spendByPartData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
-                      <CartesianGrid horizontal={false} />
-                      <XAxis type="number" dataKey="spend" tickFormatter={formatCurrency} tick={{ fontSize: 10 }} />
-                      <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={60} tick={{ fontSize: 10 }} />
-                      <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent indicator="dot" formatter={(value) => formatCurrency(value as number)} />}
-                      />
-                      <Bar dataKey="spend" fill="var(--color-spend)" radius={3} barSize={10} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
+        </CardContent>
+      </Card>
+      <Sheet open={isPart360Open} onOpenChange={setIsPart360Open}>
+        <SheetContent className="sm:max-w-md w-full p-0">
+          {part360Details && (
+            <>
+              <SheetHeader className="p-4 border-b">
+                <SheetTitle className="flex items-center">
+                  <Package className="mr-2 h-5 w-5 text-primary" />
+                  Part360: {part360Details.name}
+                </SheetTitle>
+                <SheetDescription className="text-xs">
+                  Part No: {part360Details.partNumber} <span className="mx-1">|</span> ID: {part360Details.id}
+                </SheetDescription>
+                 <SheetClose className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close</span>
+                </SheetClose>
+              </SheetHeader>
+              <ScrollArea className="h-[calc(100vh-100px)]">
+                <div className="p-4 space-y-4 text-sm">
+                  <Card>
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs font-medium flex items-center"><Banknote className="mr-1.5 h-3.5 w-3.5 text-muted-foreground"/>Financials</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                      <div>Base Price:</div><div className="font-medium text-right">{formatCurrency(part360Details.price, 2)}</div>
+                      <div>Current Spend:</div><div className="font-medium text-right">{formatCurrency(part360Details.currentSpend)}</div>
+                      <div>Freight & OHD:</div><div className="font-medium text-right">{(part360Details.freightOhdCost * 100).toFixed(2)}%</div>
+                    </CardContent>
+                  </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center">
-                <Focus className="mr-1.5 h-4 w-4" />
-                ABC Analysis by Class
-              </CardTitle>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Bubble size by Total Spend. X: # Parts, Y: Avg. Spend/Part. <Info className="ml-1 h-3 w-3" /></span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs max-w-xs">
-                    ABC analysis classifies parts: Class A (top 80% spend), B (next 15%), C (last 5%).<br/>
-                    X-axis: Number of parts in class.<br/>
-                    Y-axis: Average spend per part in class.<br/>
-                    Bubble Size: Total annual spend for the class.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {Object.values(abcClassificationData.classBubbleData).every(c => c === null) ? (
-                <p className="text-xs text-muted-foreground text-center py-3">No data for ABC bubble chart analysis.</p>
-              ) : (
-                <ChartContainer config={abcBubbleChartConfig} className="min-h-[220px] w-full">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                      <CartesianGrid />
-                      <XAxis type="number" dataKey="numParts" name="Number of Parts" tickFormatter={formatNumber} tick={{ fontSize: 10 }} />
-                      <YAxis type="number" dataKey="avgSpend" name="Avg. Spend/Part" tickFormatter={formatYAxisTick} tick={{ fontSize: 10 }} />
-                      <ZAxis type="number" dataKey="totalSpend" range={[150, 1500]} name="Total Annual Spend" />
-                      <RechartsTooltip
-                        cursor={{ strokeDasharray: '3 3' }}
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className="rounded-lg border bg-background p-2.5 shadow-xl text-xs">
-                                <p className="font-medium mb-1" style={{color: data.fill}}>{data.name}</p>
-                                <p>Parts: {formatNumber(data.numParts)}</p>
-                                <p>Avg Spend/Part: {formatCurrencyWithDecimals(data.avgSpend)}</p>
-                                <p>Total Spend: {formatCurrency(data.totalSpend)}</p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Legend wrapperStyle={{fontSize: "10px"}} />
-                      {abcClassificationData.classBubbleData.A && (
-                        <Scatter name="Class A" data={[abcClassificationData.classBubbleData.A]} fill={abcClassificationData.classBubbleData.A.fill} shape="circle" />
+                  <Card>
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs font-medium flex items-center"><ShoppingCart className="mr-1.5 h-3.5 w-3.5 text-muted-foreground"/>Demand & Classification</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                       <div>Annual Volume:</div><div className="font-medium text-right">{formatNumber(part360Details.annualDemand)} units</div>
+                       <div>ABC Class:</div>
+                       <div className="font-medium text-right">
+                         <Badge variant="outline" style={{borderColor: ABC_COLORS[part360Details.abcClass as 'A'|'B'|'C'] || 'grey'}}>
+                            {part360Details.abcClass}
+                         </Badge>
+                        </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs font-medium flex items-center"><Boxes className="mr-1.5 h-3.5 w-3.5 text-muted-foreground"/>Categories</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 text-xs">
+                      {part360Details.categories.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {part360Details.categories.map(cat => <Badge key={cat} variant="secondary">{cat}</Badge>)}
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground">Not categorized.</p>
                       )}
-                      {abcClassificationData.classBubbleData.B && (
-                        <Scatter name="Class B" data={[abcClassificationData.classBubbleData.B]} fill={abcClassificationData.classBubbleData.B.fill} shape="circle" />
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs font-medium flex items-center"><Users2 className="mr-1.5 h-3.5 w-3.5 text-muted-foreground"/>Suppliers ({part360Details.supplierCount})</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 text-xs">
+                      {part360Details.associatedSuppliers.length > 0 ? (
+                        <ul className="space-y-1">
+                          {part360Details.associatedSuppliers.map(sup => (
+                            <li key={sup.id} className="flex justify-between items-center p-1 bg-muted/50 rounded text-2xs">
+                                <span>{sup.name}</span>
+                                <Badge variant="outline" className="font-mono text-2xs">{sup.supplierId}</Badge>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-muted-foreground">No suppliers associated.</p>
                       )}
-                      {abcClassificationData.classBubbleData.C && (
-                        <Scatter name="Class C" data={[abcClassificationData.classBubbleData.C]} fill={abcClassificationData.classBubbleData.C.fill} shape="circle" />
-                      )}
-                    </ScatterChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </CardContent>
-    </Card>
+                    </CardContent>
+                  </Card>
+                </div>
+              </ScrollArea>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
   );
 }
+
+    
