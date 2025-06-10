@@ -217,4 +217,3 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
     </Card>
   );
 }
-
