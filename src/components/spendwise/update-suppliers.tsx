@@ -4,10 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Fingerprint, Building, FileText, PlusCircle, Info, UploadCloud, Trash2, Globe2 } from "lucide-react"; // Added Globe2 for Country
+import { Fingerprint, Building, FileText, PlusCircle, Info, UploadCloud, Trash2, Globe2, MapPin, Loader2 } from "lucide-react"; 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import SupplierWorldMap from './supplier-world-map'; 
+import { geocodeSupplierAddress } from '@/lib/geocodingService';
+import { useToast } from "@/hooks/use-toast";
+import React, { useState } from 'react';
 
 interface UpdateSuppliersTabProps {
   suppliers: Supplier[];
@@ -17,14 +20,16 @@ interface UpdateSuppliersTabProps {
 }
 
 export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSupplier, onOpenUploadDialog }: UpdateSuppliersTabProps) {
+  const { toast } = useToast();
+  const [geocodingSupplierId, setGeocodingSupplierId] = useState<string | null>(null);
 
-  const handleSupplierInputChange = (supplierId: string, field: keyof Supplier, value: string) => {
+  const handleSupplierInputChange = (supplierId: string, field: keyof Supplier, value: string | number) => {
     setSuppliers(prevSuppliers =>
       prevSuppliers.map(s => {
         if (s.id === supplierId) {
           const updatedSupplier = { ...s, [field]: value };
           
-          if (['city', 'postalCode', 'country', 'streetAddress', 'stateOrProvince'].includes(field)) {
+          if (['city', 'postalCode', 'country', 'streetAddress', 'stateOrProvince'].includes(field as string)) {
             const street = updatedSupplier.streetAddress || '';
             const cityVal = updatedSupplier.city || '';
             const state = updatedSupplier.stateOrProvince || '';
@@ -51,6 +56,37 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
     setSuppliers(prevSuppliers => prevSuppliers.filter(s => s.id !== supplierId));
   };
 
+  const handleGeocodeSupplier = async (supplierToGeocode: Supplier) => {
+    if (!supplierToGeocode) return;
+    setGeocodingSupplierId(supplierToGeocode.id);
+    try {
+      const result = await geocodeSupplierAddress({
+        streetAddress: supplierToGeocode.streetAddress,
+        city: supplierToGeocode.city,
+        stateOrProvince: supplierToGeocode.stateOrProvince,
+        postalCode: supplierToGeocode.postalCode,
+        country: supplierToGeocode.country,
+      });
+
+      setSuppliers(prevSuppliers =>
+        prevSuppliers.map(s =>
+          s.id === supplierToGeocode.id ? { ...s, latitude: result.lat, longitude: result.lng } : s
+        )
+      );
+      toast({ title: "Geocoding Successful", description: `Coordinates found for ${supplierToGeocode.name}.` });
+    } catch (error: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Geocoding Failed", 
+        description: error.message || `Could not find coordinates for ${supplierToGeocode.name}. Check address or API key.` 
+      });
+      console.error("Geocoding component error:", error);
+    } finally {
+      setGeocodingSupplierId(null);
+    }
+  };
+
+
   return (
     <Card>
       <CardHeader>
@@ -64,7 +100,7 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-xs max-w-xs">Manage supplier information. Upload suppliers via CSV. Map shows suppliers with coordinates.</p>
+              <p className="text-xs max-w-xs">Manage supplier information. Click the <MapPin className="inline h-3 w-3" /> icon to fetch coordinates. Ensure Geocoding API is enabled for your Google Maps key.</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -89,12 +125,12 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[100px] text-xs"><Fingerprint className="inline-block mr-1 h-3.5 w-3.5" />ID</TableHead>
-                      <TableHead className="min-w-[150px] text-xs"><Building className="inline-block mr-1 h-3.5 w-3.5" />Name</TableHead>
-                      <TableHead className="min-w-[150px] text-xs"><FileText className="inline-block mr-1 h-3.5 w-3.5" />Description</TableHead>
-                      <TableHead className="min-w-[100px] text-xs">City</TableHead>
-                      <TableHead className="min-w-[100px] text-xs"><Globe2 className="inline-block mr-1 h-3.5 w-3.5" />Country</TableHead>
-                      <TableHead className="text-center w-[50px] text-xs">Del</TableHead>
+                      <TableHead className="w-[80px] text-xs"><Fingerprint className="inline-block mr-1 h-3.5 w-3.5" />ID</TableHead>
+                      <TableHead className="min-w-[130px] text-xs"><Building className="inline-block mr-1 h-3.5 w-3.5" />Name</TableHead>
+                      <TableHead className="min-w-[130px] text-xs"><FileText className="inline-block mr-1 h-3.5 w-3.5" />Description</TableHead>
+                      <TableHead className="min-w-[90px] text-xs">City</TableHead>
+                      <TableHead className="min-w-[90px] text-xs"><Globe2 className="inline-block mr-1 h-3.5 w-3.5" />Country</TableHead>
+                      <TableHead className="text-center w-[90px] text-xs">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -133,10 +169,35 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
                             className="h-7 text-xs"
                           />
                         </TableCell>
-                        <TableCell className="text-center py-1.5">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" aria-label="Delete Supplier" onClick={() => handleDeleteSupplier(supplier.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                        <TableCell className="text-center py-1.5 space-x-1">
+                           <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7"
+                                onClick={() => handleGeocodeSupplier(supplier)}
+                                disabled={geocodingSupplierId === supplier.id || (!supplier.city && !supplier.streetAddress)} 
+                              >
+                                {geocodingSupplierId === supplier.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <MapPin className="h-3.5 w-3.5 text-blue-600" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p>Fetch Coordinates</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                             <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" aria-label="Delete Supplier" onClick={() => handleDeleteSupplier(supplier.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top"><p>Delete Supplier</p></TooltipContent>
+                          </Tooltip>
                         </TableCell>
                       </TableRow>
                     ))}
