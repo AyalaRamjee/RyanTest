@@ -64,7 +64,7 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-xs max-w-xs">Manage supplier information. Upload suppliers via CSV. Spend analysis by supplier requires part-supplier mappings.</p>
+              <p className="text-xs max-w-xs">Manage supplier information. Upload suppliers via CSV. Map shows suppliers with coordinates.</p>
             </TooltipContent>
           </Tooltip>
         </div>
