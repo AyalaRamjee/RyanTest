@@ -997,10 +997,10 @@ export default function SpendWiseCentralPage() {
         </header>
 
         <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16">
-          <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background py-2 shadow-sm`}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background shadow-sm -mt-1`}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 p-2">
               {summaryStats.map(stat => (
-                <Card key={stat.label} className="shadow-md">
+                <Card key={stat.label} className="shadow-lg">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
                     <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
                     <stat.Icon className="h-4 w-4 text-muted-foreground" />
@@ -1013,7 +1013,7 @@ export default function SpendWiseCentralPage() {
             </div>
           </section>
 
-          <Tabs defaultValue="update-parts" className="w-full mt-2">
+          <Tabs defaultValue="update-parts" className="w-full mt-0">
             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1">
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts

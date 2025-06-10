@@ -606,9 +606,9 @@ export default function WhatIfAnalysisTab({
               </div>
             </div>
 
-            <div className="space-y-1 p-3 border rounded-md">
+            <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
               <h4 className="font-medium text-sm flex items-center"><Palette className="h-4 w-4 mr-1.5"/>Category Specific Cost Adjustment</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2">
                 <div className="sm:col-span-5">
                   <Label htmlFor="selectCategoryCost" className="text-xs">Category</Label>
                   <Select value={selectedCategoryForAdjustment} onValueChange={setSelectedCategoryForAdjustment}>
@@ -642,9 +642,9 @@ export default function WhatIfAnalysisTab({
               )}
             </div>
             
-            <div className="space-y-1 p-3 border rounded-md">
+            <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
               <h4 className="font-medium text-sm flex items-center"><PackageSearch className="h-4 w-4 mr-1.5"/>Source Country Specific Tariff Adjustment</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2">
                  <div className="sm:col-span-5">
                   <Label htmlFor="selectCountryTariff" className="text-xs">Supplier Country (Foreign)</Label>
                   <Select value={selectedCountryForTariff} onValueChange={setSelectedCountryForTariff}>
@@ -679,10 +679,10 @@ export default function WhatIfAnalysisTab({
             </div>
 
             
-            <div className="space-y-1 p-3 border rounded-md">
+            <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
               <h4 className="font-medium text-sm flex items-center"><Activity className="h-4 w-4 mr-1.5"/>Demand Adjustments</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-1">
-                <div className="sm:col-span-3">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2">
+                <div className="sm:col-span-2">
                   <Label htmlFor="demandAdjustmentTypeSelect" className="text-xs">Type</Label>
                   <Select value={demandAdjustmentType} onValueChange={(val) => setDemandAdjustmentType(val as 'global' | 'category' | 'part')}>
                     <SelectTrigger id="demandAdjustmentTypeSelect" className="h-9 text-xs">
@@ -728,7 +728,7 @@ export default function WhatIfAnalysisTab({
                 <Button 
                     onClick={handleAddDemandAdjustment} 
                     size="sm" 
-                    className="h-9 text-xs sm:col-span-2"
+                    className="h-9 text-xs sm:col-span-2 w-full"
                     disabled={
                         (demandAdjustmentType === 'category' && !selectedCategoryForDemand) ||
                         (demandAdjustmentType === 'part' && !selectedPartForDemand)
