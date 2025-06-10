@@ -378,8 +378,7 @@ export default function SummaryTab({
               <ScrollArea className="h-[300px] w-full rounded-md border">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">ID</TableHead>
+                    <TableRow><TableHead className="text-xs">ID</TableHead>
                       <TableHead className="text-xs">Supplier Name</TableHead>
                       <TableHead className="text-xs">Address</TableHead>
                       <TableHead className="text-xs">Country</TableHead>
@@ -389,8 +388,7 @@ export default function SummaryTab({
                   </TableHeader>
                   <TableBody>
                     {suppliers.map((supplier) => (
-                      <TableRow key={supplier.id}>
-                        <TableCell className="font-mono text-xs">{supplier.supplierId}</TableCell>
+                      <TableRow key={supplier.id}><TableCell className="font-mono text-xs">{supplier.supplierId}</TableCell>
                         <TableCell className="font-medium text-xs">{supplier.name}</TableCell>
                         <TableCell className="text-xs">{supplier.address}</TableCell>
                         <TableCell className="text-xs">{supplier.country}</TableCell>
@@ -412,4 +410,3 @@ export default function SummaryTab({
     </div>
   );
 }
-
