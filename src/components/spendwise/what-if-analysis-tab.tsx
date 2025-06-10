@@ -161,6 +161,8 @@ export default function WhatIfAnalysisTab({
     if (partSpecificDemandAdj) {
         adjustedDemand = part.annualDemand * (1 + partSpecificDemandAdj.adjustmentPercent / 100);
     } else if (categorySpecificDemandAdjs.length > 0) {
+        // If multiple category adjustments apply to a part, take the first one.
+        // A more complex rule might be needed if parts can truly belong to multiple categories with different demand adjustments.
         adjustedDemand = part.annualDemand * (1 + categorySpecificDemandAdjs[0].adjustmentPercent / 100);
     } else if (globalDemandAdj) {
         adjustedDemand = part.annualDemand * (1 + globalDemandAdj.adjustmentPercent / 100);
@@ -187,12 +189,14 @@ export default function WhatIfAnalysisTab({
         let effectiveBaseTariffRate = BASE_TARIFF_RATE_FOR_WHAT_IF * (originalTariffMultiplierPercent / 100);
         let finalScenarioTariffRate = effectiveBaseTariffRate + (currentGlobalTariffAdjPts / 100);
         
+        // Check for a country-specific tariff adjustment for any of the foreign suppliers
+        // If multiple foreign suppliers for the same part have different country adjustments, this logic takes the first one found.
         for (const supplier of partSuppliers) {
             if (supplier.country !== currentAnalysisHomeCountry) { 
                 const countryAdjustment = currentCountryTariffAdjs.find(adj => adj.countryName === supplier.country);
                 if (countryAdjustment) {
                     finalScenarioTariffRate = effectiveBaseTariffRate + (currentGlobalTariffAdjPts / 100) + (countryAdjustment.tariffAdjustmentPoints / 100);
-                    break; 
+                    break; // Apply the first specific country adjustment found for this part
                 }
             }
         }
@@ -228,26 +232,31 @@ export default function WhatIfAnalysisTab({
 
     if (!parts || parts.length === 0) return results;
     
+    // 1. Impact of Global Tariff Adjustment
     results.afterGlobalTariff = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
       part, analysisHomeCountry, globalTariffAdjustmentPoints, 0, [], [], [] 
     ), 0);
     results.impactGlobalTariff = results.afterGlobalTariff - results.baseSpend;
 
+    // 2. Impact of Global Logistics (cumulative from Global Tariff)
     results.afterGlobalLogistics = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
       part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, [], [], [] 
     ), 0);
     results.impactGlobalLogistics = results.afterGlobalLogistics - results.afterGlobalTariff; 
     
+    // 3. Impact of Category Changes (cumulative)
     results.afterCategoryChanges = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
       part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, [], [] 
     ), 0);
     results.impactCategory = results.afterCategoryChanges - results.afterGlobalLogistics;
 
+    // 4. Impact of Country Tariff Changes (cumulative)
     results.afterCountryTariffChanges = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
       part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, activeCountryTariffAdjustments, [] 
     ), 0);
     results.impactCountryTariff = results.afterCountryTariffChanges - results.afterCategoryChanges;
 
+    // 5. Final What-if Spend (including Demand Adjustments, cumulative)
     results.finalWhatIfSpend = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
       part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, activeCountryTariffAdjustments, activeDemandAdjustments
     ), 0);
@@ -272,12 +281,12 @@ export default function WhatIfAnalysisTab({
     cumulative = scenarioImpacts.baseSpend;
 
     const addImpactToWaterfall = (name: string, impact: number) => {
-        if (impact !== 0) {
+        if (impact !== 0) { // Only add if there's an actual impact
             data.push({
                 name,
-                value: impact, 
-                offset: impact < 0 ? cumulative + impact : cumulative, 
-                fill: impact < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))" 
+                value: impact, // The actual change amount
+                offset: impact < 0 ? cumulative + impact : cumulative, // Start of the bar
+                fill: impact < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))" // Green for decrease, Red for increase
             });
             cumulative += impact;
         }
@@ -289,7 +298,10 @@ export default function WhatIfAnalysisTab({
     addImpactToWaterfall("Country Tariff Adj.", scenarioImpacts.impactCountryTariff);
     addImpactToWaterfall("Demand Adj.", scenarioImpacts.impactDemand); 
 
-    data.push({ name: "What-if Spend", value: cumulative, offset: 0, fill: "hsl(var(--chart-1))" });
+    // Final bar, only if it's different from the last cumulative point or if it's the only point after base
+    if (cumulative !== scenarioImpacts.baseSpend || data.length === 1) {
+        data.push({ name: "What-if Spend", value: cumulative, offset: 0, fill: "hsl(var(--chart-1))" });
+    }
     
     return data;
   }, [scenarioImpacts]);
@@ -355,8 +367,8 @@ export default function WhatIfAnalysisTab({
         return;
       }
       targetName = selectedCategoryForDemand;
-      targetId = selectedCategoryForDemand; 
-      id = `demand_cat_${selectedCategoryForDemand.replace(/\s+/g, '_')}`; 
+      targetId = selectedCategoryForDemand; // For categories, name and ID can be the same for this purpose
+      id = `demand_cat_${selectedCategoryForDemand.replace(/\s+/g, '_')}`; // Make ID more specific if overwriting
     } else if (demandAdjustmentType === 'part') {
       if (!selectedPartForDemand) {
         toast({ title: "Select Part", description: "Please select a part for demand adjustment.", variant: "destructive" });
@@ -366,25 +378,29 @@ export default function WhatIfAnalysisTab({
       targetName = partInfo ? `${partInfo.partNumber} - ${partInfo.name}` : "Unknown Part";
       targetId = selectedPartForDemand;
       id = `demand_part_${selectedPartForDemand}`;
-    } else { 
-       id = `demand_global`;
+    } else { // Global
+       id = `demand_global`; // Only one global adjustment possible
     }
     
+    // Check if an adjustment of this type and target already exists to update it, otherwise add new
     const existingAdjustmentIndex = activeDemandAdjustments.findIndex(adj => 
         adj.type === demandAdjustmentType && 
-        (demandAdjustmentType === 'global' || adj.targetId === targetId) 
+        (demandAdjustmentType === 'global' || adj.targetId === targetId) // For global, type is enough. For others, check targetId.
     );
 
     if (existingAdjustmentIndex > -1) {
+        // Update existing
         setActiveDemandAdjustments(prev => prev.map((adj, index) => 
             index === existingAdjustmentIndex ? { ...adj, adjustmentPercent: demandAdjustmentValue } : adj
         ));
     } else {
+        // Add new
         setActiveDemandAdjustments(prev => [...prev, { id, type: demandAdjustmentType, targetName, targetId, adjustmentPercent: demandAdjustmentValue }]);
     }
+    // Reset inputs
     setSelectedCategoryForDemand("");
     setSelectedPartForDemand("");
-    setDemandAdjustmentValue(0); 
+    setDemandAdjustmentValue(0); // Consider not resetting if user wants to make minor tweaks after adding
   };
 
   const handleRemoveDemandAdjustment = (idToRemove: string) => {
@@ -395,16 +411,18 @@ export default function WhatIfAnalysisTab({
   const handleOpenSaveDialog = (edit = false) => {
     setIsEditMode(edit);
     if (edit && selectedScenarioToLoad) {
+        // If editing, pre-fill with the selected scenario's name and description
         const scenarioDataString = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + selectedScenarioToLoad) : null;
         if (scenarioDataString) {
             const scenarioData: SavedScenario = JSON.parse(scenarioDataString);
             setCurrentScenarioName(scenarioData.name);
             setCurrentScenarioDescription(scenarioData.description);
-        } else { 
+        } else { // Fallback if data is missing, though list name exists
             setCurrentScenarioName(selectedScenarioToLoad);
             setCurrentScenarioDescription("");
         }
     } else {
+        // For a new scenario, suggest a default name
         const defaultScenarioNumber = savedScenarioNames.length + 1;
         setCurrentScenarioName(`Scenario Def ${String(defaultScenarioNumber).padStart(2, '0')}`);
         setCurrentScenarioDescription("");
@@ -429,8 +447,10 @@ export default function WhatIfAnalysisTab({
     };
     if (typeof window !== 'undefined') {
       localStorage.setItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + scenarioData.name, JSON.stringify(scenarioData));
-      if (!savedScenarioNames.includes(scenarioData.name)) {
-        const newNames = [...savedScenarioNames, scenarioData.name].sort();
+      // Update the list of scenario names if it's a new name or if the name changed during edit
+      if (!savedScenarioNames.includes(scenarioData.name) || (isEditMode && selectedScenarioToLoad !== scenarioData.name)) {
+        let newNames = savedScenarioNames.filter(name => name !== selectedScenarioToLoad); // Remove old name if editing and name changed
+        newNames = [...newNames, scenarioData.name].sort();
         setSavedScenarioNames(newNames);
         localStorage.setItem(LOCAL_STORAGE_SCENARIO_LIST_KEY, JSON.stringify(newNames));
       }
@@ -438,7 +458,7 @@ export default function WhatIfAnalysisTab({
     
     toast({ title: "Scenario Saved", description: `Scenario "${scenarioData.name}" has been saved.`});
     setIsSaveScenarioDialogOpen(false);
-    setSelectedScenarioToLoad(scenarioData.name); 
+    setSelectedScenarioToLoad(scenarioData.name); // Set the newly saved/edited scenario as active
   };
 
   const handleLoadScenario = (scenarioName: string) => {
@@ -446,15 +466,15 @@ export default function WhatIfAnalysisTab({
     const scenarioDataString = localStorage.getItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + scenarioName);
     if (scenarioDataString) {
       const scenarioData: SavedScenario = JSON.parse(scenarioDataString);
-      setAnalysisHomeCountry(scenarioData.analysisHomeCountry || defaultAnalysisHomeCountry); 
+      setAnalysisHomeCountry(scenarioData.analysisHomeCountry || defaultAnalysisHomeCountry); // Fallback for older saved scenarios
       setGlobalTariffAdjustmentPoints(scenarioData.globalTariffAdjustmentPoints);
       setGlobalLogisticsAdjustmentPoints(scenarioData.globalLogisticsAdjustmentPoints);
       setActiveCategoryAdjustments(scenarioData.activeCategoryAdjustments);
       setActiveCountryTariffAdjustments(scenarioData.activeCountryTariffAdjustments);
-      setActiveDemandAdjustments(scenarioData.activeDemandAdjustments || []); 
+      setActiveDemandAdjustments(scenarioData.activeDemandAdjustments || []); // Fallback for older scenarios
       setSelectedScenarioToLoad(scenarioName);
-      setCurrentScenarioName(scenarioData.name); 
-      setCurrentScenarioDescription(scenarioData.description); 
+      setCurrentScenarioName(scenarioData.name); // For potential edit
+      setCurrentScenarioDescription(scenarioData.description); // For potential edit
       toast({ title: "Scenario Loaded", description: `Scenario "${scenarioName}" has been loaded.`});
     } else {
       toast({ title: "Error", description: `Could not load scenario "${scenarioName}".`, variant: "destructive"});
@@ -471,7 +491,8 @@ export default function WhatIfAnalysisTab({
     setSavedScenarioNames(newNames);
     localStorage.setItem(LOCAL_STORAGE_SCENARIO_LIST_KEY, JSON.stringify(newNames));
     toast({ title: "Scenario Deleted", description: `Scenario "${selectedScenarioToLoad}" has been deleted.`});
-    setSelectedScenarioToLoad(""); 
+    setSelectedScenarioToLoad(""); // Clear selected scenario
+    // Optionally reset controls to default/base state
     setAnalysisHomeCountry(defaultAnalysisHomeCountry);
     setGlobalTariffAdjustmentPoints(0);
     setGlobalLogisticsAdjustmentPoints(0);
@@ -672,7 +693,7 @@ export default function WhatIfAnalysisTab({
             <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
               <h4 className="font-medium text-sm flex items-center"><Activity className="h-4 w-4 mr-1.5"/>Demand Adjustments</h4>
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end pt-2">
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-3">
                   <Label htmlFor="demandAdjustmentTypeSelect" className="text-xs">Type</Label>
                   <Select value={demandAdjustmentType} onValueChange={(val) => setDemandAdjustmentType(val as 'global' | 'category' | 'part')}>
                     <SelectTrigger id="demandAdjustmentTypeSelect" className="h-9 text-xs">
@@ -686,7 +707,7 @@ export default function WhatIfAnalysisTab({
                   </Select>
                 </div>
                 {demandAdjustmentType === 'category' && (
-                  <div className="sm:col-span-4">
+                  <div className="sm:col-span-3">
                     <Label htmlFor="selectCategoryForDemand" className="text-xs">Category</Label>
                     <Select value={selectedCategoryForDemand} onValueChange={setSelectedCategoryForDemand}>
                       <SelectTrigger id="selectCategoryForDemand" className="h-9 text-xs"><SelectValue placeholder="Select Category" /></SelectTrigger>
@@ -697,7 +718,7 @@ export default function WhatIfAnalysisTab({
                   </div>
                 )}
                 {demandAdjustmentType === 'part' && (
-                  <div className="sm:col-span-4">
+                  <div className="sm:col-span-3">
                     <Label htmlFor="selectPartForDemand" className="text-xs">Part</Label>
                     <Select value={selectedPartForDemand} onValueChange={setSelectedPartForDemand}>
                       <SelectTrigger id="selectPartForDemand" className="h-9 text-xs"><SelectValue placeholder="Select Part" /></SelectTrigger>
@@ -708,7 +729,7 @@ export default function WhatIfAnalysisTab({
                   </div>
                 )}
                  <div className={`sm:col-span-${
-                    demandAdjustmentType === 'global' ? '7' : '3' 
+                    demandAdjustmentType === 'global' ? '7' : '4' 
                   }`}>
                   <Label htmlFor="demandAdjustmentSlider" className="text-xs">Demand Change (%)</Label>
                   <div className="flex items-center gap-2 mt-1">
@@ -720,7 +741,7 @@ export default function WhatIfAnalysisTab({
                 <Button 
                     onClick={handleAddDemandAdjustment} 
                     size="sm" 
-                    className="h-9 text-xs sm:col-span-3 justify-self-end"
+                    className="h-9 text-xs sm:col-span-2 justify-self-end"
                     disabled={
                         (demandAdjustmentType === 'category' && !selectedCategoryForDemand) ||
                         (demandAdjustmentType === 'part' && !selectedPartForDemand)
