@@ -699,7 +699,7 @@ export default function WhatIfAnalysisTab({
             
             <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
               <h4 className="font-medium text-sm flex items-center"><Activity className="h-4 w-4 mr-1.5"/>Demand Adjustments</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end pt-2">
                 <div className="sm:col-span-2">
                   <Label htmlFor="demandAdjustmentTypeSelect" className="text-xs">Type</Label>
                   <Select value={demandAdjustmentType} onValueChange={(val) => setDemandAdjustmentType(val as 'global' | 'category' | 'part')}>
@@ -748,7 +748,7 @@ export default function WhatIfAnalysisTab({
                 <Button 
                     onClick={handleAddDemandAdjustment} 
                     size="sm" 
-                    className="h-9 text-xs sm:col-span-2"
+                    className="h-9 text-xs sm:col-span-2 justify-self-end"
                     disabled={
                         (demandAdjustmentType === 'category' && !selectedCategoryForDemand) ||
                         (demandAdjustmentType === 'part' && !selectedPartForDemand)
@@ -892,3 +892,5 @@ export default function WhatIfAnalysisTab({
   );
 }
 
+
+    
