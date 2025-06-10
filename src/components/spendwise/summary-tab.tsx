@@ -6,9 +6,10 @@ import type { SpendDataPoint } from '@/app/page';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Globe, Building, Info, PieChart as PieChartIcon, Users, Link2, PackageCheck, Blocks, TrendingUp, Focus, Sparkles } from "lucide-react";
+import { Globe, Building, Info, PieChart as PieChartIcon, Users, Link2, PackageCheck, Blocks, TrendingUp, Focus, Sparkles, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import SupplierWorldMap from './supplier-world-map'; // This will now be the Google Map component
 import { 
   PieChart as RechartsPieChart, Pie, Cell, Legend as RechartsLegend, 
   BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -352,36 +353,20 @@ export default function SummaryTab({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p className="text-xs max-w-xs">Global supplier locations and summary list. Dynamic map requires further integration.</p>
+                <p className="text-xs max-w-xs">Global supplier locations plotted on an interactive map.</p>
               </TooltipContent>
             </Tooltip>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <section>
-            <h3 className="text-lg font-semibold mb-3">Supplier Locations Map</h3>
-            <div className="border rounded-lg overflow-hidden shadow-sm bg-muted/30 flex flex-col items-center justify-center p-4 aspect-[16/7]">
-              <Globe className="h-24 w-24 text-muted-foreground mb-4" />
-              <p className="text-center text-muted-foreground font-medium">
-                Dynamic Map Placeholder
-              </p>
-              <p className="text-xs text-muted-foreground mt-2 text-center max-w-md">
-                To display suppliers on an interactive map (e.g., Google Maps), you would typically need to:
-              </p>
-              <ul className="text-xs text-muted-foreground list-disc list-inside mt-1 text-center">
-                <li>Install a mapping library (e.g., <code>@react-google-maps/api</code>).</li>
-                <li>Obtain and configure a Google Maps API key.</li>
-                <li>Implement geocoding to convert addresses to coordinates if not provided by AI.</li>
-              </ul>
-               <p className="text-xs text-muted-foreground mt-2 text-center">
-                This functionality requires additional setup beyond current capabilities.
-              </p>
-            </div>
+            {/* This will render the Google Map */}
+            <SupplierWorldMap suppliers={suppliers} />
           </section>
 
           <section>
             <h3 className="text-lg font-semibold mb-3 flex items-center">
-              <Building className="mr-2 h-5 w-5 text-primary" /> Supplier List & Locations
+              <Building className="mr-2 h-5 w-5 text-primary" /> Supplier List &amp; Locations
             </h3>
             {suppliers.length === 0 ? (
               <div className="text-center text-muted-foreground p-4 border border-dashed rounded-md min-h-[100px] flex flex-col items-center justify-center">
@@ -398,6 +383,7 @@ export default function SummaryTab({
                       <TableHead className="text-xs">Supplier Name</TableHead>
                       <TableHead className="text-xs">Address</TableHead>
                       <TableHead className="text-xs">Country</TableHead>
+                      <TableHead className="text-xs">Lat/Lng</TableHead> {/* Added for coordinates */}
                       <TableHead className="text-xs">Description</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -408,6 +394,11 @@ export default function SummaryTab({
                         <TableCell className="font-medium text-xs">{supplier.name}</TableCell>
                         <TableCell className="text-xs">{supplier.address}</TableCell>
                         <TableCell className="text-xs">{supplier.country}</TableCell>
+                        <TableCell className="text-xs font-mono">
+                          {supplier.latitude !== undefined && supplier.longitude !== undefined
+                            ? `${supplier.latitude.toFixed(3)}, ${supplier.longitude.toFixed(3)}`
+                            : 'N/A'}
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{supplier.description}</TableCell>
                       </TableRow>
                     ))}

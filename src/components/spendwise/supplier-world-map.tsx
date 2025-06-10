@@ -2,96 +2,135 @@
 "use client";
 
 import type { Supplier } from '@/types/spendwise';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Globe, MapPin, Info } from "lucide-react";
-import Image from 'next/image';
+import { Globe, MapPin, Info, AlertTriangle } from "lucide-react";
+import { GoogleMap, LoadScript, MarkerF, InfoWindowF } from '@react-google-maps/api';
 
 interface SupplierWorldMapProps {
   suppliers: Supplier[];
 }
 
-interface CountryCount {
-  name: string;
-  count: number;
-}
+const mapContainerStyle = {
+  height: '350px',
+  width: '100%',
+};
+
+const defaultCenter = {
+  lat: 20, // Default to a general world view
+  lng: 0,
+};
+
+// Ensure this key is in your .env.local file: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_KEY
+const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 export default function SupplierWorldMap({ suppliers }: SupplierWorldMapProps) {
-  const supplierCountries: CountryCount[] = useMemo(() => {
-    const counts: Record<string, number> = {};
-    suppliers.forEach(supplier => {
-      if (supplier.country) {
-        counts[supplier.country] = (counts[supplier.country] || 0) + 1;
-      }
-    });
-    return Object.entries(counts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+
+  const validSuppliers = useMemo(() => {
+    return suppliers.filter(
+      (supplier) =>
+        typeof supplier.latitude === 'number' &&
+        typeof supplier.longitude === 'number'
+    );
   }, [suppliers]);
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center">
-          <Globe className="mr-1.5 h-4 w-4" />
-          Supplier Geographical Overview
-        </CardTitle>
-         <p className="text-xs text-muted-foreground">
-            Visual representation of supplier locations and distribution by country.
-          </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="border rounded-lg overflow-hidden shadow-sm bg-muted/20 flex flex-col items-center justify-center p-4 aspect-video relative min-h-[200px]">
-          <Image
-            src="https://placehold.co/600x300.png"
-            alt="World Map Placeholder"
-            layout="fill"
-            objectFit="cover"
-            data-ai-hint="world map"
-            className="opacity-30"
-          />
-          <div className="relative z-10 flex flex-col items-center justify-center text-center">
-            <Globe className="h-16 w-16 text-muted-foreground mb-3" />
-            <p className="text-sm font-medium text-muted-foreground">
-              World Map Visualization
-            </p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-              (Dots for each supplier require geocoding & a mapping library)
-            </p>
-          </div>
-        </div>
+  const center = useMemo(() => {
+    if (validSuppliers.length === 0) {
+      return defaultCenter;
+    }
+    // Calculate average lat/lng for centering (simple approach)
+    const avgLat = validSuppliers.reduce((sum, s) => sum + s.latitude!, 0) / validSuppliers.length;
+    const avgLng = validSuppliers.reduce((sum, s) => sum + s.longitude!, 0) / validSuppliers.length;
+    return { lat: avgLat, lng: avgLng };
+  }, [validSuppliers]);
 
-        {supplierCountries.length > 0 ? (
-          <ScrollArea className="h-[150px] w-full rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs"><MapPin className="inline-block mr-1 h-3 w-3"/>Country</TableHead>
-                  <TableHead className="text-xs text-right"># Suppliers</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {supplierCountries.map((country) => (
-                  <TableRow key={country.name}>
-                    <TableCell className="font-medium text-xs py-1.5">{country.name}</TableCell>
-                    <TableCell className="text-xs text-right py-1.5">{country.count}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        ) : (
-          <div className="text-center text-muted-foreground p-3 border border-dashed rounded-md min-h-[80px] flex flex-col items-center justify-center">
-              <Info className="mx-auto h-5 w-5 mb-1" />
-              <p className="text-xs">No supplier country data available.</p>
+  if (!googleMapsApiKey) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center">
+            <Globe className="mr-1.5 h-4 w-4" />
+            Supplier Geographical Overview
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-lg p-4 bg-destructive/10 text-destructive flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            <div>
+                <p className="font-semibold">Google Maps API Key Missing</p>
+                <p className="text-xs">
+                Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your .env.local file to enable the map.
+                </p>
+            </div>
           </div>
-        )}
-        <p className="text-xs text-muted-foreground text-center">
-          This is a simplified overview. Accurate map plotting requires integration with geocoding services and a mapping library.
-        </p>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <LoadScript googleMapsApiKey={googleMapsApiKey} libraries={['marker']}>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center">
+            <Globe className="mr-1.5 h-4 w-4" />
+            Supplier Geographical Overview
+          </CardTitle>
+           <p className="text-xs text-muted-foreground">
+              Interactive map showing supplier locations. Click a marker for details.
+            </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="border rounded-lg overflow-hidden shadow-sm">
+            <GoogleMap
+              mapContainerStyle={mapContainerStyle}
+              center={center}
+              zoom={validSuppliers.length > 0 ? 3 : 1.5} // Zoom out more if no specific suppliers
+            >
+              {validSuppliers.map((supplier) => (
+                <MarkerF
+                  key={supplier.id}
+                  position={{ lat: supplier.latitude!, lng: supplier.longitude! }}
+                  onClick={() => {
+                    setSelectedSupplier(supplier);
+                  }}
+                  title={supplier.name}
+                />
+              ))}
+
+              {selectedSupplier && selectedSupplier.latitude && selectedSupplier.longitude && (
+                <InfoWindowF
+                  position={{ lat: selectedSupplier.latitude, lng: selectedSupplier.longitude }}
+                  onCloseClick={() => {
+                    setSelectedSupplier(null);
+                  }}
+                  options={{ pixelOffset: new window.google.maps.Size(0, -30) }}
+                >
+                  <div className="p-1 text-xs">
+                    <h4 className="font-semibold mb-0.5">{selectedSupplier.name}</h4>
+                    <p className="text-muted-foreground">{selectedSupplier.supplierId}</p>
+                    <p>{selectedSupplier.city}, {selectedSupplier.country}</p>
+                  </div>
+                </InfoWindowF>
+              )}
+            </GoogleMap>
+          </div>
+           {validSuppliers.length === 0 && suppliers.length > 0 && (
+             <div className="text-center text-muted-foreground p-3 border border-dashed rounded-md min-h-[80px] flex flex-col items-center justify-center">
+                <MapPin className="mx-auto h-5 w-5 mb-1 text-orange-500" />
+                <p className="text-xs font-medium text-orange-600">No suppliers with coordinates.</p>
+                <p className="text-xs">Ensure suppliers have latitude/longitude data to be shown on the map.</p>
+            </div>
+           )}
+            {suppliers.length === 0 && (
+             <div className="text-center text-muted-foreground p-3 border border-dashed rounded-md min-h-[80px] flex flex-col items-center justify-center">
+                <Info className="mx-auto h-5 w-5 mb-1" />
+                <p className="text-xs">No suppliers available to display on the map.</p>
+            </div>
+           )}
+        </CardContent>
+      </Card>
+    </LoadScript>
   );
 }

@@ -19,6 +19,8 @@ export interface Supplier {
   postalCode: string;
   country: string;
   address: string; 
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface PartCategoryMapping {
@@ -34,3 +36,4 @@ export interface PartSupplierAssociation {
   partId: string;
   supplierId: string;
 }
+
