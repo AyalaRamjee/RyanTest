@@ -73,12 +73,13 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
           s.id === supplierToGeocode.id ? { ...s, latitude: result.lat, longitude: result.lng } : s
         )
       );
-      toast({ title: "Geocoding Successful", description: `Coordinates found for ${supplierToGeocode.name}.` });
+      toast({ title: "Geocoding Successful", description: `Coordinates found for ${supplierToGeocode.name}. Map updated.` });
     } catch (error: any) {
       toast({ 
         variant: "destructive", 
         title: "Geocoding Failed", 
-        description: error.message || `Could not find coordinates for ${supplierToGeocode.name}. Check address or API key.` 
+        description: error.message || `Could not find coordinates for ${supplierToGeocode.name}. Check address or API key.`,
+        duration: 7000,
       });
       console.error("Geocoding component error:", error);
     } finally {
@@ -92,7 +93,7 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
       <CardHeader>
         <div className="flex items-center">
           <Building className="mr-2 h-5 w-5" />
-          <CardTitle className="text-lg">Update Suppliers</CardTitle>
+          <CardTitle className="text-lg">2. Add/Update Suppliers</CardTitle>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="ml-2 h-5 w-5">
@@ -100,7 +101,7 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-xs max-w-xs">Manage supplier information. Click the <MapPin className="inline h-3 w-3" /> icon to fetch coordinates. Ensure Geocoding API is enabled for your Google Maps key.</p>
+              <p className="text-xs max-w-xs">Manage supplier information. Click the <MapPin className="inline h-3 w-3" /> icon to fetch coordinates for the map. Ensure Geocoding API is enabled in Google Cloud Console.</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -109,6 +110,7 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
         <div className="md:col-span-5 space-y-4">
           <section>
             <div className="flex justify-between items-center mb-1.5">
+               <h3 className="text-base font-semibold text-muted-foreground">Supplier Details</h3>
               <div className="flex items-center gap-2 ml-auto"> 
                 <Button onClick={onOpenUploadDialog} size="sm" variant="outline" className="text-xs">
                   <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload Suppliers CSV
@@ -177,17 +179,18 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
                                 size="icon" 
                                 className="h-7 w-7"
                                 onClick={() => handleGeocodeSupplier(supplier)}
-                                disabled={geocodingSupplierId === supplier.id || (!supplier.city && !supplier.streetAddress)} 
+                                disabled={geocodingSupplierId === supplier.id || (!supplier.city && !supplier.streetAddress && !supplier.postalCode)} 
+                                aria-label="Fetch Coordinates"
                               >
                                 {geocodingSupplierId === supplier.id ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                  <MapPin className="h-3.5 w-3.5 text-blue-600" />
+                                  <MapPin className={`h-3.5 w-3.5 ${supplier.latitude && supplier.longitude ? 'text-green-500' : 'text-blue-600 hover:text-blue-700' }`} />
                                 )}
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top">
-                              <p>Fetch Coordinates</p>
+                              <p>{supplier.latitude && supplier.longitude ? `Coords: ${supplier.latitude.toFixed(2)}, ${supplier.longitude.toFixed(2)}` : 'Fetch Coordinates'}</p>
                             </TooltipContent>
                           </Tooltip>
                           <Tooltip>
@@ -214,3 +217,4 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
     </Card>
   );
 }
+
