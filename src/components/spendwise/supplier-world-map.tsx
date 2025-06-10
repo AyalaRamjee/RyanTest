@@ -4,8 +4,8 @@
 import type { Supplier } from '@/types/spendwise';
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Globe, MapPin, Info, AlertTriangle } from "lucide-react";
-import { GoogleMap, LoadScript, MarkerF, InfoWindowF } from '@react-google-maps/api';
+import { Globe, MapPin, Info, AlertTriangle, Loader2 } from "lucide-react";
+import { GoogleMap, useLoadScript, MarkerF, InfoWindowF } from '@react-google-maps/api';
 
 interface SupplierWorldMapProps {
   suppliers: Supplier[];
@@ -21,11 +21,16 @@ const defaultCenter = {
   lng: 0,
 };
 
-// Ensure this key is in your .env.local file: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_KEY
-const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+const googleMapsApiKeyFromEnv = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+const libraries: ("marker")[] = ['marker'];
 
 export default function SupplierWorldMap({ suppliers }: SupplierWorldMapProps) {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: googleMapsApiKeyFromEnv || "",
+    libraries,
+  });
 
   const validSuppliers = useMemo(() => {
     return suppliers.filter(
@@ -39,13 +44,12 @@ export default function SupplierWorldMap({ suppliers }: SupplierWorldMapProps) {
     if (validSuppliers.length === 0) {
       return defaultCenter;
     }
-    // Calculate average lat/lng for centering (simple approach)
     const avgLat = validSuppliers.reduce((sum, s) => sum + s.latitude!, 0) / validSuppliers.length;
     const avgLng = validSuppliers.reduce((sum, s) => sum + s.longitude!, 0) / validSuppliers.length;
     return { lat: avgLat, lng: avgLng };
   }, [validSuppliers]);
 
-  if (!googleMapsApiKey) {
+  if (!googleMapsApiKeyFromEnv) {
     return (
       <Card>
         <CardHeader>
@@ -69,8 +73,48 @@ export default function SupplierWorldMap({ suppliers }: SupplierWorldMapProps) {
     );
   }
 
+  if (loadError) {
+     return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center">
+            <Globe className="mr-1.5 h-4 w-4" />
+            Supplier Geographical Overview
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-lg p-4 bg-destructive/10 text-destructive flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            <div>
+                <p className="font-semibold">Error Loading Map</p>
+                <p className="text-xs">
+                Could not load Google Maps. Please check your API key and internet connection.
+                </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center">
+            <Globe className="mr-1.5 h-4 w-4" />
+            Supplier Geographical Overview
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-[350px] border rounded-lg">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Loading Map...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <LoadScript googleMapsApiKey={googleMapsApiKey} libraries={['marker']}>
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center">
@@ -86,7 +130,7 @@ export default function SupplierWorldMap({ suppliers }: SupplierWorldMapProps) {
             <GoogleMap
               mapContainerStyle={mapContainerStyle}
               center={center}
-              zoom={validSuppliers.length > 0 ? 3 : 1.5} // Zoom out more if no specific suppliers
+              zoom={validSuppliers.length > 0 ? 3 : 1.5}
             >
               {validSuppliers.map((supplier) => (
                 <MarkerF
@@ -131,6 +175,5 @@ export default function SupplierWorldMap({ suppliers }: SupplierWorldMapProps) {
            )}
         </CardContent>
       </Card>
-    </LoadScript>
   );
 }
