@@ -3,12 +3,12 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
-import type { SpendDataPoint, DemandDataPoint } from '@/app/page'; // Note: CountDataPoint might not be needed anymore
+import type { SpendDataPoint, DemandDataPoint } from '@/app/page'; 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { BarChart3, DollarSign, Package, Users, FolderTree, TrendingUp, ShoppingCart, Filter as FilterIcon, XCircle } from "lucide-react";
+import { BarChart3, DollarSign, Package, Users, FolderTree, TrendingUp, ShoppingCart, Filter as FilterIcon, XCircle, Search } from "lucide-react";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { ChartContainer } from '@/components/ui/chart';
 
@@ -33,25 +33,24 @@ interface ReviewSummaryTabProps {
   suppliers: Supplier[];
   partCategoryMappings: PartCategoryMapping[];
   partSupplierAssociations: PartSupplierAssociation[];
-  partsWithSpend: (Part & { annualSpend: number })[]; // Original, unfiltered spend
-  // spendByCategoryData: SpendDataPoint[]; // This will now be derived dynamically
+  partsWithSpend: (Part & { annualSpend: number })[]; 
   defaultAnalysisHomeCountry: string;
   originalTariffMultiplierPercent: number;
   originalTotalLogisticsCostPercent: number;
-  totalAnnualSpend: number; // Overall total
-  totalParts: number; // Overall total
-  totalSuppliers: number; // Overall total
-  totalCategories: number; // Overall total
+  totalAnnualSpend: number; 
+  totalParts: number; 
+  totalSuppliers: number; 
+  totalCategories: number; 
 }
 
 const CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
 export default function ReviewSummaryTab({
-  parts: allParts, // Renamed to avoid conflict with filtered version
+  parts: allParts, 
   suppliers: allSuppliers,
   partCategoryMappings: allPartCategoryMappings,
   partSupplierAssociations: allPartSupplierAssociations,
-  partsWithSpend: allPartsWithSpend, // Original, unfiltered spend
+  partsWithSpend: allPartsWithSpend, 
   defaultAnalysisHomeCountry,
   originalTariffMultiplierPercent,
   originalTotalLogisticsCostPercent,
@@ -76,7 +75,15 @@ export default function ReviewSummaryTab({
   useEffect(() => {
     const storedNames = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_SCENARIO_LIST_KEY) : null;
     if (storedNames) {
-      setSavedScenarioNames(JSON.parse(storedNames));
+      try {
+        const parsedNames = JSON.parse(storedNames);
+        if (Array.isArray(parsedNames)) {
+          setSavedScenarioNames(parsedNames.filter(name => typeof name === 'string' && name.trim() !== ""));
+        }
+      } catch (e) {
+        console.error("Failed to parse saved scenario names from localStorage in ReviewSummaryTab", e);
+        setSavedScenarioNames([]);
+      }
     }
   }, []);
 
@@ -107,16 +114,13 @@ export default function ReviewSummaryTab({
   };
   const formatNumber = (value: number) => new Intl.NumberFormat('en-US').format(value);
 
-  // Core data filtering and spend calculation logic
   const filteredAndCalculatedParts = useMemo(() => {
     let tempFilteredParts = [...allParts];
 
-    // Filter by Part ID
     if (filterSelectedPartId !== ALL_FILTER_VALUE) {
       tempFilteredParts = tempFilteredParts.filter(p => p.id === filterSelectedPartId);
     }
 
-    // Filter by Category
     if (filterSelectedCategory !== ALL_FILTER_VALUE) {
       const partsInCategory = new Set(allPartCategoryMappings
         .filter(pcm => pcm.categoryName === filterSelectedCategory)
@@ -125,7 +129,6 @@ export default function ReviewSummaryTab({
       tempFilteredParts = tempFilteredParts.filter(p => partsInCategory.has(p.id));
     }
 
-    // Filter by Supplier ID
     if (filterSelectedSupplierId !== ALL_FILTER_VALUE) {
       const partsForSupplier = new Set(allPartSupplierAssociations
         .filter(psa => psa.supplierId === filterSelectedSupplierId)
@@ -134,7 +137,6 @@ export default function ReviewSummaryTab({
       tempFilteredParts = tempFilteredParts.filter(p => partsForSupplier.has(p.id));
     }
     
-    // Attach spend to filtered parts (using original spend calculations)
     return tempFilteredParts.map(part => {
       const partWithOriginalSpend = allPartsWithSpend.find(pws => pws.id === part.id);
       return {
@@ -151,7 +153,7 @@ export default function ReviewSummaryTab({
 
     let currentTotalSuppliers = 0;
     if (filterSelectedSupplierId !== ALL_FILTER_VALUE) {
-        currentTotalSuppliers = 1;
+        currentTotalSuppliers = filteredAndCalculatedParts.length > 0 ? 1 : 0;
     } else {
         const uniqueSupplierIds = new Set<string>();
         filteredAndCalculatedParts.forEach(part => {
@@ -210,7 +212,7 @@ export default function ReviewSummaryTab({
   }, [filteredAndCalculatedParts]);
 
   const currentDemandByTopPartsData: DemandDataPoint[] = useMemo(() => {
-    return [...filteredAndCalculatedParts] // Uses Part from filteredAndCalculatedParts which includes original demand
+    return [...filteredAndCalculatedParts] 
       .sort((a, b) => b.annualDemand - a.annualDemand)
       .slice(0, 5)
       .map(p => ({ name: p.partNumber, demand: p.annualDemand }));
@@ -319,7 +321,6 @@ export default function ReviewSummaryTab({
                 <Button variant="outline" size="sm" onClick={handleClearFilters} className="text-xs h-8">
                   <XCircle className="mr-1.5 h-3.5 w-3.5" /> Clear Filters
                 </Button>
-                {/* Apply button removed as filters are now auto-applied on change */}
               </div>
             </CardContent>
           </Card>
@@ -416,3 +417,5 @@ export default function ReviewSummaryTab({
     </div>
   );
 }
+
+    
