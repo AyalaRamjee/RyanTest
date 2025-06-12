@@ -44,7 +44,7 @@ const DEFAULT_HOME_COUNTRY = "USA";
 const BASE_TARIFF_RATE = 0.05; // 5% base tariff
 
 const HEADER_HEIGHT_PX = 128; // h-32 (16 * 8 = 128)
-const SUMMARY_STATS_HEIGHT_PX = 100; // Adjusted based on new card content height, visually check & tweak
+const SUMMARY_STATS_HEIGHT_PX = 100; 
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
 export default function SpendWiseCentralPage() {
@@ -72,7 +72,9 @@ export default function SpendWiseCentralPage() {
   const [isLoadingSampleData, setIsLoadingSampleData] = useState(false);
 
   const [tariffRateMultiplierPercent, setTariffRateMultiplierPercent] = useState(100);
+  // Default totalLogisticsCostPercent to 100, it's no longer controlled by a header UI element
   const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100);
+
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
   const [currentFilename, setCurrentFilename] = useState<string>(DEFAULT_XML_FILENAME);
@@ -385,7 +387,7 @@ export default function SpendWiseCentralPage() {
     }
   };
 
-  const handleAddPart = () => {
+  const handleAddPart = useCallback(() => {
     const newPartId = `p${Date.now()}_manual`;
     const newPart: Part = {
       id: newPartId,
@@ -403,9 +405,9 @@ export default function SpendWiseCentralPage() {
         setPartCategoryMappings(prev => [...prev, { id: `pcm${Date.now()}_manual`, partId: newPartId, categoryName: defaultCategory}]);
     }
     toast({ title: "Part Added", description: `"${newPart.name}" added successfully.` });
-  };
+  }, [parts, partCategoryMappings, toast]);
 
-  const handleAddSupplier = () => {
+  const handleAddSupplier = useCallback(() => {
     const i = suppliers.length;
     const newSupplier: Supplier = {
       id: `s${Date.now()}_manual`,
@@ -423,9 +425,9 @@ export default function SpendWiseCentralPage() {
     };
     setSuppliers(prev => [...prev, newSupplier]);
     toast({ title: "Supplier Added", description: `"${newSupplier.name}" added successfully.` });
-  };
+  }, [suppliers, toast]);
 
-  const processCsvUpload = async (file: File, type: 'category' | 'part' | 'supplier' | 'sourcemix') => {
+  const processCsvUpload = useCallback(async (file: File, type: 'category' | 'part' | 'supplier' | 'sourcemix') => {
     let isProcessingSetter: React.Dispatch<React.SetStateAction<boolean>> | null = null;
     switch(type) {
       case 'category': isProcessingSetter = setIsUploadingCategoryCsv; break;
@@ -541,29 +543,29 @@ export default function SpendWiseCentralPage() {
       };
       reader.readAsText(file);
     });
-  };
+  }, [parts, suppliers, partSupplierAssociations, toast, setPartCategoryMappings, setParts, setSuppliers, setPartSupplierAssociations]);
 
-  const handleProcessCategoryCsv = async (file: File) => {
+  const handleProcessCategoryCsv = useCallback(async (file: File) => {
     await processCsvUpload(file, 'category');
     setIsCategoryUploadDialogOpen(false);
-  };
+  }, [processCsvUpload]);
 
-  const handleProcessPartsCsv = async (file: File) => {
+  const handleProcessPartsCsv = useCallback(async (file: File) => {
     await processCsvUpload(file, 'part');
     setIsPartsUploadDialogOpen(false);
-  };
+  }, [processCsvUpload]);
 
-  const handleProcessSuppliersCsv = async (file: File) => {
+  const handleProcessSuppliersCsv = useCallback(async (file: File) => {
     await processCsvUpload(file, 'supplier');
     setIsSuppliersUploadDialogOpen(false);
-  };
+  }, [processCsvUpload]);
 
-  const handleProcessSourceMixCsv = async (file: File) => {
+  const handleProcessSourceMixCsv = useCallback(async (file: File) => {
     await processCsvUpload(file, 'sourcemix');
     setIsSourceMixUploadDialogOpen(false);
-  };
+  }, [processCsvUpload]);
   
-  const handleProcessExcelWorkbook = async (file: File) => {
+  const handleProcessExcelWorkbook = useCallback(async (file: File) => {
     setIsUploadingExcel(true);
     
     try {
@@ -678,7 +680,7 @@ export default function SpendWiseCentralPage() {
     } finally {
       setIsUploadingExcel(false);
     }
-  };
+  }, [parts, suppliers, partSupplierAssociations, toast, setParts, setSuppliers, setPartSupplierAssociations]);
 
   const handleLoadSampleData = useCallback(async () => {
     setIsLoadingSampleData(true);
@@ -694,11 +696,10 @@ export default function SpendWiseCentralPage() {
     } finally {
       setIsLoadingSampleData(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast]); 
+  }, [toast, handleProcessExcelWorkbook]); 
 
 
-  const handleClearAllData = () => {
+  const handleClearAllData = useCallback(() => {
     setParts([]);
     setSuppliers([]);
     setPartCategoryMappings([]);
@@ -718,7 +719,7 @@ export default function SpendWiseCentralPage() {
     }
 
     toast({ title: "All Data Cleared", description: "Application data has been reset to default." });
-  };
+  }, [currentFilename, toast]);
 
 
   const totalParts = useMemo(() => parts.length, [parts]);
@@ -728,7 +729,7 @@ export default function SpendWiseCentralPage() {
   const calculateSpendForPart = useCallback((
     part: Part,
     currentTariffMultiplierPercent: number,
-    currentTotalLogisticsCostPercent: number,
+    currentTotalLogisticsCostPercent: number, // This is used here
     localSuppliers: Supplier[],
     localPartSupplierAssociations: PartSupplierAssociation[],
     homeCountryParam: string
@@ -758,7 +759,7 @@ export default function SpendWiseCentralPage() {
       annualSpend: calculateSpendForPart(
         part,
         tariffRateMultiplierPercent,
-        totalLogisticsCostPercent,
+        totalLogisticsCostPercent, // Passed to calculation
         suppliers,
         partSupplierAssociations,
         appHomeCountry
@@ -770,19 +771,19 @@ export default function SpendWiseCentralPage() {
     return partsWithSpend.reduce((sum, p) => sum + p.annualSpend, 0);
   }, [partsWithSpend]);
 
-  const formatCurrencyDisplay = (value: number) => {
+  const formatCurrencyDisplay = useCallback((value: number) => {
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
     if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
     if (value >= 1_000) return `${(value / 1_000).toFixed(2)}K`;
     return value.toFixed(2);
-  };
+  }, []);
 
   const summaryStatsData = useMemo(() => [
     { Icon: Briefcase, fullLabel: "Total Parts", value: totalParts, oneWordLabel: "Parts" },
     { Icon: Users, fullLabel: "Total Suppliers", value: totalSuppliers, oneWordLabel: "Suppliers" },
     { Icon: FolderTree, fullLabel: "Total Categories", value: totalCategories, oneWordLabel: "Categories" },
     { Icon: DollarSignIcon, fullLabel: "Total Annual Spend", value: formatCurrencyDisplay(totalAnnualSpend), oneWordLabel: "Spend" },
-  ], [totalParts, totalSuppliers, totalCategories, totalAnnualSpend]);
+  ], [totalParts, totalSuppliers, totalCategories, totalAnnualSpend, formatCurrencyDisplay]);
 
 
   const spendByPartData: SpendDataPoint[] = useMemo(() => {
@@ -829,49 +830,38 @@ export default function SpendWiseCentralPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
 
-  const handleTariffSliderChange = (value: number[]) => {
+  const handleTariffSliderChange = useCallback((value: number[]) => {
     setTariffRateMultiplierPercent(value[0]);
-  };
+  }, []);
 
-  const handleTariffInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTariffInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(event.target.value, 10);
     if (!isNaN(value) && value >= 0 && value <= 300) {
       setTariffRateMultiplierPercent(value);
     } else if (event.target.value === "") {
         setTariffRateMultiplierPercent(0); 
     }
-  };
+  }, []);
 
-  const handleLogisticsSliderChange = (value: number[]) => {
-    setTotalLogisticsCostPercent(value[0]);
-  };
-
-  const handleLogisticsInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const value = parseInt(event.target.value, 10);
-      if (!isNaN(value) && value >= 50 && value <= 200) {
-          setTotalLogisticsCostPercent(value);
-      } else if (event.target.value === "") {
-           setTotalLogisticsCostPercent(50); 
-      }
-  };
-
+  // Logistics slider and input handlers are removed as the UI element is removed.
+  // totalLogisticsCostPercent state remains with a default of 100.
 
   return (
     <TooltipProvider>
       <div className="flex flex-col min-h-screen bg-background">
         <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
-          <div className="container mx-auto flex h-32 items-center space-x-4 px-4 sm:px-6 lg:px-8"> {/* Header height h-32 */}
-          <img
-            src="/TADA_TM-2023_Color-White-Logo.svg"
-            alt="TADA Logo"
-            className="h-18 w-16 object-contain"
-            data-ai-hint="logo company"
-          />
-          <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
-            Spend by TADA
-          </h1>
-            <div className="flex-grow flex flex-col space-y-2 ml-4"> {/* Changed to flex-col */}
-              <div className="flex items-center space-x-4"> {/* Row 1: Home Country & Logistics */}
+          <div className="container mx-auto flex h-32 items-center space-x-4 px-4 sm:px-6 lg:px-8">
+            <img
+              src="/TADA_TM-2023_Color-White-Logo.svg"
+              alt="TADA Logo"
+              className="h-18 w-16 object-contain"
+              data-ai-hint="logo company"
+            />
+            <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
+              Spend by TADA
+            </h1>
+            <div className="flex-grow flex flex-col space-y-2 ml-4">
+              <div className="flex items-center space-x-4">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-1">
@@ -894,39 +884,9 @@ export default function SpendWiseCentralPage() {
                     </p>
                   </TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center space-x-2">
-                      <PercentCircle className="h-4 w-4 text-muted-foreground" />
-                      <Label htmlFor="logisticsCostSlider" className="text-xs text-muted-foreground whitespace-nowrap">Logistics:</Label>
-                      <Slider
-                        id="logisticsCostSlider"
-                        min={50}
-                        max={200}
-                        step={1}
-                        value={[totalLogisticsCostPercent]}
-                        onValueChange={handleLogisticsSliderChange}
-                        className="w-24 h-2"
-                      />
-                      <Input 
-                          type="number" 
-                          value={totalLogisticsCostPercent} 
-                          onChange={handleLogisticsInputChange}
-                          className="w-16 h-7 text-xs text-right px-1"
-                          min="50"
-                          max="200"
-                      />
-                      <span className="text-xs text-foreground">%</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs max-w-xs">
-                      Global Logistics Cost Multiplier: Adjusts each part's freight & OHD cost. 100% = part's defined rate.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
+                {/* Logistics slider removed */}
               </div>
-              <div className="flex items-center space-x-4"> {/* Row 2: Tariff */}
+              <div className="flex items-center space-x-4">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-2">
@@ -1005,7 +965,7 @@ export default function SpendWiseCentralPage() {
                 partCategoryMappings={partCategoryMappings}
                 partSupplierAssociations={partSupplierAssociations}
                 tariffChargePercent={tariffRateMultiplierPercent} 
-                totalLogisticsCostPercent={totalLogisticsCostPercent}
+                totalLogisticsCostPercent={totalLogisticsCostPercent} // Still passed
                 homeCountry={appHomeCountry}
                 totalAnnualSpend={totalAnnualSpend}
                 totalParts={totalParts}
@@ -1082,7 +1042,7 @@ export default function SpendWiseCentralPage() {
         </header>
 
         <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16">
-          <section aria-labelledby="summary-stats-title" className={`sticky z-40 bg-background shadow-sm mt-0.5`} style={{top: `${HEADER_HEIGHT_PX}px`}}> {/* Adjusted top and mt */}
+          <section aria-labelledby="summary-stats-title" className={`sticky z-40 bg-background shadow-sm mt-0.5`} style={{top: `${HEADER_HEIGHT_PX}px`}}>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 p-2">
               {summaryStatsData.map(stat => (
                 <Tooltip key={stat.fullLabel}>
@@ -1109,22 +1069,22 @@ export default function SpendWiseCentralPage() {
 
           <Tabs defaultValue="update-parts" className="w-full mt-0">
             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
-              <TabsTrigger value="update-parts" className="flex items-center gap-1">
+              <TabsTrigger value="update-parts" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
               </TabsTrigger>
-              <TabsTrigger value="update-suppliers" className="flex items-center gap-1">
+              <TabsTrigger value="update-suppliers" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <Building className="h-3.5 w-3.5" /> 2. Suppliers
               </TabsTrigger>
-              <TabsTrigger value="part-supplier-mapping" className="flex items-center gap-1">
+              <TabsTrigger value="part-supplier-mapping" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <ArrowRightLeft className="h-3.5 w-3.5" /> 3. Source & Mix
               </TabsTrigger>
-              <TabsTrigger value="upload-part-category" className="flex items-center gap-1">
+              <TabsTrigger value="upload-part-category" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <FolderTree className="h-3.5 w-3.5" /> 4. Part Category
               </TabsTrigger>
-              <TabsTrigger value="summary" className="flex items-center gap-1">
+              <TabsTrigger value="summary" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <Globe className="h-3.5 w-3.5" /> 5. Summary
               </TabsTrigger>
-              <TabsTrigger value="what-if-analysis" className="flex items-center gap-1">
+              <TabsTrigger value="what-if-analysis" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <HelpCircle className="h-3.5 w-3.5" /> 6. What-if Analysis
               </TabsTrigger>
             </TabsList>
