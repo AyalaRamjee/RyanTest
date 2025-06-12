@@ -12,6 +12,7 @@ import { ChartContainer } from '@/components/ui/chart';
 
 const LOCAL_STORAGE_SCENARIO_LIST_KEY = "spendwise_scenario_list_v2"; 
 const LOCAL_STORAGE_SCENARIO_DATA_PREFIX = "spendwise_scenario_data_v2_";
+const VIEW_CURRENT_DATA_VALUE = "__VIEW_CURRENT_DATA__"; // Constant for special value
 
 interface SavedScenario {
   name: string;
@@ -69,19 +70,19 @@ export default function ReviewSummaryTab({
   }, []);
 
   const handleLoadScenario = (scenarioName: string) => {
-    if (!scenarioName || typeof window === 'undefined') {
+    if (scenarioName === VIEW_CURRENT_DATA_VALUE || typeof window === 'undefined') {
       setLoadedScenario(null);
-      setSelectedScenarioName("");
+      setSelectedScenarioName(""); // Set to empty to show placeholder
       return;
     }
     const scenarioDataString = localStorage.getItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + scenarioName);
     if (scenarioDataString) {
       const scenarioData: SavedScenario = JSON.parse(scenarioDataString);
       setLoadedScenario(scenarioData);
-      setSelectedScenarioName(scenarioName);
+      setSelectedScenarioName(scenarioName); // Keep actual scenario name
     } else {
       setLoadedScenario(null);
-      setSelectedScenarioName("");
+      setSelectedScenarioName(""); // Fallback if scenario data not found
     }
   };
 
@@ -134,7 +135,7 @@ export default function ReviewSummaryTab({
                   <SelectValue placeholder="Load Scenario for Context (View Only)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="" className="text-xs">View Current App Data</SelectItem>
+                  <SelectItem value={VIEW_CURRENT_DATA_VALUE} className="text-xs">View Current App Data</SelectItem>
                   {savedScenarioNames.map(name => (
                     <SelectItem key={name} value={name} className="text-xs">{name}</SelectItem>
                   ))}
@@ -250,3 +251,5 @@ export default function ReviewSummaryTab({
     </div>
   );
 }
+
+    
