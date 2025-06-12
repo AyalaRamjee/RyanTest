@@ -13,19 +13,21 @@ import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import UploadCsvDialog from "@/components/spendwise/upload-csv-dialog";
 import SpendWiseBot from "@/components/spendwise/spendwise-bot";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, PieChart as PieChartLucideIcon } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import * as XLSX from 'xlsx';
+import { PieChart as RechartsPieChart, Pie, Cell, Legend as RechartsLegend, ResponsiveContainer, Tooltip as RechartsTooltipComponent } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 export interface SpendDataPoint {
   name: string;
@@ -43,9 +45,12 @@ const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
 const DEFAULT_HOME_COUNTRY = "USA";
 const BASE_TARIFF_RATE = 0.05; // 5% base tariff
 
-const HEADER_HEIGHT_PX = 128; // h-32 (16 * 8 = 128)
+const HEADER_HEIGHT_PX = 128; 
 const SUMMARY_STATS_HEIGHT_PX = 100; 
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
+
+const PIE_COLORS_PARTS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--chart-1) / 0.7)", "hsl(var(--chart-2) / 0.7)", "hsl(var(--chart-3) / 0.7)", "hsl(var(--chart-4) / 0.7)", "hsl(var(--chart-5) / 0.7)"];
+
 
 export default function SpendWiseCentralPage() {
   const { theme, setTheme } = useTheme();
@@ -72,7 +77,6 @@ export default function SpendWiseCentralPage() {
   const [isLoadingSampleData, setIsLoadingSampleData] = useState(false);
 
   const [tariffRateMultiplierPercent, setTariffRateMultiplierPercent] = useState(100);
-  // Default totalLogisticsCostPercent to 100, it's no longer controlled by a header UI element
   const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100);
 
 
@@ -326,7 +330,7 @@ export default function SpendWiseCentralPage() {
           name: p.name,
           price: parseFloat((Math.random() * 1000 + 5).toFixed(2)),
           annualDemand: Math.floor(Math.random() * 50000) + 1000,
-          freightOhdCost: parseFloat((Math.random() * 0.05).toFixed(4)), // Between 0% and 5%
+          freightOhdCost: parseFloat((Math.random() * 0.05).toFixed(4)),
         });
         if (generatedData.categories.length > 0) {
           newPartCategoryMappingsArr.push({
@@ -729,7 +733,7 @@ export default function SpendWiseCentralPage() {
   const calculateSpendForPart = useCallback((
     part: Part,
     currentTariffMultiplierPercent: number,
-    currentTotalLogisticsCostPercent: number, // This is used here
+    currentTotalLogisticsCostPercent: number, 
     localSuppliers: Supplier[],
     localPartSupplierAssociations: PartSupplierAssociation[],
     homeCountryParam: string
@@ -759,7 +763,7 @@ export default function SpendWiseCentralPage() {
       annualSpend: calculateSpendForPart(
         part,
         tariffRateMultiplierPercent,
-        totalLogisticsCostPercent, // Passed to calculation
+        totalLogisticsCostPercent,
         suppliers,
         partSupplierAssociations,
         appHomeCountry
@@ -842,9 +846,14 @@ export default function SpendWiseCentralPage() {
         setTariffRateMultiplierPercent(0); 
     }
   }, []);
-
-  // Logistics slider and input handlers are removed as the UI element is removed.
-  // totalLogisticsCostPercent state remains with a default of 100.
+  
+  const handleValidateData = () => {
+    toast({
+      title: "Validation Placeholder",
+      description: "Data validation functionality is not yet implemented.",
+      duration: 3000,
+    });
+  };
 
   return (
     <TooltipProvider>
@@ -884,7 +893,6 @@ export default function SpendWiseCentralPage() {
                     </p>
                   </TooltipContent>
                 </Tooltip>
-                {/* Logistics slider removed */}
               </div>
               <div className="flex items-center space-x-4">
                 <Tooltip>
@@ -922,6 +930,14 @@ export default function SpendWiseCentralPage() {
             </div>
 
             <div className="ml-auto flex items-center space-x-2">
+               <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={handleValidateData} className="h-8">
+                        <CheckCircle className="h-4 w-4 mr-1.5" /> Validate Data
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Check data consistency (placeholder)</p></TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
@@ -965,7 +981,7 @@ export default function SpendWiseCentralPage() {
                 partCategoryMappings={partCategoryMappings}
                 partSupplierAssociations={partSupplierAssociations}
                 tariffChargePercent={tariffRateMultiplierPercent} 
-                totalLogisticsCostPercent={totalLogisticsCostPercent} // Still passed
+                totalLogisticsCostPercent={totalLogisticsCostPercent}
                 homeCountry={appHomeCountry}
                 totalAnnualSpend={totalAnnualSpend}
                 totalParts={totalParts}
@@ -1068,7 +1084,7 @@ export default function SpendWiseCentralPage() {
           </section>
 
           <Tabs defaultValue="update-parts" className="w-full mt-0">
-            <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
+             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
               </TabsTrigger>
@@ -1090,20 +1106,75 @@ export default function SpendWiseCentralPage() {
             </TabsList>
 
             <TabsContent value="update-parts" className="mt-4">
-              <UpdatePartsTab
-                parts={parts}
-                setParts={setParts}
-                onAddPart={handleAddPart}
-                onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
-                partsWithSpend={partsWithSpend}
-                suppliers={suppliers}
-                partSupplierAssociations={partSupplierAssociations}
-                partCategoryMappings={partCategoryMappings}
-                calculateSpendForSummary={calculateSpendForPart} 
-                homeCountry={appHomeCountry} 
-                tariffChargePercent={tariffRateMultiplierPercent} 
-                totalLogisticsCostPercent={totalLogisticsCostPercent} 
-              />
+              <div className="grid md:grid-cols-10 gap-6">
+                <div className="md:col-span-3">
+                  <UpdatePartsTab
+                    parts={parts}
+                    setParts={setParts}
+                    onAddPart={handleAddPart}
+                    onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
+                    partsWithSpend={partsWithSpend}
+                    suppliers={suppliers}
+                    partSupplierAssociations={partSupplierAssociations}
+                    partCategoryMappings={partCategoryMappings}
+                    calculateSpendForSummary={calculateSpendForPart} 
+                    homeCountry={appHomeCountry} 
+                    tariffChargePercent={tariffRateMultiplierPercent} 
+                    totalLogisticsCostPercent={totalLogisticsCostPercent} 
+                  />
+                </div>
+                <div className="md:col-span-7">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <PieChartLucideIcon className="mr-2 h-5 w-5 text-primary" />
+                        Top 10 Parts by Spend
+                      </CardTitle>
+                      <CardDescription>Calculated annual spend distribution for the top 10 parts.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {spendByPartData.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-8">No spend data available for parts.</p>
+                      ) : (
+                        <ChartContainer config={{}} className="min-h-[300px] w-full aspect-square">
+                           <ResponsiveContainer width="100%" height={300}>
+                            <RechartsPieChart>
+                              <RechartsTooltipComponent
+                                formatter={(value, name) => [new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value as number), name]}
+                              />
+                              <Pie
+                                data={spendByPartData}
+                                dataKey="spend"
+                                nameKey="name"
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={100}
+                                labelLine={false}
+                                label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+                                  const RADIAN = Math.PI / 180;
+                                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5 + 5;
+                                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                  return (percent as number) * 100 > 2 ? ( // Only show label if > 2%
+                                    <text x={x} y={y} fill="hsl(var(--foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[10px] font-medium">
+                                      {`${name} (${((percent as number) * 100).toFixed(0)}%)`}
+                                    </text>
+                                  ) : null;
+                                }}
+                              >
+                                {spendByPartData.map((entry, index) => (
+                                  <Cell key={`cell-part-${index}`} fill={PIE_COLORS_PARTS[index % PIE_COLORS_PARTS.length]} />
+                                ))}
+                              </Pie>
+                              <RechartsLegend wrapperStyle={{fontSize: "11px", marginTop: "10px"}}/>
+                            </RechartsPieChart>
+                          </ResponsiveContainer>
+                        </ChartContainer>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </TabsContent>
             <TabsContent value="update-suppliers" className="mt-4">
               <UpdateSuppliersTab
@@ -1252,3 +1323,4 @@ export default function SpendWiseCentralPage() {
     
 
     
+
