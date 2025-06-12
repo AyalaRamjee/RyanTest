@@ -1,13 +1,13 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import type { Part, Supplier, PartSupplierAssociation } from '@/types/spendwise';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Package, Building, ArrowRightLeft, UploadCloud, Info, Trash2, Plus, Target, CheckCircle, Sparkles } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"; // Ensure TooltipProvider is imported if not already global
+import { Package, Building, ArrowRightLeft, UploadCloud, Info, Trash2, Plus, Target, CheckCircle, Sparkles, Search } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface PartSupplierMappingTabProps {
   parts: Part[];
@@ -35,6 +35,27 @@ export default function PartSupplierMappingTab({
   const [hoveredMapping, setHoveredMapping] = useState<string | null>(null);
   const dragCounterRef = useRef(0);
   const { toast } = useToast();
+
+  const [searchTermParts, setSearchTermParts] = useState('');
+  const [searchTermSuppliers, setSearchTermSuppliers] = useState('');
+
+  const filteredParts = useMemo(() => {
+    if (!searchTermParts) return parts;
+    const lowerSearchTerm = searchTermParts.toLowerCase();
+    return parts.filter(part => 
+      part.name.toLowerCase().includes(lowerSearchTerm) ||
+      part.partNumber.toLowerCase().includes(lowerSearchTerm)
+    );
+  }, [parts, searchTermParts]);
+
+  const filteredSuppliers = useMemo(() => {
+    if (!searchTermSuppliers) return suppliers;
+    const lowerSearchTerm = searchTermSuppliers.toLowerCase();
+    return suppliers.filter(supplier =>
+      supplier.name.toLowerCase().includes(lowerSearchTerm) ||
+      supplier.supplierId.toLowerCase().includes(lowerSearchTerm)
+    );
+  }, [suppliers, searchTermSuppliers]);
 
   const getPartDisplay = (partId: string) => {
     const part = parts.find(p => p.id === partId);
@@ -136,7 +157,6 @@ export default function PartSupplierMappingTab({
     } else if (targetType === 'part' && draggedItem.type === 'supplier' && targetId) {
       createAssociation(targetId, draggedItem.data.id);
     } else if (targetType === 'mapping') {
-      // Fallback: drop in mapping area
       if (draggedItem.type === 'part') {
         const availableSupplier = suppliers.find(s => !partSupplierAssociations.some(psa => psa.partId === draggedItem.data.id && psa.supplierId === s.id)) || suppliers[0];
         if (availableSupplier) {
@@ -167,7 +187,7 @@ export default function PartSupplierMappingTab({
         partId,
         supplierId
       };
-      setPartSupplierAssociations(prev => [...prev, ...newAssociation]);
+      setPartSupplierAssociations(prev => [...prev, newAssociation]);
       toast({ title: "Association Created", description: `Part linked with supplier.` });
     } else {
       toast({ variant: "default", title: "Already Mapped", description: "This part-supplier association already exists." });
@@ -179,41 +199,8 @@ export default function PartSupplierMappingTab({
     toast({ title: "Association Removed", description: "Part-supplier link removed." });
   };
 
-  const handleQuickMap = () => {
-    const newAssociations: PartSupplierAssociation[] = [];
-    let mappedCount = 0;
-
-    if (suppliers.length === 0) {
-      toast({ variant: "destructive", title: "No Suppliers", description: "Cannot perform Quick Start without available suppliers." });
-      return;
-    }
-    
-    parts.forEach((part, index) => {
-      const hasAssociations = partSupplierAssociations.some(a => a.partId === part.id);
-      
-      if (!hasAssociations) {
-        const supplierIndex = index % suppliers.length;
-        const supplierToMap = suppliers[supplierIndex];
-        
-        newAssociations.push({
-          id: `psa_quickmap_${Date.now()}_${index}`,
-          partId: part.id,
-          supplierId: supplierToMap.id
-        });
-        mappedCount++;
-      }
-    });
-    
-    if (newAssociations.length > 0) {
-      setPartSupplierAssociations(prev => [...prev, ...newAssociations]);
-      toast({ title: "Quick Start Complete", description: `${mappedCount} part${mappedCount !== 1 ? 's were' : ' was'} assigned a default supplier.` });
-    } else {
-       toast({ title: "No Action Needed", description: "All parts are already associated with at least one supplier, or no parts/suppliers available." });
-    }
-  };
-
   return (
-    <TooltipProvider> {/* Ensure TooltipProvider wraps content using Tooltip */}
+    <TooltipProvider>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -233,22 +220,12 @@ export default function PartSupplierMappingTab({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-xs max-w-xs">
-                    Drag parts from the 'Available Parts' list and drop them onto a supplier in the 'Available Suppliers' list (or vice-versa) to link them. Associations appear in the 'Mapped Relationships' list. Each part can be sourced from multiple suppliers. Green ring indicates a valid drop target.
+                    Drag parts from the 'Available Parts' list and drop them onto a supplier in the 'Available Suppliers' list (or vice-versa) to link them. Associations appear in the 'Source Network' list. Each part can be sourced from multiple suppliers. Green ring indicates a valid drop target.
                   </p>
                 </TooltipContent>
               </Tooltip>
             </div>
             <div className="flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button onClick={handleQuickMap} size="sm" variant="outline">
-                    <Sparkles className="mr-1.5 h-3.5 w-3.5" /> Quick Start
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs max-w-xs">Automatically assigns one supplier to each unmapped part (if suppliers are available).</p>
-                </TooltipContent>
-              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button onClick={onOpenUploadDialog} size="sm" variant="outline">
@@ -266,18 +243,29 @@ export default function PartSupplierMappingTab({
         <CardContent className="grid md:grid-cols-3 gap-6 text-xs">
           {/* Parts Column */}
           <section>
-            <h3 className="text-lg font-semibold mb-3 flex items-center">
-              <Package className="mr-2 h-5 w-5 text-primary" /> 
-              Available Parts ({parts.length} total)
-            </h3>
-            <ScrollArea className="h-[400px] border rounded-md p-3 bg-gradient-to-b from-blue-50/50 to-blue-100/30 dark:from-blue-950/30 dark:to-blue-900/20">
+            <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <Package className="mr-2 h-5 w-5 text-primary" /> 
+                  Available Parts ({filteredParts.length}/{parts.length})
+                </h3>
+            </div>
+            <div className="relative mb-3">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input 
+                placeholder="Search parts by name or number..."
+                value={searchTermParts}
+                onChange={(e) => setSearchTermParts(e.target.value)}
+                className="pl-8 h-8 text-xs"
+              />
+            </div>
+            <ScrollArea className="h-[350px] border rounded-md p-3 bg-gradient-to-b from-blue-50/50 to-blue-100/30 dark:from-blue-950/30 dark:to-blue-900/20">
               <div className="space-y-2">
-                {parts.length === 0 && (
+                {filteredParts.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-8">
-                    No parts available. Add parts in Tab 1.
+                    {parts.length === 0 ? "No parts available. Add parts in Tab 1." : "No parts match your search."}
                   </p>
                 )}
-                {parts.map((part) => {
+                {filteredParts.map((part) => {
                   const associationCount = getPartAssociationCount(part.id);
                   const isDropTarget = draggedItem?.type === 'supplier' && 
                     isValidDropTarget('supplier', 'part', part.id);
@@ -329,18 +317,29 @@ export default function PartSupplierMappingTab({
 
           {/* Suppliers Column */}
           <section>
-            <h3 className="text-lg font-semibold mb-3 flex items-center">
-              <Building className="mr-2 h-5 w-5 text-primary" /> 
-              Available Suppliers ({suppliers.length} total)
-            </h3>
-            <ScrollArea className="h-[400px] border rounded-md p-3 bg-gradient-to-b from-purple-50/50 to-purple-100/30 dark:from-purple-950/30 dark:to-purple-900/20">
+            <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <Building className="mr-2 h-5 w-5 text-primary" /> 
+                  Available Suppliers ({filteredSuppliers.length}/{suppliers.length})
+                </h3>
+            </div>
+            <div className="relative mb-3">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input 
+                placeholder="Search suppliers by name or ID..."
+                value={searchTermSuppliers}
+                onChange={(e) => setSearchTermSuppliers(e.target.value)}
+                className="pl-8 h-8 text-xs"
+              />
+            </div>
+            <ScrollArea className="h-[350px] border rounded-md p-3 bg-gradient-to-b from-purple-50/50 to-purple-100/30 dark:from-purple-950/30 dark:to-purple-900/20">
               <div className="space-y-2">
-                {suppliers.length === 0 && (
+                {filteredSuppliers.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-8">
-                    No suppliers available. Add suppliers in Tab 2.
+                    {suppliers.length === 0 ? "No suppliers available. Add suppliers in Tab 2." : "No suppliers match your search."}
                   </p>
                 )}
-                {suppliers.map((supplier) => {
+                {filteredSuppliers.map((supplier) => {
                   const associationCount = getSupplierAssociationCount(supplier.id);
                   const isDropTarget = draggedItem?.type === 'part' && 
                     isValidDropTarget('part', 'supplier', supplier.id);
@@ -395,7 +394,7 @@ export default function PartSupplierMappingTab({
              <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold flex items-center">
                   <Target className="mr-2 h-5 w-5 text-accent" /> 
-                  Mapped Relationships ({partSupplierAssociations.length})
+                  Source Network ({partSupplierAssociations.length})
                 </h3>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -429,7 +428,7 @@ export default function PartSupplierMappingTab({
                     Drop Zone for General Mapping
                   </p>
                   <p className="text-xs text-muted-foreground max-w-xs">
-                    Drag parts or suppliers here to automatically map to an available counterpart, or drag items directly between the 'Parts' and 'Suppliers' columns for specific links. Use "Quick Start" to auto-assign one supplier to each unassigned part.
+                    Drag parts or suppliers here to automatically map to an available counterpart, or drag items directly between the 'Parts' and 'Suppliers' columns for specific links.
                   </p>
                   {dragOverTarget === 'mapping' && (
                     <div className="mt-4 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
@@ -493,5 +492,3 @@ export default function PartSupplierMappingTab({
     </TooltipProvider>
   );
 }
-
-    

@@ -19,7 +19,7 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, ListChecks, Search, ExternalLink } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, ListChecks, Search, ExternalLink, AlertTriangle } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -78,7 +78,7 @@ export default function SpendWiseCentralPage() {
   const [isLoadingSampleData, setIsLoadingSampleData] = useState(false);
 
   const [tariffRateMultiplierPercent, setTariffRateMultiplierPercent] = useState(100);
-  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100); // Retained for calculations
+  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100);
 
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
@@ -98,6 +98,8 @@ export default function SpendWiseCentralPage() {
   const [duplicateSuppliersById, setDuplicateSuppliersById] = useState<{ supplierId: string; items: Supplier[] }[]>([]);
   const [duplicateSuppliersByName, setDuplicateSuppliersByName] = useState<{ name: string; items: Supplier[] }[]>([]);
   const [caseInsensitiveDuplicateCategories, setCaseInsensitiveDuplicateCategories] = useState<{ name: string; variations: string[] }[]>([]);
+  const [singleSourceParts, setSingleSourceParts] = useState<Part[]>([]);
+
 
   // State for search terms in validation tab
   const [searchTermPartsWithoutSuppliers, setSearchTermPartsWithoutSuppliers] = useState('');
@@ -108,6 +110,7 @@ export default function SpendWiseCentralPage() {
   const [searchTermDuplicateSuppliersId, setSearchTermDuplicateSuppliersId] = useState('');
   const [searchTermDuplicateSuppliersName, setSearchTermDuplicateSuppliersName] = useState('');
   const [searchTermCategories, setSearchTermCategories] = useState('');
+  const [searchTermSingleSourceParts, setSearchTermSingleSourceParts] = useState('');
 
 
   const uniqueSupplierCountriesForApp = useMemo(() => {
@@ -174,6 +177,7 @@ export default function SpendWiseCentralPage() {
     setDuplicateSuppliersById([]);
     setDuplicateSuppliersByName([]);
     setCaseInsensitiveDuplicateCategories([]);
+    setSingleSourceParts([]);
     setSearchTermPartsWithoutSuppliers('');
     setSearchTermSuppliersWithoutParts('');
     setSearchTermDuplicatePartsId('');
@@ -182,6 +186,7 @@ export default function SpendWiseCentralPage() {
     setSearchTermDuplicateSuppliersId('');
     setSearchTermDuplicateSuppliersName('');
     setSearchTermCategories('');
+    setSearchTermSingleSourceParts('');
   }, []);
 
   const parseAndSetXmlData = useCallback((xmlString: string, filename: string) => {
@@ -975,6 +980,13 @@ export default function SpendWiseCentralPage() {
             .map(([lowerName, variations]) => ({ name: lowerName, variations }))
     );
 
+    // 9. Single-Source Parts
+    const singleSource = parts.filter(part => {
+      const supplierCount = partSupplierAssociations.filter(assoc => assoc.partId === part.id).length;
+      return supplierCount === 1;
+    });
+    setSingleSourceParts(singleSource);
+
     setValidationPerformed(true);
     toast({
       title: "Validation Complete",
@@ -1031,6 +1043,14 @@ export default function SpendWiseCentralPage() {
     );
   }, [caseInsensitiveDuplicateCategories, searchTermCategories]);
 
+  const filteredSingleSourceParts = useMemo(() => {
+    if (!searchTermSingleSourceParts) return singleSourceParts;
+    return singleSourceParts.filter(p =>
+      p.name.toLowerCase().includes(searchTermSingleSourceParts.toLowerCase()) ||
+      p.partNumber.toLowerCase().includes(searchTermSingleSourceParts.toLowerCase())
+    );
+  }, [singleSourceParts, searchTermSingleSourceParts]);
+
 
   return (
     <TooltipProvider>
@@ -1046,8 +1066,8 @@ export default function SpendWiseCentralPage() {
             <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
               Spend by TADA
             </h1>
-            <div className="flex-grow flex items-center space-x-6 ml-4"> {/* Changed to items-center and added space-x-6 */}
-              <div className="flex items-center space-x-2"> {/* Group Home Country */}
+            <div className="flex-grow flex items-center space-x-6 ml-4">
+              <div className="flex items-center space-x-2"> 
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-1">
@@ -1071,7 +1091,7 @@ export default function SpendWiseCentralPage() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <div className="flex items-center space-x-2"> {/* Group Tariff Multiplier */}
+              <div className="flex items-center space-x-2">
                  <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-2">
@@ -1390,6 +1410,23 @@ export default function SpendWiseCentralPage() {
                         emptyMessage="All suppliers are associated with at least one part."
                         searchPlaceholder="Search suppliers..."
                       />
+                      
+                      <ValidationSection
+                        title={`Single-Source Parts (${filteredSingleSourceParts.length})`}
+                        data={filteredSingleSourceParts}
+                        searchTerm={searchTermSingleSourceParts}
+                        onSearchTermChange={setSearchTermSingleSourceParts}
+                        renderItem={(item: Part) => (
+                          <li key={item.id} className="flex justify-between items-center p-1.5 bg-card rounded shadow-sm">
+                            <div>
+                              <span className="font-medium">{item.name}</span> <span className="text-muted-foreground">({item.partNumber})</span>
+                            </div>
+                            <Badge variant="outline" className="text-2xs border-orange-400 text-orange-600">Single Source</Badge>
+                          </li>
+                        )}
+                        emptyMessage="No single-source parts found (all parts have 0 or 2+ suppliers)."
+                        searchPlaceholder="Search parts..."
+                      />
 
                       <ValidationSection
                         title={`Duplicate Parts by Internal ID (${filteredDuplicatePartsId.length} groups)`}
@@ -1612,7 +1649,7 @@ interface ValidationSectionProps<T> {
   renderItem: (item: T) => React.ReactNode;
   emptyMessage: string;
   searchPlaceholder: string;
-  isGrouped?: boolean; // Indicates if data is an array of groups
+  isGrouped?: boolean; 
 }
 
 function ValidationSection<T>({
@@ -1652,6 +1689,3 @@ function ValidationSection<T>({
     </section>
   );
 }
-    
-
-    
