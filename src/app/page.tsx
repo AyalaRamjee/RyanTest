@@ -8,6 +8,7 @@ import UpdateSuppliersTab from "@/components/spendwise/update-suppliers";
 import PartSupplierMappingTab from "@/components/spendwise/part-supplier-mapping";
 import UploadPartCategoryTab from "@/components/spendwise/upload-part-category";
 import WhatIfAnalysisTab from "@/components/spendwise/what-if-analysis-tab";
+import ReviewSummaryTab from "@/components/spendwise/review-summary-tab"; // New Import
 import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import UploadCsvDialog from "@/components/spendwise/upload-csv-dialog";
 import SpendWiseBot from "@/components/spendwise/spendwise-bot";
@@ -19,7 +20,7 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, ListChecks, Search, ExternalLink, AlertTriangle } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, ListChecks, Search, ExternalLink, AlertTriangle, BarChart3 } from "lucide-react"; // Added BarChart3
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -39,6 +40,12 @@ export interface CountDataPoint {
   count: number;
 }
 
+export interface DemandDataPoint {
+  name: string;
+  demand: number;
+}
+
+
 const DEFAULT_XML_FILENAME = "SpendByTADADef01.xml";
 const LAST_LOADED_FILENAME_KEY = "spendwiseLastLoadedFile";
 const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
@@ -50,7 +57,7 @@ const SUMMARY_STATS_HEIGHT_PX = 100;
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
 
-type TabValue = "update-parts" | "update-suppliers" | "part-supplier-mapping" | "upload-part-category" | "validate-spend" | "what-if-analysis";
+type TabValue = "update-parts" | "update-suppliers" | "part-supplier-mapping" | "upload-part-category" | "validate-spend-network" | "what-if-analysis" | "review-summary";
 
 export default function SpendWiseCentralPage() {
   const { theme, setTheme } = useTheme();
@@ -262,7 +269,7 @@ export default function SpendWiseCentralPage() {
       console.error("Error processing XML data:", error);
       toast({ variant: "destructive", title: "Error Loading Data", description: "Could not process the XML data." });
     }
-  }, [toast, escapeXml, resetValidationStates]);
+  }, [toast, resetValidationStates]); // Removed escapeXml as it's not used here.
 
   useEffect(() => {
     const lastLoadedFile = typeof window !== 'undefined' ? localStorage.getItem(LAST_LOADED_FILENAME_KEY) : null;
@@ -1066,7 +1073,7 @@ export default function SpendWiseCentralPage() {
             <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
               Spend by TADA
             </h1>
-            <div className="flex-grow flex items-center space-x-6 ml-4">
+            <div className="flex-grow flex flex-col space-y-2 ml-4">
               <div className="flex items-center space-x-2"> 
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1090,8 +1097,6 @@ export default function SpendWiseCentralPage() {
                     </p>
                   </TooltipContent>
                 </Tooltip>
-              </div>
-              <div className="flex items-center space-x-2">
                  <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-2">
@@ -1281,7 +1286,7 @@ export default function SpendWiseCentralPage() {
           </section>
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="w-full mt-0">
-             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
+             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-7 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}> {/* Updated grid-cols */}
               <TabsTrigger value="update-parts" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
               </TabsTrigger>
@@ -1294,11 +1299,14 @@ export default function SpendWiseCentralPage() {
               <TabsTrigger value="upload-part-category" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <FolderTree className="h-3.5 w-3.5" /> 4. Add/Update Categories
               </TabsTrigger>
-              <TabsTrigger value="validate-spend" className="flex items-center gap-1 tabs-trigger-active-underline">
-                <ListChecks className="h-3.5 w-3.5" /> 5. Validate Spend
+              <TabsTrigger value="validate-spend-network" className="flex items-center gap-1 tabs-trigger-active-underline">
+                <ListChecks className="h-3.5 w-3.5" /> 5. Validate Spend Network
               </TabsTrigger>
               <TabsTrigger value="what-if-analysis" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <HelpCircle className="h-3.5 w-3.5" /> 6. What-if Analysis
+              </TabsTrigger>
+               <TabsTrigger value="review-summary" className="flex items-center gap-1 tabs-trigger-active-underline">
+                <BarChart3 className="h-3.5 w-3.5" /> 7. Review Summary
               </TabsTrigger>
             </TabsList>
 
@@ -1345,7 +1353,7 @@ export default function SpendWiseCentralPage() {
                 setPartCategoryMappings={(value) => { setPartCategoryMappings(value); resetValidationStates(); }}
               />
             </TabsContent>
-            <TabsContent value="validate-spend" className="mt-4">
+            <TabsContent value="validate-spend-network" className="mt-4">
               <Card>
                 <CardHeader>
                   <div className="flex justify-between items-center">
@@ -1373,7 +1381,7 @@ export default function SpendWiseCentralPage() {
                   {validationPerformed && (
                     <>
                       <ValidationSection
-                        title={`Parts without Suppliers (${filteredPartsWithoutSuppliers.length})`}
+                        title={`A. Parts without Suppliers (${filteredPartsWithoutSuppliers.length})`}
                         data={filteredPartsWithoutSuppliers}
                         searchTerm={searchTermPartsWithoutSuppliers}
                         onSearchTermChange={setSearchTermPartsWithoutSuppliers}
@@ -1390,7 +1398,7 @@ export default function SpendWiseCentralPage() {
                       />
 
                       <ValidationSection
-                        title={`Suppliers without Parts (${filteredSuppliersWithoutParts.length})`}
+                        title={`B. Suppliers without Parts (${filteredSuppliersWithoutParts.length})`}
                         data={filteredSuppliersWithoutParts}
                         searchTerm={searchTermSuppliersWithoutParts}
                         onSearchTermChange={setSearchTermSuppliersWithoutParts}
@@ -1412,7 +1420,7 @@ export default function SpendWiseCentralPage() {
                       />
                       
                       <ValidationSection
-                        title={`Single-Source Parts (${filteredSingleSourceParts.length})`}
+                        title={`C. Single-Source Parts (${filteredSingleSourceParts.length})`}
                         data={filteredSingleSourceParts}
                         searchTerm={searchTermSingleSourceParts}
                         onSearchTermChange={setSearchTermSingleSourceParts}
@@ -1429,7 +1437,7 @@ export default function SpendWiseCentralPage() {
                       />
 
                       <ValidationSection
-                        title={`Duplicate Parts by Internal ID (${filteredDuplicatePartsId.length} groups)`}
+                        title={`D. Duplicate Parts by Internal ID (${filteredDuplicatePartsId.length} groups)`}
                         data={filteredDuplicatePartsId}
                         searchTerm={searchTermDuplicatePartsId}
                         onSearchTermChange={setSearchTermDuplicatePartsId}
@@ -1446,7 +1454,7 @@ export default function SpendWiseCentralPage() {
                         isGrouped
                       />
                       <ValidationSection
-                        title={`Duplicate Parts by Part Number (${filteredDuplicatePartsNumber.length} groups)`}
+                        title={`E. Duplicate Parts by Part Number (${filteredDuplicatePartsNumber.length} groups)`}
                         data={filteredDuplicatePartsNumber}
                         searchTerm={searchTermDuplicatePartsNumber}
                         onSearchTermChange={setSearchTermDuplicatePartsNumber}
@@ -1463,7 +1471,7 @@ export default function SpendWiseCentralPage() {
                         isGrouped
                       />
                       <ValidationSection
-                        title={`Duplicate Parts by Name (${filteredDuplicatePartsName.length} groups)`}
+                        title={`F. Duplicate Parts by Name (${filteredDuplicatePartsName.length} groups)`}
                         data={filteredDuplicatePartsName}
                         searchTerm={searchTermDuplicatePartsName}
                         onSearchTermChange={setSearchTermDuplicatePartsName}
@@ -1480,7 +1488,7 @@ export default function SpendWiseCentralPage() {
                         isGrouped
                       />
                        <ValidationSection
-                        title={`Duplicate Suppliers by ID (${filteredDuplicateSuppliersId.length} groups)`}
+                        title={`G. Duplicate Suppliers by ID (${filteredDuplicateSuppliersId.length} groups)`}
                         data={filteredDuplicateSuppliersId}
                         searchTerm={searchTermDuplicateSuppliersId}
                         onSearchTermChange={setSearchTermDuplicateSuppliersId}
@@ -1497,7 +1505,7 @@ export default function SpendWiseCentralPage() {
                         isGrouped
                       />
                       <ValidationSection
-                        title={`Duplicate Suppliers by Name (${filteredDuplicateSuppliersName.length} groups)`}
+                        title={`H. Duplicate Suppliers by Name (${filteredDuplicateSuppliersName.length} groups)`}
                         data={filteredDuplicateSuppliersName}
                         searchTerm={searchTermDuplicateSuppliersName}
                         onSearchTermChange={setSearchTermDuplicateSuppliersName}
@@ -1514,7 +1522,7 @@ export default function SpendWiseCentralPage() {
                         isGrouped
                       />
                       <ValidationSection
-                        title={`Potentially Duplicate Categories (Case Variations) (${filteredCaseInsensitiveCategories.length} groups)`}
+                        title={`I. Potentially Duplicate Categories (Case Variations) (${filteredCaseInsensitiveCategories.length} groups)`}
                         data={filteredCaseInsensitiveCategories}
                         searchTerm={searchTermCategories}
                         onSearchTermChange={setSearchTermCategories}
@@ -1545,6 +1553,23 @@ export default function SpendWiseCentralPage() {
                 originalTariffMultiplierPercent={tariffRateMultiplierPercent}
                 originalTotalLogisticsCostPercent={totalLogisticsCostPercent}
                 defaultAnalysisHomeCountry={appHomeCountry}
+              />
+            </TabsContent>
+             <TabsContent value="review-summary" className="mt-4">
+              <ReviewSummaryTab
+                parts={parts}
+                suppliers={suppliers}
+                partCategoryMappings={partCategoryMappings}
+                partSupplierAssociations={partSupplierAssociations}
+                partsWithSpend={partsWithSpend}
+                spendByCategoryData={spendByCategoryData}
+                defaultAnalysisHomeCountry={appHomeCountry}
+                originalTariffMultiplierPercent={tariffRateMultiplierPercent}
+                originalTotalLogisticsCostPercent={totalLogisticsCostPercent}
+                totalAnnualSpend={totalAnnualSpend}
+                totalParts={totalParts}
+                totalSuppliers={totalSuppliers}
+                totalCategories={totalCategories}
               />
             </TabsContent>
           </Tabs>
@@ -1689,3 +1714,4 @@ function ValidationSection<T>({
     </section>
   );
 }
+
