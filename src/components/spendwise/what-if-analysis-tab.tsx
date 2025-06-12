@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { HelpCircle, Info, Percent, DollarSign, Trash2, PlusCircle, ChevronsUpDown, TrendingUp, Save, Upload, Edit3, Layers, BarChart3, Maximize, Minimize, Filter, PackageSearch, Palette, MapPin, Activity } from "lucide-react";
+import { HelpCircle, Info, Percent, DollarSign, Trash2, PlusCircle, ChevronsUpDown, TrendingUp, Save, Upload, Edit3, Layers, BarChart3, Maximize, Minimize, Filter, PackageSearch, Palette, MapPin, Activity, Settings2, FileJson } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltipComponent, Cell } from 'recharts';
@@ -161,8 +161,6 @@ export default function WhatIfAnalysisTab({
     if (partSpecificDemandAdj) {
         adjustedDemand = part.annualDemand * (1 + partSpecificDemandAdj.adjustmentPercent / 100);
     } else if (categorySpecificDemandAdjs.length > 0) {
-        // If multiple category adjustments apply to a part, take the first one.
-        // A more complex rule might be needed if parts can truly belong to multiple categories with different demand adjustments.
         adjustedDemand = part.annualDemand * (1 + categorySpecificDemandAdjs[0].adjustmentPercent / 100);
     } else if (globalDemandAdj) {
         adjustedDemand = part.annualDemand * (1 + globalDemandAdj.adjustmentPercent / 100);
@@ -189,14 +187,12 @@ export default function WhatIfAnalysisTab({
         let effectiveBaseTariffRate = BASE_TARIFF_RATE_FOR_WHAT_IF * (originalTariffMultiplierPercent / 100);
         let finalScenarioTariffRate = effectiveBaseTariffRate + (currentGlobalTariffAdjPts / 100);
         
-        // Check for a country-specific tariff adjustment for any of the foreign suppliers
-        // If multiple foreign suppliers for the same part have different country adjustments, this logic takes the first one found.
         for (const supplier of partSuppliers) {
             if (supplier.country !== currentAnalysisHomeCountry) { 
                 const countryAdjustment = currentCountryTariffAdjs.find(adj => adj.countryName === supplier.country);
                 if (countryAdjustment) {
                     finalScenarioTariffRate = effectiveBaseTariffRate + (currentGlobalTariffAdjPts / 100) + (countryAdjustment.tariffAdjustmentPoints / 100);
-                    break; // Apply the first specific country adjustment found for this part
+                    break; 
                 }
             }
         }
@@ -232,31 +228,26 @@ export default function WhatIfAnalysisTab({
 
     if (!parts || parts.length === 0) return results;
     
-    // 1. Impact of Global Tariff Adjustment
     results.afterGlobalTariff = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
       part, analysisHomeCountry, globalTariffAdjustmentPoints, 0, [], [], [] 
     ), 0);
     results.impactGlobalTariff = results.afterGlobalTariff - results.baseSpend;
 
-    // 2. Impact of Global Logistics (cumulative from Global Tariff)
     results.afterGlobalLogistics = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
       part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, [], [], [] 
     ), 0);
     results.impactGlobalLogistics = results.afterGlobalLogistics - results.afterGlobalTariff; 
     
-    // 3. Impact of Category Changes (cumulative)
     results.afterCategoryChanges = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
       part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, [], [] 
     ), 0);
     results.impactCategory = results.afterCategoryChanges - results.afterGlobalLogistics;
 
-    // 4. Impact of Country Tariff Changes (cumulative)
     results.afterCountryTariffChanges = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
       part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, activeCountryTariffAdjustments, [] 
     ), 0);
     results.impactCountryTariff = results.afterCountryTariffChanges - results.afterCategoryChanges;
 
-    // 5. Final What-if Spend (including Demand Adjustments, cumulative)
     results.finalWhatIfSpend = parts.reduce((sum, part) => sum + calculateAdjustedSpendForPart(
       part, analysisHomeCountry, globalTariffAdjustmentPoints, globalLogisticsAdjustmentPoints, activeCategoryAdjustments, activeCountryTariffAdjustments, activeDemandAdjustments
     ), 0);
@@ -281,12 +272,12 @@ export default function WhatIfAnalysisTab({
     cumulative = scenarioImpacts.baseSpend;
 
     const addImpactToWaterfall = (name: string, impact: number) => {
-        if (impact !== 0) { // Only add if there's an actual impact
+        if (impact !== 0) { 
             data.push({
                 name,
-                value: impact, // The actual change amount
-                offset: impact < 0 ? cumulative + impact : cumulative, // Start of the bar
-                fill: impact < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))" // Green for decrease, Red for increase
+                value: impact, 
+                offset: impact < 0 ? cumulative + impact : cumulative, 
+                fill: impact < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))" 
             });
             cumulative += impact;
         }
@@ -298,7 +289,6 @@ export default function WhatIfAnalysisTab({
     addImpactToWaterfall("Country Tariff Adj.", scenarioImpacts.impactCountryTariff);
     addImpactToWaterfall("Demand Adj.", scenarioImpacts.impactDemand); 
 
-    // Final bar, only if it's different from the last cumulative point or if it's the only point after base
     if (cumulative !== scenarioImpacts.baseSpend || data.length === 1) {
         data.push({ name: "What-if Spend", value: cumulative, offset: 0, fill: "hsl(var(--chart-1))" });
     }
@@ -367,8 +357,8 @@ export default function WhatIfAnalysisTab({
         return;
       }
       targetName = selectedCategoryForDemand;
-      targetId = selectedCategoryForDemand; // For categories, name and ID can be the same for this purpose
-      id = `demand_cat_${selectedCategoryForDemand.replace(/\s+/g, '_')}`; // Make ID more specific if overwriting
+      targetId = selectedCategoryForDemand; 
+      id = `demand_cat_${selectedCategoryForDemand.replace(/\s+/g, '_')}`; 
     } else if (demandAdjustmentType === 'part') {
       if (!selectedPartForDemand) {
         toast({ title: "Select Part", description: "Please select a part for demand adjustment.", variant: "destructive" });
@@ -378,29 +368,25 @@ export default function WhatIfAnalysisTab({
       targetName = partInfo ? `${partInfo.partNumber} - ${partInfo.name}` : "Unknown Part";
       targetId = selectedPartForDemand;
       id = `demand_part_${selectedPartForDemand}`;
-    } else { // Global
-       id = `demand_global`; // Only one global adjustment possible
+    } else { 
+       id = `demand_global`; 
     }
     
-    // Check if an adjustment of this type and target already exists to update it, otherwise add new
     const existingAdjustmentIndex = activeDemandAdjustments.findIndex(adj => 
         adj.type === demandAdjustmentType && 
-        (demandAdjustmentType === 'global' || adj.targetId === targetId) // For global, type is enough. For others, check targetId.
+        (demandAdjustmentType === 'global' || adj.targetId === targetId) 
     );
 
     if (existingAdjustmentIndex > -1) {
-        // Update existing
         setActiveDemandAdjustments(prev => prev.map((adj, index) => 
             index === existingAdjustmentIndex ? { ...adj, adjustmentPercent: demandAdjustmentValue } : adj
         ));
     } else {
-        // Add new
         setActiveDemandAdjustments(prev => [...prev, { id, type: demandAdjustmentType, targetName, targetId, adjustmentPercent: demandAdjustmentValue }]);
     }
-    // Reset inputs
     setSelectedCategoryForDemand("");
     setSelectedPartForDemand("");
-    setDemandAdjustmentValue(0); // Consider not resetting if user wants to make minor tweaks after adding
+    setDemandAdjustmentValue(0); 
   };
 
   const handleRemoveDemandAdjustment = (idToRemove: string) => {
@@ -411,18 +397,16 @@ export default function WhatIfAnalysisTab({
   const handleOpenSaveDialog = (edit = false) => {
     setIsEditMode(edit);
     if (edit && selectedScenarioToLoad) {
-        // If editing, pre-fill with the selected scenario's name and description
         const scenarioDataString = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + selectedScenarioToLoad) : null;
         if (scenarioDataString) {
             const scenarioData: SavedScenario = JSON.parse(scenarioDataString);
             setCurrentScenarioName(scenarioData.name);
             setCurrentScenarioDescription(scenarioData.description);
-        } else { // Fallback if data is missing, though list name exists
+        } else { 
             setCurrentScenarioName(selectedScenarioToLoad);
             setCurrentScenarioDescription("");
         }
     } else {
-        // For a new scenario, suggest a default name
         const defaultScenarioNumber = savedScenarioNames.length + 1;
         setCurrentScenarioName(`Scenario Def ${String(defaultScenarioNumber).padStart(2, '0')}`);
         setCurrentScenarioDescription("");
@@ -447,9 +431,8 @@ export default function WhatIfAnalysisTab({
     };
     if (typeof window !== 'undefined') {
       localStorage.setItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + scenarioData.name, JSON.stringify(scenarioData));
-      // Update the list of scenario names if it's a new name or if the name changed during edit
       if (!savedScenarioNames.includes(scenarioData.name) || (isEditMode && selectedScenarioToLoad !== scenarioData.name)) {
-        let newNames = savedScenarioNames.filter(name => name !== selectedScenarioToLoad); // Remove old name if editing and name changed
+        let newNames = savedScenarioNames.filter(name => name !== selectedScenarioToLoad); 
         newNames = [...newNames, scenarioData.name].sort();
         setSavedScenarioNames(newNames);
         localStorage.setItem(LOCAL_STORAGE_SCENARIO_LIST_KEY, JSON.stringify(newNames));
@@ -458,7 +441,7 @@ export default function WhatIfAnalysisTab({
     
     toast({ title: "Scenario Saved", description: `Scenario "${scenarioData.name}" has been saved.`});
     setIsSaveScenarioDialogOpen(false);
-    setSelectedScenarioToLoad(scenarioData.name); // Set the newly saved/edited scenario as active
+    setSelectedScenarioToLoad(scenarioData.name); 
   };
 
   const handleLoadScenario = (scenarioName: string) => {
@@ -466,15 +449,15 @@ export default function WhatIfAnalysisTab({
     const scenarioDataString = localStorage.getItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + scenarioName);
     if (scenarioDataString) {
       const scenarioData: SavedScenario = JSON.parse(scenarioDataString);
-      setAnalysisHomeCountry(scenarioData.analysisHomeCountry || defaultAnalysisHomeCountry); // Fallback for older saved scenarios
+      setAnalysisHomeCountry(scenarioData.analysisHomeCountry || defaultAnalysisHomeCountry); 
       setGlobalTariffAdjustmentPoints(scenarioData.globalTariffAdjustmentPoints);
       setGlobalLogisticsAdjustmentPoints(scenarioData.globalLogisticsAdjustmentPoints);
       setActiveCategoryAdjustments(scenarioData.activeCategoryAdjustments);
       setActiveCountryTariffAdjustments(scenarioData.activeCountryTariffAdjustments);
-      setActiveDemandAdjustments(scenarioData.activeDemandAdjustments || []); // Fallback for older scenarios
+      setActiveDemandAdjustments(scenarioData.activeDemandAdjustments || []); 
       setSelectedScenarioToLoad(scenarioName);
-      setCurrentScenarioName(scenarioData.name); // For potential edit
-      setCurrentScenarioDescription(scenarioData.description); // For potential edit
+      setCurrentScenarioName(scenarioData.name); 
+      setCurrentScenarioDescription(scenarioData.description); 
       toast({ title: "Scenario Loaded", description: `Scenario "${scenarioName}" has been loaded.`});
     } else {
       toast({ title: "Error", description: `Could not load scenario "${scenarioName}".`, variant: "destructive"});
@@ -491,8 +474,7 @@ export default function WhatIfAnalysisTab({
     setSavedScenarioNames(newNames);
     localStorage.setItem(LOCAL_STORAGE_SCENARIO_LIST_KEY, JSON.stringify(newNames));
     toast({ title: "Scenario Deleted", description: `Scenario "${selectedScenarioToLoad}" has been deleted.`});
-    setSelectedScenarioToLoad(""); // Clear selected scenario
-    // Optionally reset controls to default/base state
+    setSelectedScenarioToLoad(""); 
     setAnalysisHomeCountry(defaultAnalysisHomeCountry);
     setGlobalTariffAdjustmentPoints(0);
     setGlobalLogisticsAdjustmentPoints(0);
@@ -507,274 +489,281 @@ export default function WhatIfAnalysisTab({
   return (
     <TooltipProvider>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                    <ChevronsUpDown className="mr-2 h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">What-if Controls</CardTitle>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Select value={selectedScenarioToLoad} onValueChange={handleLoadScenario}>
-                        <SelectTrigger className="w-[180px] h-9 text-xs"><SelectValue placeholder="Load Scenario..." /></SelectTrigger>
+        {/* Column 1: What-if Controls */}
+        <div className="md:col-span-1 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center"><Settings2 className="mr-2 h-5 w-5 text-primary"/>What-if Controls</CardTitle>
+              <CardDescription className="text-xs">Adjust parameters to model different scenarios.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <div className="space-y-2 p-3 border rounded-md">
+                    <Label htmlFor="analysisHomeCountrySelect" className="text-sm font-medium flex items-center"><MapPin className="h-4 w-4 mr-1.5"/>Scenario Home Country</Label>
+                    <Select value={analysisHomeCountry} onValueChange={setAnalysisHomeCountry}>
+                        <SelectTrigger id="analysisHomeCountrySelect" className="h-9 text-xs">
+                            <SelectValue placeholder="Select Home Country" />
+                        </SelectTrigger>
                         <SelectContent>
-                            {savedScenarioNames.length === 0 && <SelectItem value="no-scenarios" disabled className="text-xs">No saved scenarios</SelectItem>}
-                            {savedScenarioNames.map(name => <SelectItem key={name} value={name} className="text-xs">{name}</SelectItem>)}
+                            {uniqueSupplierCountriesForAnalysis.map(country => (
+                                <SelectItem key={country} value={country} className="text-xs">{country}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
-                    {selectedScenarioToLoad && (
-                         <Button onClick={() => handleOpenSaveDialog(true)} size="sm" variant="outline" className="text-xs h-9">
-                            <Edit3 className="mr-1 h-3 w-3" /> Edit
-                        </Button>
-                   )}
-                    <Button onClick={() => handleOpenSaveDialog(false)} size="sm" variant="default" className="text-xs h-9">
-                        <Save className="mr-1 h-3 w-3" /> Save New
-                    </Button>
-                   {selectedScenarioToLoad && (
-                     <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button onClick={handleDeleteScenario} size="icon" variant="destructive" className="h-9 w-9">
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent><p>Delete '{selectedScenarioToLoad}'</p></TooltipContent>
-                    </Tooltip>
-                   )}
+                    <p className="text-2xs text-muted-foreground">Domestic country for this scenario's tariff calculations.</p>
                 </div>
-            </div>
-             <CardDescription className="text-xs mt-1">
-              Adjust cost and demand factors to see potential impact. Scenarios can be saved and loaded. Base Tariff Rate for imports is {BASE_TARIFF_RATE_FOR_WHAT_IF * 100}%.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Card className="bg-muted/30 p-3">
-              <CardTitle className="text-sm font-medium mb-2 flex items-center">
-                <Filter className="mr-2 h-4 w-4"/>Applied What-if Parameters
-              </CardTitle>
-              <ScrollArea className="h-28 text-xs"> 
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Analysis Home Country: <strong>{analysisHomeCountry}</strong></li>
-                  <li>Global Tariff Adjustment: {globalTariffAdjustmentPoints >= 0 ? "+" : ""}{globalTariffAdjustmentPoints} pts
-                    <span className="text-muted-foreground text-2xs"> (Effective Base: {effectiveBaseTariffForDisplay}%)</span>
-                  </li>
-                  <li>Global Logistics Adj.: {globalLogisticsAdjustmentPoints >= 0 ? "+" : ""}{globalLogisticsAdjustmentPoints} pts
-                     <span className="text-muted-foreground text-2xs"> (Base: {effectiveBaseLogisticsForDisplay}%)</span>
-                  </li>
-                  {activeCategoryAdjustments.map(adj => (
-                    <li key={adj.categoryName}>
-                      Category '{adj.categoryName}' Cost: {adj.costAdjustmentPercent >= 0 ? "+" : ""}{adj.costAdjustmentPercent}%
-                    </li>
-                  ))}
-                  {activeCountryTariffAdjustments.map(adj => (
-                    <li key={adj.countryName}>
-                      Country '{adj.countryName}' Add. Tariff: {adj.tariffAdjustmentPoints >= 0 ? "+" : ""}{adj.tariffAdjustmentPoints} pts
-                    </li>
-                  ))}
-                  {activeDemandAdjustments.map(adj => (
-                    <li key={adj.id}>
-                      Demand '{adj.type === 'global' ? 'Global' : adj.type === 'category' ? `Category: ${adj.targetName}` : `Part: ${adj.targetName}`}' Change: {adj.adjustmentPercent >= 0 ? "+" : ""}{adj.adjustmentPercent}%
-                    </li>
-                  ))}
-                  {(globalTariffAdjustmentPoints === 0 && globalLogisticsAdjustmentPoints === 0 && activeCategoryAdjustments.length === 0 && activeCountryTariffAdjustments.length === 0 && activeDemandAdjustments.length === 0 && analysisHomeCountry === defaultAnalysisHomeCountry) && (
-                    <li className="text-muted-foreground italic">No custom scenario adjustments applied. Using app base settings.</li>
-                  )}
-                </ul>
-              </ScrollArea>
-            </Card>
-            
-             <div className="space-y-2 p-3 border rounded-md">
-                <Label htmlFor="analysisHomeCountrySelect" className="text-sm font-medium flex items-center"><MapPin className="h-4 w-4 mr-1.5"/>Scenario Home Country</Label>
-                <Select value={analysisHomeCountry} onValueChange={setAnalysisHomeCountry}>
-                    <SelectTrigger id="analysisHomeCountrySelect" className="h-9 text-xs">
-                        <SelectValue placeholder="Select Home Country for Analysis" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {uniqueSupplierCountriesForAnalysis.map(country => (
-                            <SelectItem key={country} value={country} className="text-xs">{country}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <p className="text-2xs text-muted-foreground">This country is domestic for tariff calculations in this specific scenario.</p>
-            </div>
 
-            <div className="space-y-3 p-3 border rounded-md">
-              <h4 className="font-medium text-sm flex items-center"><Maximize className="h-4 w-4 mr-1.5"/>Global Cost Adjustments</h4>
-              <div>
-                <Label htmlFor="globalTariffSlider" className="text-xs">Global Tariff Adjustment (pts on effective rate: {effectiveBaseTariffForDisplay}%)</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Slider id="globalTariffSlider" min={-100} max={100} step={1} value={[globalTariffAdjustmentPoints]} onValueChange={(val) => setGlobalTariffAdjustmentPoints(val[0])} className="flex-grow" />
-                  <Input type="number" value={globalTariffAdjustmentPoints} onChange={(e)=> setGlobalTariffAdjustmentPoints(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right"/>
-                  <span className="text-xs w-5">pts</span>
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="globalLogisticsSlider" className="text-xs">Global Logistics Cost Adj. (pts on base: {effectiveBaseLogisticsForDisplay}%)</Label>
-                 <div className="flex items-center gap-2 mt-1">
-                  <Slider id="globalLogisticsSlider" min={-100} max={100} step={1} value={[globalLogisticsAdjustmentPoints]} onValueChange={(val) => setGlobalLogisticsAdjustmentPoints(val[0])} className="flex-grow" />
-                  <Input type="number" value={globalLogisticsAdjustmentPoints} onChange={(e)=> setGlobalLogisticsAdjustmentPoints(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right"/>
-                  <span className="text-xs w-5">pts</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
-              <h4 className="font-medium text-sm flex items-center"><Palette className="h-4 w-4 mr-1.5"/>Category Specific Cost Adjustment</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2">
-                <div className="sm:col-span-5">
-                  <Label htmlFor="selectCategoryCost" className="text-xs">Category</Label>
-                  <Select value={selectedCategoryForAdjustment} onValueChange={setSelectedCategoryForAdjustment}>
-                    <SelectTrigger id="selectCategoryCost" className="h-9 text-xs"><SelectValue placeholder="Select Category" /></SelectTrigger>
-                    <SelectContent>
-                      {uniqueCategories.map(cat => <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="sm:col-span-5">
-                  <Label htmlFor="categoryCostPercentSlider" className="text-xs">Cost Adj. (%)</Label>
-                   <div className="flex items-center gap-2 mt-1">
-                        <Slider id="categoryCostPercentSlider" min={-100} max={100} step={1} value={[categoryCostAdjustmentValue]} onValueChange={(val) => setCategoryCostAdjustmentValue(val[0])} className="flex-grow" />
-                        <Input type="number" value={categoryCostAdjustmentValue} onChange={(e)=> setCategoryCostAdjustmentValue(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right"/>
-                         <span className="text-xs w-5">%</span>
-                   </div>
-                </div>
-                <Button onClick={handleAddCategoryAdjustment} size="sm" className="h-9 text-xs sm:col-span-2" disabled={!selectedCategoryForAdjustment}>
-                  <PlusCircle className="mr-1 h-4 w-4" /> Add
-                </Button>
-              </div>
-              {activeCategoryAdjustments.length > 0 && (
-                <ScrollArea className="mt-2 space-y-1 text-xs max-h-20 border rounded-md p-1.5 bg-background">
-                  {activeCategoryAdjustments.map(adj => (
-                    <div key={adj.categoryName} className="flex justify-between items-center p-1 bg-muted/60 rounded text-2xs my-0.5">
-                      <span>{adj.categoryName}: {adj.costAdjustmentPercent > 0 ? '+':''}{adj.costAdjustmentPercent}%</span>
-                      <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/10" onClick={() => handleRemoveCategoryAdjustment(adj.categoryName)}><Trash2 className="h-3 w-3 text-destructive"/></Button>
+                <div className="space-y-3 p-3 border rounded-md">
+                    <h4 className="font-medium text-sm flex items-center"><Maximize className="h-4 w-4 mr-1.5"/>Global Cost Adjustments</h4>
+                    <div>
+                        <Label htmlFor="globalTariffSlider" className="text-xs">Global Tariff Adj. (pts on effective rate: {effectiveBaseTariffForDisplay}%)</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                        <Slider id="globalTariffSlider" min={-100} max={100} step={1} value={[globalTariffAdjustmentPoints]} onValueChange={(val) => setGlobalTariffAdjustmentPoints(val[0])} className="flex-grow" />
+                        <Input type="number" value={globalTariffAdjustmentPoints} onChange={(e)=> setGlobalTariffAdjustmentPoints(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right"/>
+                        <span className="text-xs w-5">pts</span>
+                        </div>
                     </div>
-                  ))}
-                </ScrollArea>
-              )}
-            </div>
-            
-            <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
-              <h4 className="font-medium text-sm flex items-center"><PackageSearch className="h-4 w-4 mr-1.5"/>Source Country Specific Tariff Adjustment</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2">
-                 <div className="sm:col-span-5">
-                  <Label htmlFor="selectCountryTariff" className="text-xs">Supplier Country (Foreign)</Label>
-                  <Select value={selectedCountryForTariff} onValueChange={setSelectedCountryForTariff}>
-                    <SelectTrigger id="selectCountryTariff" className="h-9 text-xs"><SelectValue placeholder="Select Country" /></SelectTrigger>
-                    <SelectContent>
-                      {uniqueSupplierCountriesForAnalysis.filter(c => c !== analysisHomeCountry).map(country => <SelectItem key={country} value={country} className="text-xs">{country}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="sm:col-span-5">
-                  <Label htmlFor="countryTariffPointsSlider" className="text-xs">Additional Tariff (points)</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Slider id="countryTariffPointsSlider" min={-100} max={100} step={1} value={[countryTariffAdjustmentValue]} onValueChange={(val) => setCountryTariffAdjustmentValue(val[0])} className="flex-grow" />
-                    <Input type="number" value={countryTariffAdjustmentValue} onChange={(e)=> setCountryTariffAdjustmentValue(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right"/>
-                    <span className="text-xs w-5">pts</span>
-                  </div>
-                </div>
-                <Button onClick={handleAddCountryTariffAdjustment} size="sm" className="h-9 text-xs sm:col-span-2" disabled={!selectedCountryForTariff}>
-                  <PlusCircle className="mr-1 h-4 w-4" /> Add
-                </Button>
-              </div>
-              {activeCountryTariffAdjustments.length > 0 && (
-                <ScrollArea className="mt-2 space-y-1 text-xs max-h-20 border rounded-md p-1.5 bg-background">
-                  {activeCountryTariffAdjustments.map(adj => (
-                    <div key={adj.countryName} className="flex justify-between items-center p-1 bg-muted/60 rounded text-2xs my-0.5">
-                      <span>{adj.countryName}: {adj.tariffAdjustmentPoints > 0 ? '+':''}{adj.tariffAdjustmentPoints} points</span>
-                      <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/10" onClick={() => handleRemoveCountryTariffAdjustment(adj.countryName)}><Trash2 className="h-3 w-3 text-destructive"/></Button>
+                    <div>
+                        <Label htmlFor="globalLogisticsSlider" className="text-xs">Global Logistics Cost Adj. (pts on base: {effectiveBaseLogisticsForDisplay}%)</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                        <Slider id="globalLogisticsSlider" min={-100} max={100} step={1} value={[globalLogisticsAdjustmentPoints]} onValueChange={(val) => setGlobalLogisticsAdjustmentPoints(val[0])} className="flex-grow" />
+                        <Input type="number" value={globalLogisticsAdjustmentPoints} onChange={(e)=> setGlobalLogisticsAdjustmentPoints(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right"/>
+                        <span className="text-xs w-5">pts</span>
+                        </div>
                     </div>
-                  ))}
-                </ScrollArea>
-              )}
-            </div>
-
-            
-            <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
-              <h4 className="font-medium text-sm flex items-center"><Activity className="h-4 w-4 mr-1.5"/>Demand Adjustments</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end pt-2">
-                <div className="sm:col-span-3">
-                  <Label htmlFor="demandAdjustmentTypeSelect" className="text-xs">Type</Label>
-                  <Select value={demandAdjustmentType} onValueChange={(val) => setDemandAdjustmentType(val as 'global' | 'category' | 'part')}>
-                    <SelectTrigger id="demandAdjustmentTypeSelect" className="h-9 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="global" className="text-xs">Global</SelectItem>
-                      <SelectItem value="category" className="text-xs">By Category</SelectItem>
-                      <SelectItem value="part" className="text-xs">By Part</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
-                {demandAdjustmentType === 'category' && (
-                  <div className="sm:col-span-3">
-                    <Label htmlFor="selectCategoryForDemand" className="text-xs">Category</Label>
-                    <Select value={selectedCategoryForDemand} onValueChange={setSelectedCategoryForDemand}>
-                      <SelectTrigger id="selectCategoryForDemand" className="h-9 text-xs"><SelectValue placeholder="Select Category" /></SelectTrigger>
-                      <SelectContent>
+
+                <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
+                <h4 className="font-medium text-sm flex items-center"><Palette className="h-4 w-4 mr-1.5"/>Category Specific Cost Adjustment</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2">
+                    <div className="sm:col-span-5">
+                    <Label htmlFor="selectCategoryCost" className="text-xs">Category</Label>
+                    <Select value={selectedCategoryForAdjustment} onValueChange={setSelectedCategoryForAdjustment}>
+                        <SelectTrigger id="selectCategoryCost" className="h-9 text-xs"><SelectValue placeholder="Select Category" /></SelectTrigger>
+                        <SelectContent>
                         {uniqueCategories.map(cat => <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>)}
-                      </SelectContent>
+                        </SelectContent>
                     </Select>
-                  </div>
-                )}
-                {demandAdjustmentType === 'part' && (
-                  <div className="sm:col-span-3">
-                    <Label htmlFor="selectPartForDemand" className="text-xs">Part</Label>
-                    <Select value={selectedPartForDemand} onValueChange={setSelectedPartForDemand}>
-                      <SelectTrigger id="selectPartForDemand" className="h-9 text-xs"><SelectValue placeholder="Select Part" /></SelectTrigger>
-                      <SelectContent>
-                        {partsForSelect.map(p => <SelectItem key={p.value} value={p.value} className="text-xs">{p.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                 <div className={`sm:col-span-${
-                    demandAdjustmentType === 'global' ? '7' : '4' 
-                  }`}>
-                  <Label htmlFor="demandAdjustmentSlider" className="text-xs">Demand Change (%)</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Slider id="demandAdjustmentSlider" min={-100} max={200} step={1} value={[demandAdjustmentValue]} onValueChange={(val) => setDemandAdjustmentValue(val[0])} className="flex-grow" />
-                    <Input type="number" value={demandAdjustmentValue} onChange={(e) => setDemandAdjustmentValue(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right" />
-                    <span className="text-xs w-5">%</span>
-                  </div>
-                </div>
-                <Button 
-                    onClick={handleAddDemandAdjustment} 
-                    size="sm" 
-                    className="h-9 text-xs sm:col-span-2 justify-self-end"
-                    disabled={
-                        (demandAdjustmentType === 'category' && !selectedCategoryForDemand) ||
-                        (demandAdjustmentType === 'part' && !selectedPartForDemand)
-                    }
-                >
-                  <PlusCircle className="mr-1 h-4 w-4" /> Add
-                </Button>
-              </div>
-              {activeDemandAdjustments.length > 0 && (
-                <ScrollArea className="mt-2 space-y-1 text-xs max-h-24 border rounded-md p-1.5 bg-background">
-                  {activeDemandAdjustments.map(adj => (
-                    <div key={adj.id} className="flex justify-between items-center p-1 bg-muted/60 rounded text-2xs my-0.5">
-                      <span>
-                        {adj.type === 'global' ? 'Global Demand' : adj.type === 'category' ? `Category: ${adj.targetName}` : `Part: ${adj.targetName}`}
-                        : {adj.adjustmentPercent > 0 ? '+':''}{adj.adjustmentPercent}%
-                      </span>
-                      <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/10" onClick={() => handleRemoveDemandAdjustment(adj.id)}><Trash2 className="h-3 w-3 text-destructive"/></Button>
                     </div>
-                  ))}
+                    <div className="sm:col-span-5">
+                    <Label htmlFor="categoryCostPercentSlider" className="text-xs">Cost Adj. (%)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                            <Slider id="categoryCostPercentSlider" min={-100} max={100} step={1} value={[categoryCostAdjustmentValue]} onValueChange={(val) => setCategoryCostAdjustmentValue(val[0])} className="flex-grow" />
+                            <Input type="number" value={categoryCostAdjustmentValue} onChange={(e)=> setCategoryCostAdjustmentValue(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right"/>
+                            <span className="text-xs w-5">%</span>
+                    </div>
+                    </div>
+                    <Button onClick={handleAddCategoryAdjustment} size="sm" className="h-9 text-xs sm:col-span-2" disabled={!selectedCategoryForAdjustment}>
+                    <PlusCircle className="mr-1 h-4 w-4" /> Add
+                    </Button>
+                </div>
+                {activeCategoryAdjustments.length > 0 && (
+                    <ScrollArea className="mt-2 space-y-1 text-xs max-h-20 border rounded-md p-1.5 bg-background">
+                    {activeCategoryAdjustments.map(adj => (
+                        <div key={adj.categoryName} className="flex justify-between items-center p-1 bg-muted/60 rounded text-2xs my-0.5">
+                        <span>{adj.categoryName}: {adj.costAdjustmentPercent > 0 ? '+':''}{adj.costAdjustmentPercent}%</span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/10" onClick={() => handleRemoveCategoryAdjustment(adj.categoryName)}><Trash2 className="h-3 w-3 text-destructive"/></Button>
+                        </div>
+                    ))}
+                    </ScrollArea>
+                )}
+                </div>
+                
+                <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
+                <h4 className="font-medium text-sm flex items-center"><PackageSearch className="h-4 w-4 mr-1.5"/>Source Country Specific Tariff Adjustment</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2">
+                    <div className="sm:col-span-5">
+                    <Label htmlFor="selectCountryTariff" className="text-xs">Supplier Country (Foreign)</Label>
+                    <Select value={selectedCountryForTariff} onValueChange={setSelectedCountryForTariff}>
+                        <SelectTrigger id="selectCountryTariff" className="h-9 text-xs"><SelectValue placeholder="Select Country" /></SelectTrigger>
+                        <SelectContent>
+                        {uniqueSupplierCountriesForAnalysis.filter(c => c !== analysisHomeCountry).map(country => <SelectItem key={country} value={country} className="text-xs">{country}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    </div>
+                    <div className="sm:col-span-5">
+                    <Label htmlFor="countryTariffPointsSlider" className="text-xs">Additional Tariff (points)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                        <Slider id="countryTariffPointsSlider" min={-100} max={100} step={1} value={[countryTariffAdjustmentValue]} onValueChange={(val) => setCountryTariffAdjustmentValue(val[0])} className="flex-grow" />
+                        <Input type="number" value={countryTariffAdjustmentValue} onChange={(e)=> setCountryTariffAdjustmentValue(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right"/>
+                        <span className="text-xs w-5">pts</span>
+                    </div>
+                    </div>
+                    <Button onClick={handleAddCountryTariffAdjustment} size="sm" className="h-9 text-xs sm:col-span-2" disabled={!selectedCountryForTariff}>
+                    <PlusCircle className="mr-1 h-4 w-4" /> Add
+                    </Button>
+                </div>
+                {activeCountryTariffAdjustments.length > 0 && (
+                    <ScrollArea className="mt-2 space-y-1 text-xs max-h-20 border rounded-md p-1.5 bg-background">
+                    {activeCountryTariffAdjustments.map(adj => (
+                        <div key={adj.countryName} className="flex justify-between items-center p-1 bg-muted/60 rounded text-2xs my-0.5">
+                        <span>{adj.countryName}: {adj.tariffAdjustmentPoints > 0 ? '+':''}{adj.tariffAdjustmentPoints} points</span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/10" onClick={() => handleRemoveCountryTariffAdjustment(adj.countryName)}><Trash2 className="h-3 w-3 text-destructive"/></Button>
+                        </div>
+                    ))}
+                    </ScrollArea>
+                )}
+                </div>
+
+                <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
+                <h4 className="font-medium text-sm flex items-center"><Activity className="h-4 w-4 mr-1.5"/>Demand Adjustments</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end pt-2">
+                    <div className="sm:col-span-3">
+                    <Label htmlFor="demandAdjustmentTypeSelect" className="text-xs">Type</Label>
+                    <Select value={demandAdjustmentType} onValueChange={(val) => setDemandAdjustmentType(val as 'global' | 'category' | 'part')}>
+                        <SelectTrigger id="demandAdjustmentTypeSelect" className="h-9 text-xs">
+                        <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                        <SelectItem value="global" className="text-xs">Global</SelectItem>
+                        <SelectItem value="category" className="text-xs">By Category</SelectItem>
+                        <SelectItem value="part" className="text-xs">By Part</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    </div>
+                    {demandAdjustmentType === 'category' && (
+                    <div className="sm:col-span-3">
+                        <Label htmlFor="selectCategoryForDemand" className="text-xs">Category</Label>
+                        <Select value={selectedCategoryForDemand} onValueChange={setSelectedCategoryForDemand}>
+                        <SelectTrigger id="selectCategoryForDemand" className="h-9 text-xs"><SelectValue placeholder="Select Category" /></SelectTrigger>
+                        <SelectContent>
+                            {uniqueCategories.map(cat => <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                    </div>
+                    )}
+                    {demandAdjustmentType === 'part' && (
+                    <div className="sm:col-span-3">
+                        <Label htmlFor="selectPartForDemand" className="text-xs">Part</Label>
+                        <Select value={selectedPartForDemand} onValueChange={setSelectedPartForDemand}>
+                        <SelectTrigger id="selectPartForDemand" className="h-9 text-xs"><SelectValue placeholder="Select Part" /></SelectTrigger>
+                        <SelectContent>
+                            {partsForSelect.map(p => <SelectItem key={p.value} value={p.value} className="text-xs">{p.label}</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                    </div>
+                    )}
+                    <div className={`sm:col-span-${demandAdjustmentType === 'global' ? '7' : '4'}`}>
+                    <Label htmlFor="demandAdjustmentSlider" className="text-xs">Demand Change (%)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                        <Slider id="demandAdjustmentSlider" min={-100} max={200} step={1} value={[demandAdjustmentValue]} onValueChange={(val) => setDemandAdjustmentValue(val[0])} className="flex-grow" />
+                        <Input type="number" value={demandAdjustmentValue} onChange={(e) => setDemandAdjustmentValue(parseInt(e.target.value))} className="w-20 h-8 text-xs text-right" />
+                        <span className="text-xs w-5">%</span>
+                    </div>
+                    </div>
+                    <Button 
+                        onClick={handleAddDemandAdjustment} 
+                        size="sm" 
+                        className="h-9 text-xs sm:col-span-2 justify-self-end"
+                        disabled={
+                            (demandAdjustmentType === 'category' && !selectedCategoryForDemand) ||
+                            (demandAdjustmentType === 'part' && !selectedPartForDemand)
+                        }
+                    >
+                    <PlusCircle className="mr-1 h-4 w-4" /> Add
+                    </Button>
+                </div>
+                {activeDemandAdjustments.length > 0 && (
+                    <ScrollArea className="mt-2 space-y-1 text-xs max-h-24 border rounded-md p-1.5 bg-background">
+                    {activeDemandAdjustments.map(adj => (
+                        <div key={adj.id} className="flex justify-between items-center p-1 bg-muted/60 rounded text-2xs my-0.5">
+                        <span>
+                            {adj.type === 'global' ? 'Global Demand' : adj.type === 'category' ? `Category: ${adj.targetName}` : `Part: ${adj.targetName}`}
+                            : {adj.adjustmentPercent > 0 ? '+':''}{adj.adjustmentPercent}%
+                        </span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/10" onClick={() => handleRemoveDemandAdjustment(adj.id)}><Trash2 className="h-3 w-3 text-destructive"/></Button>
+                        </div>
+                    ))}
+                    </ScrollArea>
+                )}
+                </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Column 2: Scenario Management & Applied Parameters */}
+        <div className="md:col-span-1 space-y-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center"><FileJson className="mr-2 h-5 w-5 text-primary"/>Scenario Management</CardTitle>
+                    <CardDescription className="text-xs">Load, save, or delete your what-if scenarios.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <Select value={selectedScenarioToLoad} onValueChange={handleLoadScenario}>
+                            <SelectTrigger className="w-full h-9 text-xs"><SelectValue placeholder="Load Scenario..." /></SelectTrigger>
+                            <SelectContent>
+                                {savedScenarioNames.length === 0 && <SelectItem value="no-scenarios" disabled className="text-xs">No saved scenarios</SelectItem>}
+                                {savedScenarioNames.map(name => <SelectItem key={name} value={name} className="text-xs">{name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button onClick={() => handleOpenSaveDialog(false)} size="sm" variant="default" className="text-xs h-9">
+                            <Save className="mr-1 h-3 w-3" /> Save New
+                        </Button>
+                        {selectedScenarioToLoad && (
+                            <Button onClick={() => handleOpenSaveDialog(true)} size="sm" variant="outline" className="text-xs h-9">
+                                <Edit3 className="mr-1 h-3 w-3" /> Edit Current
+                            </Button>
+                        )}
+                    </div>
+                    {selectedScenarioToLoad && (
+                        <Button onClick={handleDeleteScenario} size="sm" variant="destructive" className="w-full text-xs h-9 mt-2">
+                            <Trash2 className="mr-1 h-3 w-3" /> Delete '{selectedScenarioToLoad}'
+                        </Button>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-medium flex items-center">
+                  <Filter className="mr-2 h-5 w-5 text-primary"/>Applied What-if Parameters
+                </CardTitle>
+                {selectedScenarioToLoad && <CardDescription className="text-xs">For scenario: <strong>{selectedScenarioToLoad}</strong></CardDescription>}
+                {!selectedScenarioToLoad && <CardDescription className="text-xs">No scenario loaded. Displaying current adjustments.</CardDescription>}
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-40 text-xs"> 
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Analysis Home Country: <strong>{analysisHomeCountry}</strong></li>
+                    <li>Global Tariff Adjustment: {globalTariffAdjustmentPoints >= 0 ? "+" : ""}{globalTariffAdjustmentPoints} pts
+                      <span className="text-muted-foreground text-2xs"> (Effective Base: {effectiveBaseTariffForDisplay}%)</span>
+                    </li>
+                    <li>Global Logistics Adj.: {globalLogisticsAdjustmentPoints >= 0 ? "+" : ""}{globalLogisticsAdjustmentPoints} pts
+                       <span className="text-muted-foreground text-2xs"> (Base: {effectiveBaseLogisticsForDisplay}%)</span>
+                    </li>
+                    {activeCategoryAdjustments.map(adj => (
+                      <li key={adj.categoryName}>
+                        Category '{adj.categoryName}' Cost: {adj.costAdjustmentPercent >= 0 ? "+" : ""}{adj.costAdjustmentPercent}%
+                      </li>
+                    ))}
+                    {activeCountryTariffAdjustments.map(adj => (
+                      <li key={adj.countryName}>
+                        Country '{adj.countryName}' Add. Tariff: {adj.tariffAdjustmentPoints >= 0 ? "+" : ""}{adj.tariffAdjustmentPoints} pts
+                      </li>
+                    ))}
+                    {activeDemandAdjustments.map(adj => (
+                      <li key={adj.id}>
+                        Demand '{adj.type === 'global' ? 'Global' : adj.type === 'category' ? `Category: ${adj.targetName}` : `Part: ${adj.targetName}`}' Change: {adj.adjustmentPercent >= 0 ? "+" : ""}{adj.adjustmentPercent}%
+                      </li>
+                    ))}
+                    {(globalTariffAdjustmentPoints === 0 && globalLogisticsAdjustmentPoints === 0 && activeCategoryAdjustments.length === 0 && activeCountryTariffAdjustments.length === 0 && activeDemandAdjustments.length === 0 && analysisHomeCountry === defaultAnalysisHomeCountry) && (
+                      <li className="text-muted-foreground italic">No custom scenario adjustments applied. Using app base settings.</li>
+                    )}
+                  </ul>
                 </ScrollArea>
-              )}
-            </div>
+              </CardContent>
+            </Card>
+        </div>
 
-          </CardContent>
-        </Card>
-
+        {/* Column 3: Impact Summary */}
         <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center text-lg">
               <TrendingUp className="mr-2 h-5 w-5 text-green-500" />
               Impact Summary
             </CardTitle>
-             {selectedScenarioToLoad && <CardDescription className="text-xs">Scenario: <strong>{selectedScenarioToLoad}</strong></CardDescription>}
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
              <div>
@@ -885,3 +874,5 @@ export default function WhatIfAnalysisTab({
   );
 }
 
+
+    

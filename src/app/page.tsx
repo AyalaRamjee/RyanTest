@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// SummaryTab import removed as it's no longer a distinct tab content, its elements are integrated elsewhere or not used
 import UpdatePartsTab from "@/components/spendwise/update-parts";
 import UpdateSuppliersTab from "@/components/spendwise/update-suppliers";
 import PartSupplierMappingTab from "@/components/spendwise/part-supplier-mapping";
@@ -20,14 +19,12 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, PieChart as PieChartLucideIcon, ListChecks, Search, ExternalLink } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, ListChecks, Search, ExternalLink } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import * as XLSX from 'xlsx';
-import { PieChart as RechartsPieChart, Pie, Cell, Legend as RechartsLegend, ResponsiveContainer, Tooltip as RechartsTooltipComponent } from 'recharts';
-import { ChartContainer } from '@/components/ui/chart';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 
@@ -52,7 +49,6 @@ const HEADER_HEIGHT_PX = 128;
 const SUMMARY_STATS_HEIGHT_PX = 100;
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
-const PIE_COLORS_PARTS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--chart-1) / 0.7)", "hsl(var(--chart-2) / 0.7)", "hsl(var(--chart-3) / 0.7)", "hsl(var(--chart-4) / 0.7)", "hsl(var(--chart-5) / 0.7)"];
 
 type TabValue = "update-parts" | "update-suppliers" | "part-supplier-mapping" | "upload-part-category" | "validate-spend" | "what-if-analysis";
 
@@ -82,7 +78,7 @@ export default function SpendWiseCentralPage() {
   const [isLoadingSampleData, setIsLoadingSampleData] = useState(false);
 
   const [tariffRateMultiplierPercent, setTariffRateMultiplierPercent] = useState(100);
-  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100);
+  const [totalLogisticsCostPercent, setTotalLogisticsCostPercent] = useState(100); // Retained for calculations
 
 
   const [xmlConfigString, setXmlConfigString] = useState<string>('');
@@ -96,6 +92,7 @@ export default function SpendWiseCentralPage() {
   const [validationPerformed, setValidationPerformed] = useState<boolean>(false);
   const [partsWithoutSuppliers, setPartsWithoutSuppliers] = useState<Part[]>([]);
   const [suppliersWithoutParts, setSuppliersWithoutParts] = useState<Supplier[]>([]);
+  const [duplicatePartsById, setDuplicatePartsById] = useState<{ id: string; items: Part[] }[]>([]);
   const [duplicatePartsByNumber, setDuplicatePartsByNumber] = useState<{ partNumber: string; items: Part[] }[]>([]);
   const [duplicatePartsByName, setDuplicatePartsByName] = useState<{ name: string; items: Part[] }[]>([]);
   const [duplicateSuppliersById, setDuplicateSuppliersById] = useState<{ supplierId: string; items: Supplier[] }[]>([]);
@@ -105,6 +102,7 @@ export default function SpendWiseCentralPage() {
   // State for search terms in validation tab
   const [searchTermPartsWithoutSuppliers, setSearchTermPartsWithoutSuppliers] = useState('');
   const [searchTermSuppliersWithoutParts, setSearchTermSuppliersWithoutParts] = useState('');
+  const [searchTermDuplicatePartsId, setSearchTermDuplicatePartsId] = useState('');
   const [searchTermDuplicatePartsNumber, setSearchTermDuplicatePartsNumber] = useState('');
   const [searchTermDuplicatePartsName, setSearchTermDuplicatePartsName] = useState('');
   const [searchTermDuplicateSuppliersId, setSearchTermDuplicateSuppliersId] = useState('');
@@ -170,6 +168,7 @@ export default function SpendWiseCentralPage() {
     setValidationPerformed(false);
     setPartsWithoutSuppliers([]);
     setSuppliersWithoutParts([]);
+    setDuplicatePartsById([]);
     setDuplicatePartsByNumber([]);
     setDuplicatePartsByName([]);
     setDuplicateSuppliersById([]);
@@ -177,6 +176,7 @@ export default function SpendWiseCentralPage() {
     setCaseInsensitiveDuplicateCategories([]);
     setSearchTermPartsWithoutSuppliers('');
     setSearchTermSuppliersWithoutParts('');
+    setSearchTermDuplicatePartsId('');
     setSearchTermDuplicatePartsNumber('');
     setSearchTermDuplicatePartsName('');
     setSearchTermDuplicateSuppliersId('');
@@ -840,16 +840,6 @@ export default function SpendWiseCentralPage() {
   ], [totalParts, totalSuppliers, totalCategories, totalAnnualSpend, formatCurrencyDisplay]);
 
 
-  const spendByPartData: SpendDataPoint[] = useMemo(() => {
-    return partsWithSpend
-      .map(part => ({
-        name: part.partNumber,
-        spend: part.annualSpend,
-      }))
-      .sort((a,b) => b.spend - a.spend)
-      .slice(0,10);
-  }, [partsWithSpend]);
-
   const spendByCategoryData: SpendDataPoint[] = useMemo(() => {
     const categorySpend: Record<string, number> = {};
     partCategoryMappings.forEach(mapping => {
@@ -910,8 +900,20 @@ export default function SpendWiseCentralPage() {
       !partSupplierAssociations.some(assoc => assoc.supplierId === supplier.id)
     );
     setSuppliersWithoutParts(suppliersMissingParts);
+    
+    // 3. Duplicate Parts by Internal ID
+    const partsByIdGroupsInternal = parts.reduce((acc, part) => {
+      acc[part.id] = acc[part.id] || [];
+      acc[part.id].push(part);
+      return acc;
+    }, {} as Record<string, Part[]>);
+    setDuplicatePartsById(
+      Object.entries(partsByIdGroupsInternal)
+        .filter(([, items]) => items.length > 1)
+        .map(([id, items]) => ({ id, items }))
+    );
 
-    // 3. Duplicate Parts by PartNumber
+    // 4. Duplicate Parts by PartNumber
     const partsByNumberGroups = parts.reduce((acc, part) => {
       acc[part.partNumber] = acc[part.partNumber] || [];
       acc[part.partNumber].push(part);
@@ -923,7 +925,7 @@ export default function SpendWiseCentralPage() {
         .map(([partNumber, items]) => ({ partNumber, items }))
     );
 
-    // 4. Duplicate Parts by Name
+    // 5. Duplicate Parts by Name
     const partsByNameGroups = parts.reduce((acc, part) => {
       acc[part.name] = acc[part.name] || [];
       acc[part.name].push(part);
@@ -935,7 +937,7 @@ export default function SpendWiseCentralPage() {
         .map(([name, items]) => ({ name, items }))
     );
     
-    // 5. Duplicate Suppliers by SupplierId
+    // 6. Duplicate Suppliers by SupplierId
     const suppliersByIdGroups = suppliers.reduce((acc, supplier) => {
       acc[supplier.supplierId] = acc[supplier.supplierId] || [];
       acc[supplier.supplierId].push(supplier);
@@ -947,7 +949,7 @@ export default function SpendWiseCentralPage() {
         .map(([supplierId, items]) => ({ supplierId, items }))
     );
 
-    // 6. Duplicate Suppliers by Name
+    // 7. Duplicate Suppliers by Name
     const suppliersByNameGroups = suppliers.reduce((acc, supplier) => {
       acc[supplier.name] = acc[supplier.name] || [];
       acc[supplier.name].push(supplier);
@@ -959,7 +961,7 @@ export default function SpendWiseCentralPage() {
         .map(([name, items]) => ({ name, items }))
     );
 
-    // 7. Case Insensitive Duplicate Categories
+    // 8. Case Insensitive Duplicate Categories
     const uniqueCatNames = Array.from(new Set(partCategoryMappings.map(m => m.categoryName)));
     const categoryLowercaseMap = uniqueCatNames.reduce((acc, name) => {
         const lowerName = name.toLowerCase();
@@ -996,6 +998,11 @@ export default function SpendWiseCentralPage() {
     );
   }, [suppliersWithoutParts, searchTermSuppliersWithoutParts]);
 
+  const filteredDuplicatePartsId = useMemo(() => {
+    if (!searchTermDuplicatePartsId) return duplicatePartsById;
+    return duplicatePartsById.filter(group => group.id.toLowerCase().includes(searchTermDuplicatePartsId.toLowerCase()));
+  },[duplicatePartsById, searchTermDuplicatePartsId]);
+  
   const filteredDuplicatePartsNumber = useMemo(() => {
     if (!searchTermDuplicatePartsNumber) return duplicatePartsByNumber;
     return duplicatePartsByNumber.filter(group => group.partNumber.toLowerCase().includes(searchTermDuplicatePartsNumber.toLowerCase()));
@@ -1039,8 +1046,8 @@ export default function SpendWiseCentralPage() {
             <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
               Spend by TADA
             </h1>
-            <div className="flex-grow flex flex-col space-y-2 ml-4">
-              <div className="flex items-center space-x-4">
+            <div className="flex-grow flex items-center space-x-6 ml-4"> {/* Changed to items-center and added space-x-6 */}
+              <div className="flex items-center space-x-2"> {/* Group Home Country */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-1">
@@ -1064,7 +1071,7 @@ export default function SpendWiseCentralPage() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2"> {/* Group Tariff Multiplier */}
                  <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-2">
@@ -1276,9 +1283,7 @@ export default function SpendWiseCentralPage() {
             </TabsList>
 
             <TabsContent value="update-parts" className="mt-4">
-              <div className="grid md:grid-cols-10 gap-6">
-                <div className="md:col-span-3">
-                  <UpdatePartsTab
+                 <UpdatePartsTab
                     parts={parts}
                     setParts={(value) => { setParts(value); resetValidationStates(); }}
                     onAddPart={handleAddPart}
@@ -1292,59 +1297,6 @@ export default function SpendWiseCentralPage() {
                     tariffChargePercent={tariffRateMultiplierPercent}
                     totalLogisticsCostPercent={totalLogisticsCostPercent}
                   />
-                </div>
-                <div className="md:col-span-7">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <PieChartLucideIcon className="mr-2 h-5 w-5 text-primary" />
-                        Top 10 Parts by Spend
-                      </CardTitle>
-                      <CardDescription>Calculated annual spend distribution for the top 10 parts.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {spendByPartData.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-8">No spend data available for parts.</p>
-                      ) : (
-                        <ChartContainer config={{}} className="min-h-[300px] w-full aspect-square">
-                           <ResponsiveContainer width="100%" height={300}>
-                            <RechartsPieChart>
-                              <RechartsTooltipComponent
-                                formatter={(value, name) => [new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value as number), name]}
-                              />
-                              <Pie
-                                data={spendByPartData}
-                                dataKey="spend"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={100}
-                                labelLine={false}
-                                label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
-                                  const RADIAN = Math.PI / 180;
-                                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5 + 5;
-                                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                  return (percent as number) * 100 > 2 ? ( 
-                                    <text x={x} y={y} fill="hsl(var(--foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[10px] font-medium">
-                                      {`${name} (${((percent as number) * 100).toFixed(0)}%)`}
-                                    </text>
-                                  ) : null;
-                                }}
-                              >
-                                {spendByPartData.map((entry, index) => (
-                                  <Cell key={`cell-part-${index}`} fill={PIE_COLORS_PARTS[index % PIE_COLORS_PARTS.length]} />
-                                ))}
-                              </Pie>
-                              <RechartsLegend wrapperStyle={{fontSize: "11px", marginTop: "10px"}}/>
-                            </RechartsPieChart>
-                          </ResponsiveContainer>
-                        </ChartContainer>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
             </TabsContent>
             <TabsContent value="update-suppliers" className="mt-4">
               <UpdateSuppliersTab
@@ -1376,12 +1328,17 @@ export default function SpendWiseCentralPage() {
             <TabsContent value="validate-spend" className="mt-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <ListChecks className="mr-2 h-5 w-5 text-primary" />
-                    Data Validation Checks
-                  </CardTitle>
-                  <CardDescription>
-                    Review data consistency. Click "Run Validation Checks" in the header to perform checks.
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                       <ListChecks className="mr-2 h-5 w-5 text-primary" />
+                       <CardTitle>Data Validation Checks</CardTitle>
+                    </div>
+                    <Button onClick={handleRunValidationChecks} size="sm">
+                        <CheckCircle className="mr-1.5 h-4 w-4" /> Run Validation Checks
+                    </Button>
+                  </div>
+                  <CardDescription className="text-xs">
+                    Review data consistency. Click the button above to perform checks.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 text-xs">
@@ -1389,7 +1346,7 @@ export default function SpendWiseCentralPage() {
                      <div className="text-center text-muted-foreground p-4 border border-dashed rounded-md min-h-[100px] flex flex-col items-center justify-center">
                         <Info className="mx-auto h-8 w-8 mb-2" />
                         <p className="text-sm">Validation checks have not been performed yet.</p>
-                        <p className="text-xs">Click the "Validate Data" button in the header to run all checks.</p>
+                        <p className="text-xs">Click the "Run Validation Checks" button to run all checks.</p>
                     </div>
                   )}
 
@@ -1435,6 +1392,23 @@ export default function SpendWiseCentralPage() {
                       />
 
                       <ValidationSection
+                        title={`Duplicate Parts by Internal ID (${filteredDuplicatePartsId.length} groups)`}
+                        data={filteredDuplicatePartsId}
+                        searchTerm={searchTermDuplicatePartsId}
+                        onSearchTermChange={setSearchTermDuplicatePartsId}
+                        renderItem={(group: { id: string, items: Part[] }) => (
+                          <li key={group.id} className="p-1.5 bg-card rounded shadow-sm">
+                            <div className="font-medium mb-1">Internal Part ID: {group.id} ({group.items.length} occurrences)</div>
+                            <ul className="list-disc list-inside pl-3 text-2xs">
+                                {group.items.map(p => <li key={`${p.id}_${p.partNumber}`}>{p.partNumber} - {p.name}</li>)}
+                            </ul>
+                          </li>
+                        )}
+                        emptyMessage="No parts with duplicate internal IDs found."
+                        searchPlaceholder="Search by internal ID..."
+                        isGrouped
+                      />
+                      <ValidationSection
                         title={`Duplicate Parts by Part Number (${filteredDuplicatePartsNumber.length} groups)`}
                         data={filteredDuplicatePartsNumber}
                         searchTerm={searchTermDuplicatePartsNumber}
@@ -1443,7 +1417,7 @@ export default function SpendWiseCentralPage() {
                           <li key={group.partNumber} className="p-1.5 bg-card rounded shadow-sm">
                             <div className="font-medium mb-1">Part Number: {group.partNumber} ({group.items.length} occurrences)</div>
                             <ul className="list-disc list-inside pl-3 text-2xs">
-                                {group.items.map(p => <li key={p.id}>{p.name} (ID: {p.id})</li>)}
+                                {group.items.map(p => <li key={p.id}>{p.name} (Internal ID: {p.id})</li>)}
                             </ul>
                           </li>
                         )}
@@ -1460,7 +1434,7 @@ export default function SpendWiseCentralPage() {
                           <li key={group.name} className="p-1.5 bg-card rounded shadow-sm">
                             <div className="font-medium mb-1">Part Name: "{group.name}" ({group.items.length} occurrences)</div>
                              <ul className="list-disc list-inside pl-3 text-2xs">
-                                {group.items.map(p => <li key={p.id}>{p.partNumber} (ID: {p.id})</li>)}
+                                {group.items.map(p => <li key={p.id}>{p.partNumber} (Internal ID: {p.id})</li>)}
                             </ul>
                           </li>
                         )}
