@@ -1297,28 +1297,28 @@ export default function SpendWiseCentralPage() {
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="w-full mt-0">
              <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
-              <TabsTrigger value="update-parts" className="flex items-center gap-1 tabs-trigger-active-underline">
+              <TabsTrigger value="update-parts" className="flex items-center gap-1 tabs-trigger-active-underline text-xs whitespace-normal">
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
               </TabsTrigger>
-              <TabsTrigger value="update-suppliers" className="flex items-center gap-1 tabs-trigger-active-underline">
+              <TabsTrigger value="update-suppliers" className="flex items-center gap-1 tabs-trigger-active-underline text-xs whitespace-normal">
                 <Building className="h-3.5 w-3.5" /> 2. Add/Update Suppliers
               </TabsTrigger>
-              <TabsTrigger value="part-supplier-mapping" className="flex items-center gap-1 tabs-trigger-active-underline">
+              <TabsTrigger value="part-supplier-mapping" className="flex items-center gap-1 tabs-trigger-active-underline text-xs whitespace-normal">
                 <ArrowRightLeft className="h-3.5 w-3.5" /> 3. Update Source Mix
               </TabsTrigger>
-              <TabsTrigger value="upload-part-category" className="flex items-center gap-1 tabs-trigger-active-underline">
+              <TabsTrigger value="upload-part-category" className="flex items-center gap-1 tabs-trigger-active-underline text-xs whitespace-normal">
                 <FolderTree className="h-3.5 w-3.5" /> 4. Add/Update Categories
               </TabsTrigger>
-              <TabsTrigger value="validate-spend-network" className="flex items-center gap-1 tabs-trigger-active-underline">
+              <TabsTrigger value="validate-spend-network" className="flex items-center gap-1 tabs-trigger-active-underline text-xs whitespace-normal">
                 <ListChecks className="h-3.5 w-3.5" /> 5. Validate Spend Network
               </TabsTrigger>
-              <TabsTrigger value="what-if-analysis" className="flex items-center gap-1 tabs-trigger-active-underline">
+              <TabsTrigger value="what-if-analysis" className="flex items-center gap-1 tabs-trigger-active-underline text-xs whitespace-normal">
                 <HelpCircle className="h-3.5 w-3.5" /> 6. What-if Analysis
               </TabsTrigger>
-               <TabsTrigger value="review-summary" className="flex items-center gap-1 tabs-trigger-active-underline">
+               <TabsTrigger value="review-summary" className="flex items-center gap-1 tabs-trigger-active-underline text-xs whitespace-normal">
                 <BarChart3 className="h-3.5 w-3.5" /> 7. Review Spend
               </TabsTrigger>
-              <TabsTrigger value="release-notes" className="flex items-center gap-1 tabs-trigger-active-underline">
+              <TabsTrigger value="release-notes" className="flex items-center gap-1 tabs-trigger-active-underline text-xs whitespace-normal">
                 <Sparkles className="h-3.5 w-3.5" /> Release Notes
               </TabsTrigger>
             </TabsList>
@@ -1628,6 +1628,7 @@ export default function SpendWiseCentralPage() {
                         <li>"Top 10 Parts by Spend" pie chart removed from the "Update Parts" tab (Tab 1) for a cleaner interface.</li>
                         <li>Fixed runtime error related to empty value prop in Select.Item component.</li>
                         <li>Fixed "Label not defined" error by adding the correct import.</li>
+                        <li>Tab titles now use `text-xs` and `whitespace-normal` for improved readability and wrapping.</li>
                       </ul>
                     </li>
                   </ul>
