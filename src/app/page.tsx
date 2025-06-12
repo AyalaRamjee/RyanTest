@@ -11,6 +11,7 @@ import WhatIfAnalysisTab from "@/components/spendwise/what-if-analysis-tab";
 import ReviewSummaryTab from "@/components/spendwise/review-summary-tab";
 import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import UploadCsvDialog from "@/components/spendwise/upload-csv-dialog";
+import AppInfoDialog from "@/components/spendwise/AppInfoDialog";
 import SpendWiseBot from "@/components/spendwise/spendwise-bot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,7 +21,7 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, ListChecks, Search, ExternalLink, AlertTriangle, BarChart3 } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, ListChecks, Search, ExternalLink, AlertTriangle, BarChart3, FileText } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -57,7 +58,7 @@ const SUMMARY_STATS_HEIGHT_PX = 100;
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
 
-type TabValue = "update-parts" | "update-suppliers" | "part-supplier-mapping" | "upload-part-category" | "validate-spend-network" | "what-if-analysis" | "review-summary";
+type TabValue = "update-parts" | "update-suppliers" | "part-supplier-mapping" | "upload-part-category" | "validate-spend-network" | "what-if-analysis" | "review-summary" | "release-notes";
 
 export default function SpendWiseCentralPage() {
   const { theme, setTheme } = useTheme();
@@ -70,6 +71,7 @@ export default function SpendWiseCentralPage() {
 
   const [isGenerateDataDialogOpen, setIsGenerateDataDialogOpen] = useState(false);
   const [isGeneratingData, setIsGeneratingData] = useState(false);
+  const [isAppInfoDialogOpen, setIsAppInfoDialogOpen] = useState(false);
 
   const [isCategoryUploadDialogOpen, setIsCategoryUploadDialogOpen] = useState(false);
   const [isUploadingCategoryCsv, setIsUploadingCategoryCsv] = useState(false);
@@ -1132,6 +1134,14 @@ export default function SpendWiseCentralPage() {
             </div>
 
             <div className="ml-auto flex items-center space-x-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" onClick={() => setIsAppInfoDialogOpen(true)} aria-label="Application Information">
+                        <Info className="h-5 w-5" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>About this Application</p></TooltipContent>
+              </Tooltip>
                <Tooltip>
                 <TooltipTrigger asChild>
                     <Button variant="outline" size="sm" onClick={handleRunValidationChecks} className="h-8">
@@ -1286,7 +1296,7 @@ export default function SpendWiseCentralPage() {
           </section>
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="w-full mt-0">
-             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-7 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
+             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
               </TabsTrigger>
@@ -1307,6 +1317,9 @@ export default function SpendWiseCentralPage() {
               </TabsTrigger>
                <TabsTrigger value="review-summary" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <BarChart3 className="h-3.5 w-3.5" /> 7. Review Spend
+              </TabsTrigger>
+              <TabsTrigger value="release-notes" className="flex items-center gap-1 tabs-trigger-active-underline">
+                <Sparkles className="h-3.5 w-3.5" /> Release Notes
               </TabsTrigger>
             </TabsList>
 
@@ -1562,7 +1575,6 @@ export default function SpendWiseCentralPage() {
                 partCategoryMappings={partCategoryMappings}
                 partSupplierAssociations={partSupplierAssociations}
                 partsWithSpend={partsWithSpend}
-                spendByCategoryData={spendByCategoryData}
                 defaultAnalysisHomeCountry={appHomeCountry}
                 originalTariffMultiplierPercent={tariffRateMultiplierPercent}
                 originalTotalLogisticsCostPercent={totalLogisticsCostPercent}
@@ -1571,6 +1583,57 @@ export default function SpendWiseCentralPage() {
                 totalSuppliers={totalSuppliers}
                 totalCategories={totalCategories}
               />
+            </TabsContent>
+            <TabsContent value="release-notes" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Sparkles className="mr-2 h-5 w-5 text-primary" />
+                    Release Notes - Version 2R25.6.12.1
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="prose prose-sm dark:prose-invert max-w-none">
+                  <p>This release includes several enhancements and new features to improve your spend analysis capabilities.</p>
+                  <h4>Key Changes:</h4>
+                  <ul>
+                    <li><strong>New Tab: "Review Spend" (Tab 7):</strong> Added a dedicated tab for reviewing spend summaries with dynamic filtering capabilities for parts, suppliers, and categories. Charts for spend and demand by various dimensions are included.</li>
+                    <li><strong>New Tab: "Release Notes" (Tab 8):</strong> You are here! This tab will keep you informed about the latest updates.</li>
+                    <li><strong>Enhanced "Validate Spend Network" Tab (Tab 5):</strong>
+                      <ul>
+                        <li>Validation sections are now numbered (A, B, C...).</li>
+                        <li>Added a check for "Single-Source Parts".</li>
+                        <li>Added a check for "Duplicate Parts by Internal ID".</li>
+                        <li>Search functionality added to all validation lists.</li>
+                        <li>"Validate Spend" tab renamed to "Validate Spend Network".</li>
+                        <li>Added a "Run Validation Checks" button directly within this tab.</li>
+                      </ul>
+                    </li>
+                    <li><strong>"What-if Analysis" Tab (Tab 6) Refactor:</strong>
+                      <ul>
+                        <li>Reorganized into a three-column layout for better clarity: Controls, Scenario Management/Description, and Impact Summary.</li>
+                        <li>"Applied What-if Parameters" card moved to the middle column.</li>
+                      </ul>
+                    </li>
+                     <li><strong>"Update Source Mix" Tab (Tab 3) Enhancements:</strong>
+                      <ul>
+                        <li>Added search bars above "Available Parts" and "Available Suppliers" lists.</li>
+                        <li>Removed the "Quick Start" button.</li>
+                        <li>Renamed "Mapped Relationships" column to "Source Network".</li>
+                      </ul>
+                    </li>
+                    <li><strong>Application Information Dialog:</strong> Added an "Info" button in the header to launch a dialog explaining the app's purpose and basic usage.</li>
+                    <li><strong>UI & UX Improvements:</strong>
+                      <ul>
+                        <li>Header layout adjusted to group Home Country and Tariff Multiplier.</li>
+                        <li>"Top 10 Parts by Spend" pie chart removed from the "Update Parts" tab (Tab 1) for a cleaner interface.</li>
+                        <li>Fixed runtime error related to empty value prop in Select.Item component.</li>
+                        <li>Fixed "Label not defined" error by adding the correct import.</li>
+                      </ul>
+                    </li>
+                  </ul>
+                  <p>We hope you find these updates helpful!</p>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </main>
@@ -1615,6 +1678,10 @@ export default function SpendWiseCentralPage() {
           onUpload={handleProcessSourceMixCsv}
           uploadType="sourcemix"
           isUploading={isUploadingSourceMixCsv}
+        />
+        <AppInfoDialog
+            isOpen={isAppInfoDialogOpen}
+            onClose={() => setIsAppInfoDialogOpen(false)}
         />
 
         <Dialog open={isExcelUploadDialogOpen} onOpenChange={setIsExcelUploadDialogOpen}>
@@ -1714,4 +1781,5 @@ function ValidationSection<T>({
     </section>
   );
 }
+
 
