@@ -21,7 +21,7 @@ const defaultCenter = {
   lng: 0,
 };
 
-const googleMapsApiKeyFromEnv = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+const googleMapsApiKeyFromEnv = "AIzaSyCjsng3oAuRStusbUXu766ieSs0u1gMC0M";
 const libraries: ("marker")[] = ['marker'];
 
 export default function SupplierWorldMap({ suppliers }: SupplierWorldMapProps) {
@@ -64,7 +64,7 @@ export default function SupplierWorldMap({ suppliers }: SupplierWorldMapProps) {
             <div>
                 <p className="font-semibold">Google Maps API Key Missing</p>
                 <p className="text-xs">
-                Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your .env.local file to enable the map.
+                The Google Maps API key is not configured. Please add it to the geocodingService.ts file to enable the map.
                 </p>
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function SupplierWorldMap({ suppliers }: SupplierWorldMapProps) {
             <div>
                 <p className="font-semibold">Error Loading Map</p>
                 <p className="text-xs">
-                Could not load Google Maps. Please check your API key and internet connection.
+                Could not load Google Maps. Please check your API key, internet connection, and ensure the Maps JavaScript API is enabled in your Google Cloud Console.
                 </p>
             </div>
           </div>

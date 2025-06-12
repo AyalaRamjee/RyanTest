@@ -15,7 +15,7 @@ import { ChartContainer } from '@/components/ui/chart';
 const LOCAL_STORAGE_SCENARIO_LIST_KEY = "spendwise_scenario_list_v2";
 const LOCAL_STORAGE_SCENARIO_DATA_PREFIX = "spendwise_scenario_data_v2_";
 const VIEW_CURRENT_DATA_VALUE = "__VIEW_CURRENT_DATA__"; // For scenario loading
-const ALL_FILTER_VALUE = ""; // Represents 'All' in filter dropdowns
+const ALL_FILTER_VALUE = "__ALL__"; // Represents 'All' in filter dropdowns
 
 interface SavedScenario {
   name: string;

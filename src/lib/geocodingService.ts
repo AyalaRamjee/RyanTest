@@ -1,13 +1,12 @@
-
 import { setDefaults, fromAddress } from "react-geocode";
 
-const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+const apiKey = "AIzaSyCjsng3oAuRStusbUXu766ieSs0u1gMC0M";
 
 if (apiKey) {
   setDefaults({
     key: apiKey,
     language: "en",
-    region: "es", // Optional: set a region to bias results, e.g., "es" for Spain
+    region: "us", // Changed to "us" since you're likely in the US
   });
 } else {
   console.warn(
@@ -26,7 +25,7 @@ interface Address {
 export const geocodeSupplierAddress = async (address: Address): Promise<{ lat: number; lng: number }> => {
   if (!apiKey) {
     throw new Error(
-      "Google Maps API Key not configured. Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY."
+      "Google Maps API Key not configured. Geocoding service will not work."
     );
   }
 
@@ -50,23 +49,34 @@ export const geocodeSupplierAddress = async (address: Address): Promise<{ lat: n
   }
 
   try {
+    console.log(`Attempting to geocode: "${addressString}"`);
     const response = await fromAddress(addressString);
     if (response.results && response.results.length > 0) {
         const { lat, lng } = response.results[0].geometry.location;
+        console.log(`Successfully geocoded "${addressString}" to (${lat}, ${lng})`);
         return { lat, lng };
     } else {
         throw new Error(`No results found for the address: "${addressString}".`);
     }
   } catch (error: any) {
-    console.error("Geocoding API error:", error);
+    console.error("Geocoding API error for address:", addressString, error);
 
-    let errorMessage = "Failed to geocode address. Check the console for more details.";
-    if (error.message && error.message.includes("ZERO_RESULTS")) { // More robust check for zero results
+    let errorMessage = `Failed to geocode address: "${addressString}".`;
+    
+    if (error.message) {
+      if (error.message.includes("ZERO_RESULTS")) {
         errorMessage = `Could not find a location for the address: "${addressString}". Please verify the address details.`;
-    } else if (error.message && error.message.includes("REQUEST_DENIED")) { // More robust check for request denied
-        errorMessage = "Geocoding request was denied. Is the API key valid and enabled for the Geocoding API?";
-    } else if (error.message) {
-        errorMessage = error.message; // Use the error message from the library if available
+      } else if (error.message.includes("REQUEST_DENIED")) {
+        errorMessage = "Geocoding request was denied. Please check your API key and ensure the Geocoding API is enabled in Google Cloud Console.";
+      } else if (error.message.includes("OVER_QUERY_LIMIT")) {
+        errorMessage = "Geocoding API quota exceeded. Please try again later.";
+      } else if (error.message.includes("INVALID_REQUEST")) {
+        errorMessage = `Invalid geocoding request for address: "${addressString}". Please check the address format.`;
+      } else {
+        errorMessage += ` Error: ${error.message}`;
+      }
+    } else {
+      errorMessage += " Please check the console for more details.";
     }
 
     throw new Error(errorMessage);

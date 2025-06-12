@@ -57,35 +57,73 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
   };
 
   const handleGeocodeSupplier = async (supplierToGeocode: Supplier) => {
-    if (!supplierToGeocode) return;
-    setGeocodingSupplierId(supplierToGeocode.id);
-    try {
-      const result = await geocodeSupplierAddress({
-        streetAddress: supplierToGeocode.streetAddress,
-        city: supplierToGeocode.city,
-        stateOrProvince: supplierToGeocode.stateOrProvince,
-        postalCode: supplierToGeocode.postalCode,
-        country: supplierToGeocode.country,
-      });
+      if (!supplierToGeocode) return;
 
-      setSuppliers(prevSuppliers =>
-        prevSuppliers.map(s =>
-          s.id === supplierToGeocode.id ? { ...s, latitude: result.lat, longitude: result.lng } : s
-        )
-      );
-      toast({ title: "Geocoding Successful", description: `Coordinates found for ${supplierToGeocode.name}. Map updated.` });
-    } catch (error: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Geocoding Failed", 
-        description: error.message || `Could not find coordinates for ${supplierToGeocode.name}. Check address or API key.`,
-        duration: 7000,
-      });
-      console.error("Geocoding component error:", error);
-    } finally {
-      setGeocodingSupplierId(null);
-    }
-  };
+      // Check if we have enough address info to geocode
+      const hasAddressInfo = supplierToGeocode.city || supplierToGeocode.streetAddress || supplierToGeocode.postalCode || supplierToGeocode.country;
+      if (!hasAddressInfo) {
+        toast({ 
+          variant: "destructive", 
+          title: "Insufficient Address Info", 
+          description: `Cannot geocode ${supplierToGeocode.name}. Please add city, street address, postal code, or country information.`,
+          duration: 5000,
+        });
+        return;
+      }
+
+      setGeocodingSupplierId(supplierToGeocode.id);
+
+      try {
+        const result = await geocodeSupplierAddress({
+          streetAddress: supplierToGeocode.streetAddress,
+          city: supplierToGeocode.city,
+          stateOrProvince: supplierToGeocode.stateOrProvince,
+          postalCode: supplierToGeocode.postalCode,
+          country: supplierToGeocode.country,
+        });
+
+        setSuppliers(prevSuppliers =>
+          prevSuppliers.map(s =>
+            s.id === supplierToGeocode.id ? { ...s, latitude: result.lat, longitude: result.lng } : s
+          )
+        );
+
+        toast({ 
+          title: "Geocoding Successful", 
+          description: `Coordinates found for ${supplierToGeocode.name}: (${result.lat.toFixed(4)}, ${result.lng.toFixed(4)})`,
+          duration: 4000,
+        });
+
+      } catch (error: any) {
+        console.error("Geocoding error:", error);
+
+        let errorMessage = `Could not find coordinates for ${supplierToGeocode.name}.`;
+
+        if (error.message) {
+          if (error.message.includes('ZERO_RESULTS')) {
+            errorMessage += " The address was not found. Please check the address details.";
+          } else if (error.message.includes('REQUEST_DENIED')) {
+            errorMessage += " API access denied. Please check your API key and billing settings.";
+          } else if (error.message.includes('OVER_QUERY_LIMIT')) {
+            errorMessage += " API quota exceeded. Please try again later.";
+          } else if (error.message.includes('INVALID_REQUEST')) {
+            errorMessage += " Invalid address format. Please check the address components.";
+          } else {
+            errorMessage += ` Error: ${error.message}`;
+          }
+        }
+
+        toast({ 
+          variant: "destructive", 
+          title: "Geocoding Failed", 
+          description: errorMessage,
+          duration: 8000,
+        });
+
+      } finally {
+        setGeocodingSupplierId(null);
+      }
+    };
 
 
   return (
@@ -179,7 +217,7 @@ export default function UpdateSuppliersTab({ suppliers, setSuppliers, onAddSuppl
                                 size="icon" 
                                 className="h-7 w-7"
                                 onClick={() => handleGeocodeSupplier(supplier)}
-                                disabled={geocodingSupplierId === supplier.id || (!supplier.city && !supplier.streetAddress && !supplier.postalCode)} 
+                                disabled={geocodingSupplierId === supplier.id || (!supplier.city && !supplier.streetAddress && !supplier.postalCode && !supplier.country)} 
                                 aria-label="Fetch Coordinates"
                               >
                                 {geocodingSupplierId === supplier.id ? (
