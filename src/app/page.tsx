@@ -20,7 +20,7 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, PieChart as PieChartLucideIcon, ListChecks } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, PieChart as PieChartLucideIcon, ListChecks, Search, ExternalLink } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -54,10 +54,12 @@ const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
 const PIE_COLORS_PARTS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--chart-1) / 0.7)", "hsl(var(--chart-2) / 0.7)", "hsl(var(--chart-3) / 0.7)", "hsl(var(--chart-4) / 0.7)", "hsl(var(--chart-5) / 0.7)"];
 
+type TabValue = "update-parts" | "update-suppliers" | "part-supplier-mapping" | "upload-part-category" | "validate-spend" | "what-if-analysis";
 
 export default function SpendWiseCentralPage() {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<TabValue>("update-parts");
   const [parts, setParts] = useState<Part[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [partCategoryMappings, setPartCategoryMappings] = useState<PartCategoryMapping[]>([]);
@@ -90,9 +92,25 @@ export default function SpendWiseCentralPage() {
 
   const [appHomeCountry, setAppHomeCountry] = useState<string>(DEFAULT_HOME_COUNTRY);
 
+  // State for validation results
+  const [validationPerformed, setValidationPerformed] = useState<boolean>(false);
   const [partsWithoutSuppliers, setPartsWithoutSuppliers] = useState<Part[]>([]);
   const [suppliersWithoutParts, setSuppliersWithoutParts] = useState<Supplier[]>([]);
-  const [validationPerformed, setValidationPerformed] = useState<boolean>(false);
+  const [duplicatePartsByNumber, setDuplicatePartsByNumber] = useState<{ partNumber: string; items: Part[] }[]>([]);
+  const [duplicatePartsByName, setDuplicatePartsByName] = useState<{ name: string; items: Part[] }[]>([]);
+  const [duplicateSuppliersById, setDuplicateSuppliersById] = useState<{ supplierId: string; items: Supplier[] }[]>([]);
+  const [duplicateSuppliersByName, setDuplicateSuppliersByName] = useState<{ name: string; items: Supplier[] }[]>([]);
+  const [caseInsensitiveDuplicateCategories, setCaseInsensitiveDuplicateCategories] = useState<{ name: string; variations: string[] }[]>([]);
+
+  // State for search terms in validation tab
+  const [searchTermPartsWithoutSuppliers, setSearchTermPartsWithoutSuppliers] = useState('');
+  const [searchTermSuppliersWithoutParts, setSearchTermSuppliersWithoutParts] = useState('');
+  const [searchTermDuplicatePartsNumber, setSearchTermDuplicatePartsNumber] = useState('');
+  const [searchTermDuplicatePartsName, setSearchTermDuplicatePartsName] = useState('');
+  const [searchTermDuplicateSuppliersId, setSearchTermDuplicateSuppliersId] = useState('');
+  const [searchTermDuplicateSuppliersName, setSearchTermDuplicateSuppliersName] = useState('');
+  const [searchTermCategories, setSearchTermCategories] = useState('');
+
 
   const uniqueSupplierCountriesForApp = useMemo(() => {
     const countries = Array.from(new Set(suppliers.map(s => s.country).filter(Boolean)));
@@ -146,6 +164,24 @@ export default function SpendWiseCentralPage() {
         default: return c;
       }
     });
+  }, []);
+
+  const resetValidationStates = useCallback(() => {
+    setValidationPerformed(false);
+    setPartsWithoutSuppliers([]);
+    setSuppliersWithoutParts([]);
+    setDuplicatePartsByNumber([]);
+    setDuplicatePartsByName([]);
+    setDuplicateSuppliersById([]);
+    setDuplicateSuppliersByName([]);
+    setCaseInsensitiveDuplicateCategories([]);
+    setSearchTermPartsWithoutSuppliers('');
+    setSearchTermSuppliersWithoutParts('');
+    setSearchTermDuplicatePartsNumber('');
+    setSearchTermDuplicatePartsName('');
+    setSearchTermDuplicateSuppliersId('');
+    setSearchTermDuplicateSuppliersName('');
+    setSearchTermCategories('');
   }, []);
 
   const parseAndSetXmlData = useCallback((xmlString: string, filename: string) => {
@@ -214,14 +250,14 @@ export default function SpendWiseCentralPage() {
       setPartCategoryMappings(newPartCategoryMappings);
       setPartSupplierAssociations(newPartSupplierAssociations);
       setCurrentFilename(filename);
-      setValidationPerformed(false); // Reset validation state on new data load
+      resetValidationStates();
 
       toast({ title: "Success", description: `Configuration from "${filename}" loaded.` });
     } catch (error) {
       console.error("Error processing XML data:", error);
       toast({ variant: "destructive", title: "Error Loading Data", description: "Could not process the XML data." });
     }
-  }, [toast, escapeXml]);
+  }, [toast, escapeXml, resetValidationStates]);
 
   useEffect(() => {
     const lastLoadedFile = typeof window !== 'undefined' ? localStorage.getItem(LAST_LOADED_FILENAME_KEY) : null;
@@ -238,7 +274,7 @@ export default function SpendWiseCentralPage() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parseAndSetXmlData]);
+  }, [parseAndSetXmlData]); // Removed handleLoadSampleData from deps as it can cause loop if not memoized with all its own deps
 
   useEffect(() => {
     let xmlStringGen = '<SpendData>\n';
@@ -384,7 +420,7 @@ export default function SpendWiseCentralPage() {
       setSuppliers(newSuppliersArr);
       setPartCategoryMappings(newPartCategoryMappingsArr);
       setPartSupplierAssociations(newPartSupplierAssociationsArr);
-      setValidationPerformed(false);
+      resetValidationStates();
 
       toast({ title: "Success", description: "Sample data generated successfully!" });
       setIsGenerateDataDialogOpen(false);
@@ -411,7 +447,7 @@ export default function SpendWiseCentralPage() {
       freightOhdCost: 0.00,
     };
     setParts(prev => [...prev, newPart]);
-    setValidationPerformed(false);
+    resetValidationStates();
 
     const defaultCategory = partCategoryMappings.length > 0 ? partCategoryMappings[0].categoryName : "Default Category";
 
@@ -419,7 +455,7 @@ export default function SpendWiseCentralPage() {
         setPartCategoryMappings(prev => [...prev, { id: `pcm${Date.now()}_manual`, partId: newPartId, categoryName: defaultCategory}]);
     }
     toast({ title: "Part Added", description: `"${newPart.name}" added successfully.` });
-  }, [parts, partCategoryMappings, toast]);
+  }, [parts, partCategoryMappings, toast, resetValidationStates]);
 
   const handleAddSupplier = useCallback(() => {
     const i = suppliers.length;
@@ -438,9 +474,9 @@ export default function SpendWiseCentralPage() {
       longitude: undefined,
     };
     setSuppliers(prev => [...prev, newSupplier]);
-    setValidationPerformed(false);
+    resetValidationStates();
     toast({ title: "Supplier Added", description: `"${newSupplier.name}" added successfully.` });
-  }, [suppliers, toast]);
+  }, [suppliers, toast, resetValidationStates]);
 
   const processCsvUpload = useCallback(async (file: File, type: 'category' | 'part' | 'supplier' | 'sourcemix') => {
     let isProcessingSetter: React.Dispatch<React.SetStateAction<boolean>> | null = null;
@@ -451,7 +487,7 @@ export default function SpendWiseCentralPage() {
       case 'sourcemix': isProcessingSetter = setIsUploadingSourceMixCsv; break;
     }
     if (isProcessingSetter) isProcessingSetter(true);
-    setValidationPerformed(false);
+    resetValidationStates();
 
     return new Promise<void>((resolve, reject) => {
       const reader = new FileReader();
@@ -559,7 +595,7 @@ export default function SpendWiseCentralPage() {
       };
       reader.readAsText(file);
     });
-  }, [parts, suppliers, partSupplierAssociations, toast, setPartCategoryMappings, setParts, setSuppliers, setPartSupplierAssociations]);
+  }, [parts, suppliers, partSupplierAssociations, toast, setPartCategoryMappings, setParts, setSuppliers, setPartSupplierAssociations, resetValidationStates]);
 
   const handleProcessCategoryCsv = useCallback(async (file: File) => {
     await processCsvUpload(file, 'category');
@@ -583,7 +619,7 @@ export default function SpendWiseCentralPage() {
 
   const handleProcessExcelWorkbook = useCallback(async (file: File) => {
     setIsUploadingExcel(true);
-    setValidationPerformed(false);
+    resetValidationStates();
 
     try {
       const fileBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
@@ -697,7 +733,7 @@ export default function SpendWiseCentralPage() {
     } finally {
       setIsUploadingExcel(false);
     }
-  }, [parts, suppliers, partSupplierAssociations, toast, setParts, setSuppliers, setPartSupplierAssociations]);
+  }, [parts, suppliers, partSupplierAssociations, toast, setParts, setSuppliers, setPartSupplierAssociations, resetValidationStates]);
 
   const handleLoadSampleData = useCallback(async () => {
     setIsLoadingSampleData(true);
@@ -722,10 +758,9 @@ export default function SpendWiseCentralPage() {
     setPartCategoryMappings([]);
     setPartSupplierAssociations([]);
     setTariffRateMultiplierPercent(100);
-    // totalLogisticsCostPercent is no longer in UI, but resetting its state might be good practice
     setTotalLogisticsCostPercent(100);
     setAppHomeCountry(DEFAULT_HOME_COUNTRY);
-    setValidationPerformed(false);
+    resetValidationStates();
 
     if (typeof window !== 'undefined' && currentFilename) {
       localStorage.removeItem(APP_CONFIG_DATA_KEY_PREFIX + currentFilename);
@@ -738,7 +773,7 @@ export default function SpendWiseCentralPage() {
     }
 
     toast({ title: "All Data Cleared", description: "Application data has been reset to default." });
-  }, [currentFilename, toast]);
+  }, [currentFilename, toast, resetValidationStates]);
 
 
   const totalParts = useMemo(() => parts.length, [parts]);
@@ -862,30 +897,132 @@ export default function SpendWiseCentralPage() {
     }
   }, []);
 
-  const handleValidateData = () => {
-    toast({
-      title: "Validation Placeholder",
-      description: "Data validation functionality is not yet implemented.",
-      duration: 3000,
-    });
-  };
 
-  const handleRunValidationChecks = () => {
+  const handleRunValidationChecks = useCallback(() => {
+    // 1. Parts without Suppliers
     const partsMissingSuppliers = parts.filter(part =>
       !partSupplierAssociations.some(assoc => assoc.partId === part.id)
     );
     setPartsWithoutSuppliers(partsMissingSuppliers);
 
+    // 2. Suppliers without Parts
     const suppliersMissingParts = suppliers.filter(supplier =>
       !partSupplierAssociations.some(assoc => assoc.supplierId === supplier.id)
     );
     setSuppliersWithoutParts(suppliersMissingParts);
+
+    // 3. Duplicate Parts by PartNumber
+    const partsByNumberGroups = parts.reduce((acc, part) => {
+      acc[part.partNumber] = acc[part.partNumber] || [];
+      acc[part.partNumber].push(part);
+      return acc;
+    }, {} as Record<string, Part[]>);
+    setDuplicatePartsByNumber(
+      Object.entries(partsByNumberGroups)
+        .filter(([, items]) => items.length > 1)
+        .map(([partNumber, items]) => ({ partNumber, items }))
+    );
+
+    // 4. Duplicate Parts by Name
+    const partsByNameGroups = parts.reduce((acc, part) => {
+      acc[part.name] = acc[part.name] || [];
+      acc[part.name].push(part);
+      return acc;
+    }, {} as Record<string, Part[]>);
+    setDuplicatePartsByName(
+      Object.entries(partsByNameGroups)
+        .filter(([, items]) => items.length > 1)
+        .map(([name, items]) => ({ name, items }))
+    );
+    
+    // 5. Duplicate Suppliers by SupplierId
+    const suppliersByIdGroups = suppliers.reduce((acc, supplier) => {
+      acc[supplier.supplierId] = acc[supplier.supplierId] || [];
+      acc[supplier.supplierId].push(supplier);
+      return acc;
+    }, {} as Record<string, Supplier[]>);
+    setDuplicateSuppliersById(
+      Object.entries(suppliersByIdGroups)
+        .filter(([, items]) => items.length > 1)
+        .map(([supplierId, items]) => ({ supplierId, items }))
+    );
+
+    // 6. Duplicate Suppliers by Name
+    const suppliersByNameGroups = suppliers.reduce((acc, supplier) => {
+      acc[supplier.name] = acc[supplier.name] || [];
+      acc[supplier.name].push(supplier);
+      return acc;
+    }, {} as Record<string, Supplier[]>);
+    setDuplicateSuppliersByName(
+      Object.entries(suppliersByNameGroups)
+        .filter(([, items]) => items.length > 1)
+        .map(([name, items]) => ({ name, items }))
+    );
+
+    // 7. Case Insensitive Duplicate Categories
+    const uniqueCatNames = Array.from(new Set(partCategoryMappings.map(m => m.categoryName)));
+    const categoryLowercaseMap = uniqueCatNames.reduce((acc, name) => {
+        const lowerName = name.toLowerCase();
+        acc[lowerName] = acc[lowerName] || [];
+        acc[lowerName].push(name);
+        return acc;
+    }, {} as Record<string, string[]>);
+    setCaseInsensitiveDuplicateCategories(
+        Object.entries(categoryLowercaseMap)
+            .filter(([, variations]) => variations.length > 1)
+            .map(([lowerName, variations]) => ({ name: lowerName, variations }))
+    );
+
     setValidationPerformed(true);
     toast({
       title: "Validation Complete",
-      description: `Found ${partsMissingSuppliers.length} parts without suppliers and ${suppliersMissingParts.length} suppliers without parts.`,
+      description: "Review the findings in the sections below.",
     });
-  };
+  }, [parts, suppliers, partSupplierAssociations, partCategoryMappings, toast]);
+
+  const filteredPartsWithoutSuppliers = useMemo(() => {
+    if (!searchTermPartsWithoutSuppliers) return partsWithoutSuppliers;
+    return partsWithoutSuppliers.filter(p => 
+        p.name.toLowerCase().includes(searchTermPartsWithoutSuppliers.toLowerCase()) || 
+        p.partNumber.toLowerCase().includes(searchTermPartsWithoutSuppliers.toLowerCase())
+    );
+  }, [partsWithoutSuppliers, searchTermPartsWithoutSuppliers]);
+
+  const filteredSuppliersWithoutParts = useMemo(() => {
+    if (!searchTermSuppliersWithoutParts) return suppliersWithoutParts;
+    return suppliersWithoutParts.filter(s => 
+        s.name.toLowerCase().includes(searchTermSuppliersWithoutParts.toLowerCase()) || 
+        s.supplierId.toLowerCase().includes(searchTermSuppliersWithoutParts.toLowerCase())
+    );
+  }, [suppliersWithoutParts, searchTermSuppliersWithoutParts]);
+
+  const filteredDuplicatePartsNumber = useMemo(() => {
+    if (!searchTermDuplicatePartsNumber) return duplicatePartsByNumber;
+    return duplicatePartsByNumber.filter(group => group.partNumber.toLowerCase().includes(searchTermDuplicatePartsNumber.toLowerCase()));
+  }, [duplicatePartsByNumber, searchTermDuplicatePartsNumber]);
+
+  const filteredDuplicatePartsName = useMemo(() => {
+    if (!searchTermDuplicatePartsName) return duplicatePartsByName;
+    return duplicatePartsByName.filter(group => group.name.toLowerCase().includes(searchTermDuplicatePartsName.toLowerCase()));
+  }, [duplicatePartsByName, searchTermDuplicatePartsName]);
+
+  const filteredDuplicateSuppliersId = useMemo(() => {
+    if (!searchTermDuplicateSuppliersId) return duplicateSuppliersById;
+    return duplicateSuppliersById.filter(group => group.supplierId.toLowerCase().includes(searchTermDuplicateSuppliersId.toLowerCase()));
+  }, [duplicateSuppliersById, searchTermDuplicateSuppliersId]);
+
+  const filteredDuplicateSuppliersName = useMemo(() => {
+    if (!searchTermDuplicateSuppliersName) return duplicateSuppliersByName;
+    return duplicateSuppliersByName.filter(group => group.name.toLowerCase().includes(searchTermDuplicateSuppliersName.toLowerCase()));
+  }, [duplicateSuppliersByName, searchTermDuplicateSuppliersName]);
+  
+  const filteredCaseInsensitiveCategories = useMemo(() => {
+    if(!searchTermCategories) return caseInsensitiveDuplicateCategories;
+    return caseInsensitiveDuplicateCategories.filter(group => 
+      group.name.toLowerCase().includes(searchTermCategories.toLowerCase()) ||
+      group.variations.some(v => v.toLowerCase().includes(searchTermCategories.toLowerCase()))
+    );
+  }, [caseInsensitiveDuplicateCategories, searchTermCategories]);
 
 
   return (
@@ -908,7 +1045,7 @@ export default function SpendWiseCentralPage() {
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-1">
                       <Home className="h-4 w-4 text-muted-foreground" />
-                      <Select value={appHomeCountry} onValueChange={(value) => {setAppHomeCountry(value); setValidationPerformed(false);}}>
+                      <Select value={appHomeCountry} onValueChange={(value) => {setAppHomeCountry(value); resetValidationStates();}}>
                           <SelectTrigger className="w-[100px] h-8 text-xs">
                               <SelectValue placeholder="Home Country" />
                           </SelectTrigger>
@@ -965,11 +1102,11 @@ export default function SpendWiseCentralPage() {
             <div className="ml-auto flex items-center space-x-2">
                <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={handleValidateData} className="h-8">
+                    <Button variant="outline" size="sm" onClick={handleRunValidationChecks} className="h-8">
                         <CheckCircle className="h-4 w-4 mr-1.5" /> Validate Data
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent><p>Check data consistency (placeholder)</p></TooltipContent>
+                <TooltipContent><p>Run data consistency checks</p></TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1116,7 +1253,7 @@ export default function SpendWiseCentralPage() {
             </div>
           </section>
 
-          <Tabs defaultValue="update-parts" className="w-full mt-0">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="w-full mt-0">
              <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
@@ -1143,7 +1280,7 @@ export default function SpendWiseCentralPage() {
                 <div className="md:col-span-3">
                   <UpdatePartsTab
                     parts={parts}
-                    setParts={(value) => { setParts(value); setValidationPerformed(false); }}
+                    setParts={(value) => { setParts(value); resetValidationStates(); }}
                     onAddPart={handleAddPart}
                     onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
                     partsWithSpend={partsWithSpend}
@@ -1188,7 +1325,7 @@ export default function SpendWiseCentralPage() {
                                   const radius = innerRadius + (outerRadius - innerRadius) * 0.5 + 5;
                                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                  return (percent as number) * 100 > 2 ? ( // Only show label if > 2%
+                                  return (percent as number) * 100 > 2 ? ( 
                                     <text x={x} y={y} fill="hsl(var(--foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[10px] font-medium">
                                       {`${name} (${((percent as number) * 100).toFixed(0)}%)`}
                                     </text>
@@ -1212,7 +1349,7 @@ export default function SpendWiseCentralPage() {
             <TabsContent value="update-suppliers" className="mt-4">
               <UpdateSuppliersTab
                 suppliers={suppliers}
-                setSuppliers={(value) => { setSuppliers(value); setValidationPerformed(false); }}
+                setSuppliers={(value) => { setSuppliers(value); resetValidationStates(); }}
                 onAddSupplier={handleAddSupplier}
                 onOpenUploadDialog={() => setIsSuppliersUploadDialogOpen(true)}
               />
@@ -1222,7 +1359,7 @@ export default function SpendWiseCentralPage() {
                 parts={parts}
                 suppliers={suppliers}
                 partSupplierAssociations={partSupplierAssociations}
-                setPartSupplierAssociations={(value) => { setPartSupplierAssociations(value); setValidationPerformed(false); }}
+                setPartSupplierAssociations={(value) => { setPartSupplierAssociations(value); resetValidationStates(); }}
                 onOpenUploadDialog={() => setIsSourceMixUploadDialogOpen(true)}
               />
             </TabsContent>
@@ -1233,7 +1370,7 @@ export default function SpendWiseCentralPage() {
                 spendByCategoryData={spendByCategoryData}
                 partsPerCategoryData={partsPerCategoryData}
                 onOpenUploadDialog={() => setIsCategoryUploadDialogOpen(true)}
-                setPartCategoryMappings={(value) => { setPartCategoryMappings(value); setValidationPerformed(false); }}
+                setPartCategoryMappings={(value) => { setPartCategoryMappings(value); resetValidationStates(); }}
               />
             </TabsContent>
             <TabsContent value="validate-spend" className="mt-4">
@@ -1244,57 +1381,146 @@ export default function SpendWiseCentralPage() {
                     Data Validation Checks
                   </CardTitle>
                   <CardDescription>
-                    Review data consistency between parts and suppliers. Click the button below to perform checks.
+                    Review data consistency. Click "Run Validation Checks" in the header to perform checks.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex justify-end">
-                    <Button onClick={handleRunValidationChecks}>Run Validation Checks</Button>
-                  </div>
+                <CardContent className="space-y-6 text-xs">
+                  {!validationPerformed && (
+                     <div className="text-center text-muted-foreground p-4 border border-dashed rounded-md min-h-[100px] flex flex-col items-center justify-center">
+                        <Info className="mx-auto h-8 w-8 mb-2" />
+                        <p className="text-sm">Validation checks have not been performed yet.</p>
+                        <p className="text-xs">Click the "Validate Data" button in the header to run all checks.</p>
+                    </div>
+                  )}
 
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2">Parts without Suppliers ({partsWithoutSuppliers.length})</h3>
-                    {!validationPerformed ? (
-                      <p className="text-sm text-muted-foreground">Click "Run Validation Checks" to see results.</p>
-                    ) : partsWithoutSuppliers.length === 0 ? (
-                      <p className="text-sm text-green-600 flex items-center"><CheckCircle className="mr-2 h-4 w-4"/>All parts have at least one supplier.</p>
-                    ) : (
-                      <ScrollArea className="h-40 border rounded-md p-2 bg-muted/20">
-                        <ul className="space-y-1 text-xs">
-                          {partsWithoutSuppliers.map(part => (
-                            <li key={part.id} className="flex justify-between items-center p-1.5 bg-card rounded shadow-sm">
-                              <div>
-                                <span className="font-medium">{part.name}</span> <span className="text-muted-foreground">({part.partNumber})</span>
-                              </div>
-                              <Badge variant="destructive" className="text-2xs">No Supplier</Badge>
-                            </li>
-                          ))}
-                        </ul>
-                      </ScrollArea>
-                    )}
-                  </section>
+                  {validationPerformed && (
+                    <>
+                      <ValidationSection
+                        title={`Parts without Suppliers (${filteredPartsWithoutSuppliers.length})`}
+                        data={filteredPartsWithoutSuppliers}
+                        searchTerm={searchTermPartsWithoutSuppliers}
+                        onSearchTermChange={setSearchTermPartsWithoutSuppliers}
+                        renderItem={(item: Part) => (
+                           <li key={item.id} className="flex justify-between items-center p-1.5 bg-card rounded shadow-sm">
+                            <div>
+                              <span className="font-medium">{item.name}</span> <span className="text-muted-foreground">({item.partNumber})</span>
+                            </div>
+                            <Badge variant="destructive" className="text-2xs">No Supplier</Badge>
+                          </li>
+                        )}
+                        emptyMessage="All parts have at least one supplier."
+                        searchPlaceholder="Search parts..."
+                      />
 
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2">Suppliers without Parts ({suppliersWithoutParts.length})</h3>
-                     {!validationPerformed ? (
-                      <p className="text-sm text-muted-foreground">Click "Run Validation Checks" to see results.</p>
-                    ) : suppliersWithoutParts.length === 0 ? (
-                      <p className="text-sm text-green-600 flex items-center"><CheckCircle className="mr-2 h-4 w-4"/>All suppliers are associated with at least one part.</p>
-                    ) : (
-                      <ScrollArea className="h-40 border rounded-md p-2 bg-muted/20">
-                        <ul className="space-y-1 text-xs">
-                          {suppliersWithoutParts.map(supplier => (
-                            <li key={supplier.id} className="flex justify-between items-center p-1.5 bg-card rounded shadow-sm">
-                              <div>
-                                <span className="font-medium">{supplier.name}</span> <span className="text-muted-foreground">({supplier.supplierId})</span>
-                              </div>
-                              <Badge variant="destructive" className="text-2xs">No Parts Assigned</Badge>
+                      <ValidationSection
+                        title={`Suppliers without Parts (${filteredSuppliersWithoutParts.length})`}
+                        data={filteredSuppliersWithoutParts}
+                        searchTerm={searchTermSuppliersWithoutParts}
+                        onSearchTermChange={setSearchTermSuppliersWithoutParts}
+                        renderItem={(item: Supplier) => (
+                          <li key={item.id} className="flex justify-between items-center p-1.5 bg-card rounded shadow-sm">
+                            <div>
+                              <span className="font-medium">{item.name}</span> <span className="text-muted-foreground">({item.supplierId})</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="destructive" className="text-2xs">No Parts Assigned</Badge>
+                                <Button size="xs" variant="outline" onClick={() => setActiveTab("part-supplier-mapping")} className="h-6 px-2 py-0.5 text-2xs">
+                                    Assign in Tab 3 <ExternalLink className="ml-1 h-2.5 w-2.5"/>
+                                </Button>
+                            </div>
+                          </li>
+                        )}
+                        emptyMessage="All suppliers are associated with at least one part."
+                        searchPlaceholder="Search suppliers..."
+                      />
+
+                      <ValidationSection
+                        title={`Duplicate Parts by Part Number (${filteredDuplicatePartsNumber.length} groups)`}
+                        data={filteredDuplicatePartsNumber}
+                        searchTerm={searchTermDuplicatePartsNumber}
+                        onSearchTermChange={setSearchTermDuplicatePartsNumber}
+                        renderItem={(group: { partNumber: string, items: Part[] }) => (
+                          <li key={group.partNumber} className="p-1.5 bg-card rounded shadow-sm">
+                            <div className="font-medium mb-1">Part Number: {group.partNumber} ({group.items.length} occurrences)</div>
+                            <ul className="list-disc list-inside pl-3 text-2xs">
+                                {group.items.map(p => <li key={p.id}>{p.name} (ID: {p.id})</li>)}
+                            </ul>
+                          </li>
+                        )}
+                        emptyMessage="No parts with duplicate part numbers found."
+                        searchPlaceholder="Search by part number..."
+                        isGrouped
+                      />
+                      <ValidationSection
+                        title={`Duplicate Parts by Name (${filteredDuplicatePartsName.length} groups)`}
+                        data={filteredDuplicatePartsName}
+                        searchTerm={searchTermDuplicatePartsName}
+                        onSearchTermChange={setSearchTermDuplicatePartsName}
+                        renderItem={(group: { name: string, items: Part[] }) => (
+                          <li key={group.name} className="p-1.5 bg-card rounded shadow-sm">
+                            <div className="font-medium mb-1">Part Name: "{group.name}" ({group.items.length} occurrences)</div>
+                             <ul className="list-disc list-inside pl-3 text-2xs">
+                                {group.items.map(p => <li key={p.id}>{p.partNumber} (ID: {p.id})</li>)}
+                            </ul>
+                          </li>
+                        )}
+                        emptyMessage="No parts with duplicate names found."
+                        searchPlaceholder="Search by part name..."
+                        isGrouped
+                      />
+                       <ValidationSection
+                        title={`Duplicate Suppliers by ID (${filteredDuplicateSuppliersId.length} groups)`}
+                        data={filteredDuplicateSuppliersId}
+                        searchTerm={searchTermDuplicateSuppliersId}
+                        onSearchTermChange={setSearchTermDuplicateSuppliersId}
+                        renderItem={(group: { supplierId: string, items: Supplier[] }) => (
+                          <li key={group.supplierId} className="p-1.5 bg-card rounded shadow-sm">
+                            <div className="font-medium mb-1">Supplier ID: {group.supplierId} ({group.items.length} occurrences)</div>
+                            <ul className="list-disc list-inside pl-3 text-2xs">
+                                {group.items.map(s => <li key={s.id}>{s.name} (Internal ID: {s.id})</li>)}
+                            </ul>
+                          </li>
+                        )}
+                        emptyMessage="No suppliers with duplicate IDs found."
+                        searchPlaceholder="Search by supplier ID..."
+                        isGrouped
+                      />
+                      <ValidationSection
+                        title={`Duplicate Suppliers by Name (${filteredDuplicateSuppliersName.length} groups)`}
+                        data={filteredDuplicateSuppliersName}
+                        searchTerm={searchTermDuplicateSuppliersName}
+                        onSearchTermChange={setSearchTermDuplicateSuppliersName}
+                        renderItem={(group: { name: string, items: Supplier[] }) => (
+                          <li key={group.name} className="p-1.5 bg-card rounded shadow-sm">
+                            <div className="font-medium mb-1">Supplier Name: "{group.name}" ({group.items.length} occurrences)</div>
+                             <ul className="list-disc list-inside pl-3 text-2xs">
+                                {group.items.map(s => <li key={s.id}>{s.supplierId} (Internal ID: {s.id})</li>)}
+                            </ul>
+                          </li>
+                        )}
+                        emptyMessage="No suppliers with duplicate names found."
+                        searchPlaceholder="Search by supplier name..."
+                        isGrouped
+                      />
+                      <ValidationSection
+                        title={`Potentially Duplicate Categories (Case Variations) (${filteredCaseInsensitiveCategories.length} groups)`}
+                        data={filteredCaseInsensitiveCategories}
+                        searchTerm={searchTermCategories}
+                        onSearchTermChange={setSearchTermCategories}
+                        renderItem={(group: { name: string; variations: string[] }) => (
+                            <li key={group.name} className="p-1.5 bg-card rounded shadow-sm">
+                                <div className="font-medium mb-1">Base: "{group.name}" - Variations found:</div>
+                                <ul className="list-disc list-inside pl-3 text-2xs">
+                                    {group.variations.map(v => <li key={v}>"{v}"</li>)}
+                                </ul>
                             </li>
-                          ))}
-                        </ul>
-                      </ScrollArea>
-                    )}
-                  </section>
+                        )}
+                        emptyMessage="No categories with case variations found."
+                        searchPlaceholder="Search categories..."
+                        isGrouped
+                       />
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1402,6 +1628,54 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
-    
 
+
+interface ValidationSectionProps<T> {
+  title: string;
+  data: T[];
+  searchTerm: string;
+  onSearchTermChange: (term: string) => void;
+  renderItem: (item: T) => React.ReactNode;
+  emptyMessage: string;
+  searchPlaceholder: string;
+  isGrouped?: boolean; // Indicates if data is an array of groups
+}
+
+function ValidationSection<T>({
+  title,
+  data,
+  searchTerm,
+  onSearchTermChange,
+  renderItem,
+  emptyMessage,
+  searchPlaceholder,
+  isGrouped = false,
+}: ValidationSectionProps<T>) {
+  return (
+    <section className="space-y-2">
+      <div className="flex justify-between items-center">
+        <h3 className="text-base font-semibold">{title}</h3>
+        <div className="relative w-1/3">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder={searchPlaceholder}
+            value={searchTerm}
+            onChange={(e) => onSearchTermChange(e.target.value)}
+            className="h-7 pl-7 text-xs"
+          />
+        </div>
+      </div>
+      {data.length === 0 ? (
+         <p className="text-xs text-green-600 flex items-center"><CheckCircle className="mr-2 h-3.5 w-3.5"/>{emptyMessage}</p>
+      ) : (
+        <ScrollArea className="h-32 border rounded-md p-2 bg-muted/20">
+          <ul className={`space-y-1 ${isGrouped ? 'divide-y divide-border' : ''}`}>
+            {data.map((item, index) => renderItem(item))}
+          </ul>
+        </ScrollArea>
+      )}
+    </section>
+  );
+}
     
