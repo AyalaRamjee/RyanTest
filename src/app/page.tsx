@@ -53,8 +53,8 @@ const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
 const DEFAULT_HOME_COUNTRY = "USA";
 const BASE_TARIFF_RATE = 0.05; // 5% base tariff
 
-const HEADER_HEIGHT_PX = 128;
-const SUMMARY_STATS_HEIGHT_PX = 100;
+const HEADER_HEIGHT_PX = 64;
+const SUMMARY_STATS_HEIGHT_PX = 60;
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
 
@@ -1108,19 +1108,19 @@ export default function SpendWiseCentralPage() {
   return (
     <TooltipProvider>
       <div className="flex flex-col min-h-screen bg-background">
-        <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
-          <div className="container mx-auto flex h-32 items-center space-x-4 px-4 sm:px-6 lg:px-8">
-            <img
-              src="/TADA_TM-2023_Color-White-Logo.svg"
-              alt="TADA Logo"
-              className="h-18 w-16 object-contain"
-              data-ai-hint="logo company"
-            />
-            <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
-              Spend by TADA
-            </h1>
-            <div className="flex-grow flex flex-col space-y-2 ml-4">
-              <div className="flex items-center space-x-2"> 
+      <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
+        <div className="container mx-auto flex h-16 items-center space-x-3 px-4 sm:px-6 lg:px-8">
+          <img
+            src="/TADA_TM-2023_Color-White-Logo.svg"
+            alt="TADA Logo"
+            className="h-14 w-14 object-contain"
+            data-ai-hint="logo company"
+          />
+          <h1 className="text-lg font-headline font-semibold text-foreground whitespace-nowrap">
+            Spend by TADA
+          </h1>
+              <div className="flex-grow flex flex-col space-y-1 ml-3">
+                <div className="flex items-center space-x-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-1">
@@ -1313,23 +1313,23 @@ export default function SpendWiseCentralPage() {
           </div>
         </header>
 
-        <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16">
-          <section aria-labelledby="summary-stats-title" className={`sticky z-40 bg-background shadow-sm mt-0.5`} style={{top: `${HEADER_HEIGHT_PX}px`}}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 p-2">
+        <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <section aria-labelledby="summary-stats-title" className={`sticky z-40 bg-background shadow-sm`} style={{top: `${HEADER_HEIGHT_PX}px`}}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 px-4 py-2">
               {summaryStatsData.map(stat => (
                 <Tooltip key={stat.fullLabel}>
                   <TooltipTrigger asChild>
-                    <Card className="shadow-lg">
-                      <CardHeader className="flex flex-col items-center justify-center pt-3 pb-1 text-center">
-                        <stat.Icon className="h-5 w-5 mb-1 text-primary" />
-                        <CardTitle className="text-xs font-semibold tracking-tight">
+                  <Card className="shadow-lg">
+                    <CardContent className="flex items-center justify-between p-3">
+                      <div className="flex items-center space-x-2">
+                        <stat.Icon className="h-4 w-4 text-primary" />
+                        <CardTitle className="text-xs font-semibold">
                           {stat.oneWordLabel}
                         </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-0 pb-3 text-center">
-                        <div className="text-lg font-bold">{stat.value}</div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                      <div className="text-sm font-bold">{stat.value}</div>
+                    </CardContent>
+                  </Card>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>{stat.fullLabel}</p>
@@ -1339,8 +1339,8 @@ export default function SpendWiseCentralPage() {
             </div>
           </section>
 
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="w-full mt-0">
-             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="w-full">
+             <TabsList className={`sticky z-30 bg-background shadow-sm grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center justify-start gap-1 tabs-trigger-active-underline text-xs whitespace-normal h-14">
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
               </TabsTrigger>
