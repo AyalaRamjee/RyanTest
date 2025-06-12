@@ -38,7 +38,6 @@ const GenerateSpendDataInputSchema = z.object({
   numParts: z.number().int().min(1).describe("The number of unique parts to generate."),
   numSuppliers: z.number().int().min(1).describe("The number of unique suppliers to generate."),
   numCategories: z.number().int().min(1).describe("The number of unique part categories to generate."),
-  // numCommodities removed
 });
 export type GenerateSpendDataInput = z.infer<typeof GenerateSpendDataInputSchema>;
 
@@ -46,7 +45,6 @@ const GenerateSpendDataOutputSchema = z.object({
   parts: z.array(PartSchema).describe("An array of generated parts."),
   suppliers: z.array(SupplierSchema).describe("An array of generated suppliers, each with a realistic global street address, city, state/province, postal code, and country. ALL fields for each supplier are mandatory."),
   categories: z.array(z.string()).describe("An array of generated category names."),
-  // commodities removed
   partSupplierAssociations: z.array(PartSupplierAssociationAISchema).describe("An array of associations between parts (by partNumber) and suppliers (by supplierName). Ensure each part is associated with at least one supplier, and aim for a diverse set of mappings."),
 });
 export type GenerateSpendDataOutput = z.infer<typeof GenerateSpendDataOutputSchema>;
@@ -78,7 +76,6 @@ Please generate the following:
     *   A realistic 'country' for their main operations. Aim for a global distribution of supplier locations.
     Ensure every supplier object is complete and contains all specified fields. Do not return empty supplier objects or suppliers with missing fields.
 3.  Exactly {{{numCategories}}} unique part category names relevant to the domain. These should be general classifications for parts.
-{/* Commodity generation instruction removed */}
 4.  A list of 'partSupplierAssociations'. For each association, specify the 'partNumber' of an existing generated part and the 'supplierName' of an existing generated supplier.
     *   Ensure that each of the {{{numParts}}} parts is associated with at least one supplier.
     *   A supplier can be associated with multiple parts.
@@ -116,3 +113,5 @@ const spendDataGenerationFlow = ai.defineFlow(
     return output;
   }
 );
+
+    

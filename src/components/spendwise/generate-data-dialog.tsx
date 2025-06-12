@@ -18,7 +18,7 @@ import { ToyBrick } from "lucide-react";
 interface GenerateDataDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerate: (domain: string, numParts: number, numSuppliers: number, numCategories: number) => void; // numCommodities removed
+  onGenerate: (domain: string, numParts: number, numSuppliers: number, numCategories: number) => void;
   isGenerating: boolean;
 }
 
@@ -27,10 +27,9 @@ export default function GenerateDataDialog({ isOpen, onClose, onGenerate, isGene
   const [numParts, setNumParts] = useState(50);
   const [numSuppliers, setNumSuppliers] = useState(12);
   const [numCategories, setNumCategories] = useState(5);
-  // numCommodities state removed
 
   const handleGenerateClick = () => {
-    onGenerate(domain, numParts, numSuppliers, numCategories); // numCommodities removed from call
+    onGenerate(domain, numParts, numSuppliers, numCategories);
   };
 
   return (
@@ -97,7 +96,6 @@ export default function GenerateDataDialog({ isOpen, onClose, onGenerate, isGene
               min="1"
             />
           </div>
-          {/* Commodities input section removed */}
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose} disabled={isGenerating}>Cancel</Button>
@@ -109,3 +107,5 @@ export default function GenerateDataDialog({ isOpen, onClose, onGenerate, isGene
     </Dialog>
   );
 }
+
+    

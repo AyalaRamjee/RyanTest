@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import SummaryTab from "@/components/spendwise/summary-tab";
+// SummaryTab import removed as it's no longer a distinct tab content, its elements are integrated elsewhere or not used
 import UpdatePartsTab from "@/components/spendwise/update-parts";
 import UpdateSuppliersTab from "@/components/spendwise/update-suppliers";
 import PartSupplierMappingTab from "@/components/spendwise/part-supplier-mapping";
@@ -274,7 +274,7 @@ export default function SpendWiseCentralPage() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parseAndSetXmlData]); // Removed handleLoadSampleData from deps as it can cause loop if not memoized with all its own deps
+  }, [parseAndSetXmlData]); 
 
   useEffect(() => {
     let xmlStringGen = '<SpendData>\n';
@@ -1678,4 +1678,6 @@ function ValidationSection<T>({
     </section>
   );
 }
+    
+
     

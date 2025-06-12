@@ -11,12 +11,11 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const QuerySpendDataInputSchemaInternal = z.object({ // Renamed to avoid direct export
+const QuerySpendDataInputSchemaInternal = z.object({ 
   question: z.string().describe("The user's question about the spend data."),
   partsData: z.string().describe("A JSON string representation of the array of parts."),
   suppliersData: z.string().describe("A JSON string representation of the array of suppliers."),
   partCategoryMappingsData: z.string().describe("A JSON string representation of the array of part-category mappings."),
-  // partCommodityMappingsData removed
   partSupplierAssociationsData: z.string().describe("A JSON string representation of the array of part-supplier associations (linking part IDs to supplier IDs)."),
   tariffPercent: z.number().describe("Current global tariff percentage applied to imported parts."),
   logisticsPercent: z.number().describe("Current global logistics cost multiplier applied to freight/OHD costs."),
@@ -25,11 +24,10 @@ const QuerySpendDataInputSchemaInternal = z.object({ // Renamed to avoid direct 
   totalParts: z.number().describe("Total number of parts."),
   totalSuppliers: z.number().describe("Total number of suppliers."),
   totalCategories: z.number().describe("Total number of unique categories."),
-  // totalCommodities removed
 });
 export type QuerySpendDataInput = z.infer<typeof QuerySpendDataInputSchemaInternal>;
 
-const QuerySpendDataOutputSchemaInternal = z.object({ // Renamed to avoid direct export
+const QuerySpendDataOutputSchemaInternal = z.object({ 
   answer: z.string().describe("The AI's answer to the user's question."),
 });
 export type QuerySpendDataOutput = z.infer<typeof QuerySpendDataOutputSchemaInternal>;
@@ -55,7 +53,6 @@ Current Application Data Context:
 - Total Number of Parts: {{{totalParts}}}
 - Total Number of Suppliers: {{{totalSuppliers}}}
 - Total Number of Unique Part Categories: {{{totalCategories}}}
-{/* Total Commodities context removed */}
 
 Detailed Data (in JSON format):
 Parts:
@@ -66,8 +63,6 @@ Suppliers:
 
 Part-Category Mappings (maps part.id to categoryName):
 {{{partCategoryMappingsData}}}
-
-{/* Part-Commodity Mappings context removed */}
 
 Part-Supplier Associations (maps part.id to supplier.id):
 {{{partSupplierAssociationsData}}}
@@ -92,3 +87,5 @@ const querySpendDataFlow = ai.defineFlow(
     return output;
   }
 );
+
+    
