@@ -2,15 +2,15 @@
 "use client";
 
 import type { Part, Supplier, PartSupplierAssociation, PartCategoryMapping } from '@/types/spendwise';
-import type { SpendDataPoint } from '@/app/page';
+// import type { SpendDataPoint } from '@/app/page'; // SpendDataPoint not used here anymore
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
 import { Package, Info, FileUp, Trash2, Sigma, PlusCircle, Focus, X, TrendingUp, BarChart3, BadgeDollarSign, Boxes, Users2, Tag, ShoppingCart, Banknote } from "lucide-react"; 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+// Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer, Tooltip as RechartsTooltip removed as chart is removed
+// ChartContainer, ChartTooltip, ChartTooltipContent removed as chart is removed
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import React, { useState, useMemo, useEffect } from 'react';
@@ -37,13 +37,6 @@ interface UpdatePartsTabProps {
   tariffChargePercent: number; // This is the tariffRateMultiplierPercent from page.tsx
   totalLogisticsCostPercent: number;
 }
-
-const spendByPartChartConfig = {
-  spend: {
-    label: "Spend ($)",
-    color: "hsl(var(--chart-1))",
-  },
-} satisfies import("@/components/ui/chart").ChartConfig;
 
 const ABC_COLORS = {
   A: "hsl(var(--chart-1))", 
@@ -230,16 +223,6 @@ export default function UpdatePartsTab({
   const totalSpend = useMemo(() => partsWithSpend.reduce((sum, p) => sum + p.annualSpend, 0), [partsWithSpend]);
   const totalVolume = useMemo(() => parts.reduce((sum, p) => sum + p.annualDemand, 0), [parts]);
   
-  const top10SpendByPartData: SpendDataPoint[] = useMemo(() => {
-    return partsWithSpend
-      .map(part => ({
-        name: part.partNumber,
-        spend: part.annualSpend,
-      }))
-      .sort((a,b) => b.spend - a.spend)
-      .slice(0,10);
-  }, [partsWithSpend]);
-
   return (
     <div className="flex">
       <Card className="flex-grow">
@@ -294,33 +277,7 @@ export default function UpdatePartsTab({
           </div>
         </CardHeader>
         <CardContent className="space-y-3 text-xs">
-          <Card className="mt-2">
-              <CardHeader className="p-3 pb-2">
-                <CardTitle className="text-sm flex items-center"><BarChart3 className="mr-1.5 h-4 w-4"/>Part Spend Analysis</CardTitle>
-                <CardDescription className="text-xs">Top 10 parts by current calculated spend.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-3 pt-0">
-                {top10SpendByPartData.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-3">No spend data to display.</p>
-                ) : (
-                  <ChartContainer config={spendByPartChartConfig} className="min-h-[160px] w-full aspect-[16/7]">
-                    <ResponsiveContainer width="100%" height={160}>
-                      <BarChart accessibilityLayer data={top10SpendByPartData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
-                        <CartesianGrid horizontal={false} />
-                        <XAxis type="number" dataKey="spend" tickFormatter={(val) => formatCurrency(val).replace('$', '')[0] + (Math.abs(val) > 1e6 ? (val/1e6).toFixed(0)+'M' : Math.abs(val) > 1e3 ? (val/1e3).toFixed(0)+'K' : val ) } tick={{ fontSize: 9 }} />
-                        <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={60} tick={{ fontSize: 9 }} />
-                        <RechartsTooltip
-                          cursor={{fill: 'hsla(var(--muted)/0.3)'}}
-                          contentStyle={{fontSize:'10px', padding:'2px 8px'}}
-                          formatter={(value: number) => formatCurrency(value)}
-                        />
-                        <Bar dataKey="spend" fill="var(--color-spend)" radius={3} barSize={8} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                )}
-              </CardContent>
-          </Card>
+          {/* Part Spend Analysis Chart Card Removed */}
 
           <div className="flex items-center gap-2 px-2 py-1 text-xs font-medium text-muted-foreground">
             <div className="w-10"> {/* Spacer for radio */} </div>
@@ -335,7 +292,7 @@ export default function UpdatePartsTab({
           {parts.length === 0 ? (
             <p className="text-muted-foreground text-center py-3">No parts available. Generate, add, or upload some parts.</p>
           ) : (
-            <ScrollArea className="h-[calc(100vh-480px)]">
+            <ScrollArea className="h-[calc(100vh-380px)]"> {/* Adjusted height calculation after chart removal */}
               <RadioGroup value={selectedPartId || undefined} onValueChange={setSelectedPartId} className="space-y-2 pr-2">
                 {parts.map((part) => (
                   <div key={part.id} className="flex items-center gap-2 p-2.5 rounded-md border bg-card shadow-sm hover:shadow-md transition-shadow">
