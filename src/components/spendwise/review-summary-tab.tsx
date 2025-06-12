@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label"; // Added import
 import { BarChart3, DollarSign, Package, Users, FolderTree, TrendingUp, ShoppingCart, Filter as FilterIcon, XCircle, Search } from "lucide-react";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { ChartContainer } from '@/components/ui/chart';
@@ -79,10 +80,15 @@ export default function ReviewSummaryTab({
   }, []);
 
   const handleLoadScenario = (scenarioName: string) => {
-    if (scenarioName === VIEW_CURRENT_DATA_VALUE || typeof window === 'undefined') {
+    if (scenarioName === VIEW_CURRENT_DATA_VALUE) {
       setLoadedScenario(null);
-      setSelectedScenarioName(VIEW_CURRENT_DATA_VALUE);
+      setSelectedScenarioName(VIEW_CURRENT_DATA_VALUE); // Use constant here
       return;
+    }
+    if (typeof window === 'undefined') {
+        setLoadedScenario(null);
+        setSelectedScenarioName(VIEW_CURRENT_DATA_VALUE);
+        return;
     }
     const scenarioDataString = localStorage.getItem(LOCAL_STORAGE_SCENARIO_DATA_PREFIX + scenarioName);
     if (scenarioDataString) {
@@ -221,7 +227,7 @@ export default function ReviewSummaryTab({
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="" className="text-xs">All Categories</SelectItem>
+                      <SelectItem value={VIEW_CURRENT_DATA_VALUE} className="text-xs">All Categories</SelectItem>
                       {uniqueCategoriesForFilter.map(category => (
                         <SelectItem key={category} value={category} className="text-xs">{category}</SelectItem>
                       ))}
@@ -334,3 +340,4 @@ export default function ReviewSummaryTab({
     </div>
   );
 }
+
