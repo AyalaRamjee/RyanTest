@@ -20,7 +20,7 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -44,7 +44,7 @@ const DEFAULT_HOME_COUNTRY = "USA";
 const BASE_TARIFF_RATE = 0.05; // 5% base tariff
 
 const HEADER_HEIGHT_PX = 64;
-const SUMMARY_STATS_HEIGHT_PX = 122; // This might need adjustment if cards get significantly shorter and sticky behavior of TabsList is to be precise
+const SUMMARY_STATS_HEIGHT_PX = 122; 
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
 export default function SpendWiseCentralPage() {
@@ -82,7 +82,7 @@ export default function SpendWiseCentralPage() {
   const [appHomeCountry, setAppHomeCountry] = useState<string>(DEFAULT_HOME_COUNTRY);
 
   const uniqueSupplierCountriesForApp = useMemo(() => {
-    const countries = Array.from(new Set(suppliers.map(s => s.country)));
+    const countries = Array.from(new Set(suppliers.map(s => s.country).filter(Boolean)));
     if (!countries.includes(DEFAULT_HOME_COUNTRY)) {
         countries.push(DEFAULT_HOME_COUNTRY);
     }
@@ -172,6 +172,8 @@ export default function SpendWiseCentralPage() {
           stateOrProvince: s.getAttribute("stateOrProvince") || "",
           postalCode: s.getAttribute("postalCode") || "",
           country: s.getAttribute("country") || "",
+          latitude: s.hasAttribute("latitude") ? parseFloat(s.getAttribute("latitude")!) : undefined,
+          longitude: s.hasAttribute("longitude") ? parseFloat(s.getAttribute("longitude")!) : undefined,
         });
       });
 
@@ -234,7 +236,9 @@ export default function SpendWiseCentralPage() {
 
     xmlStringGen += '  <Suppliers>\n';
     suppliers.forEach(s => {
-      xmlStringGen += `    <Supplier id="${escapeXml(s.id)}" supplierId="${escapeXml(s.supplierId)}" name="${escapeXml(s.name)}" description="${escapeXml(s.description)}" address="${escapeXml(s.address)}" streetAddress="${escapeXml(s.streetAddress)}" city="${escapeXml(s.city)}" stateOrProvince="${escapeXml(s.stateOrProvince)}" postalCode="${escapeXml(s.postalCode)}" country="${escapeXml(s.country)}" />\n`;
+      const latAttr = s.latitude !== undefined ? ` latitude="${s.latitude}"` : "";
+      const lonAttr = s.longitude !== undefined ? ` longitude="${s.longitude}"` : "";
+      xmlStringGen += `    <Supplier id="${escapeXml(s.id)}" supplierId="${escapeXml(s.supplierId)}" name="${escapeXml(s.name)}" description="${escapeXml(s.description)}" address="${escapeXml(s.address)}" streetAddress="${escapeXml(s.streetAddress)}" city="${escapeXml(s.city)}" stateOrProvince="${escapeXml(s.stateOrProvince)}" postalCode="${escapeXml(s.postalCode)}" country="${escapeXml(s.country)}"${latAttr}${lonAttr} />\n`;
     });
     xmlStringGen += '  </Suppliers>\n';
 
@@ -320,7 +324,7 @@ export default function SpendWiseCentralPage() {
           name: p.name,
           price: parseFloat((Math.random() * 1000 + 5).toFixed(2)),
           annualDemand: Math.floor(Math.random() * 50000) + 1000,
-          freightOhdCost: parseFloat((Math.random() * 0.05).toFixed(4)),
+          freightOhdCost: parseFloat((Math.random() * 0.05).toFixed(4)), // Between 0% and 5%
         });
         if (generatedData.categories.length > 0) {
           newPartCategoryMappingsArr.push({
@@ -332,17 +336,17 @@ export default function SpendWiseCentralPage() {
       });
 
       const newSuppliersArr: Supplier[] = generatedData.suppliers.map((s, i) => {
-        const fullAddress = `${s.streetAddress}, ${s.city}, ${s.stateOrProvince} ${s.postalCode}, ${s.country}`;
+        const fullAddress = `${s.streetAddress || ''}, ${s.city || ''}, ${s.stateOrProvince || ''} ${s.postalCode || ''}, ${s.country || ''}`.replace(/^, |, $/g, '').replace(/ ,/g, ',').replace(/  +/g, ' ').trim();
         return {
           id: `s${Date.now()}${i}`,
           supplierId: `#S${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + ((i+5) % 26))}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
-          name: s.name,
-          description: s.description,
-          streetAddress: s.streetAddress,
-          city: s.city,
-          stateOrProvince: s.stateOrProvince,
-          postalCode: s.postalCode,
-          country: s.country,
+          name: s.name || "Unnamed Supplier",
+          description: s.description || "No description",
+          streetAddress: s.streetAddress || "",
+          city: s.city || "",
+          stateOrProvince: s.stateOrProvince || "",
+          postalCode: s.postalCode || "",
+          country: s.country || "Unknown",
           address: fullAddress,
         };
       });
@@ -371,7 +375,11 @@ export default function SpendWiseCentralPage() {
       setIsGenerateDataDialogOpen(false);
     } catch (error) {
       console.error("Failed to generate AI data:", error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to generate data using AI. Please try again." });
+      let errorMessage = "Failed to generate data using AI. Please try again.";
+      if (error instanceof Error && error.message) {
+        errorMessage = error.message;
+      }
+      toast({ variant: "destructive", title: "AI Generation Error", description: errorMessage, duration: 7000 });
     } finally {
       setIsGeneratingData(false);
     }
@@ -394,6 +402,7 @@ export default function SpendWiseCentralPage() {
     if (parts.length === 0 || !partCategoryMappings.some(m => m.partId === newPartId)) {
         setPartCategoryMappings(prev => [...prev, { id: `pcm${Date.now()}_manual`, partId: newPartId, categoryName: defaultCategory}]);
     }
+    toast({ title: "Part Added", description: `"${newPart.name}" added successfully.` });
   };
 
   const handleAddSupplier = () => {
@@ -411,6 +420,7 @@ export default function SpendWiseCentralPage() {
       address: "123 Main St, Anytown, CA 90210, USA",
     };
     setSuppliers(prev => [...prev, newSupplier]);
+    toast({ title: "Supplier Added", description: `"${newSupplier.name}" added successfully.` });
   };
 
   const processCsvUpload = async (file: File, type: 'category' | 'part' | 'supplier' | 'sourcemix') => {
@@ -595,7 +605,9 @@ export default function SpendWiseCentralPage() {
             if (!partNumber || !name || isNaN(price) || isNaN(annualDemand) || isNaN(freightOhdCost)) {
               errors.push(`Parts Row ${index + 2}: Invalid data for PartNumber, Name, Price, AnnualDemand, or FreightOhdCost.`); return;
             }
-            if (parts.some(p => p.partNumber === partNumber) || newPartsArr.some(p => p.partNumber === partNumber)) return;
+            if (parts.some(p => p.partNumber === partNumber) || newPartsArr.some(p => p.partNumber === partNumber)) {
+                errors.push(`Parts Row ${index + 2}: PartNumber "${partNumber}" already exists. Skipped.`); return;
+            }
             newPartsArr.push({ id: `p_excel_${Date.now()}_${index}`, partNumber, name, price, annualDemand, freightOhdCost });
           } catch (err) { errors.push(`Parts Row ${index + 2}: ${err instanceof Error ? err.message : String(err)}`); }
         });
@@ -616,7 +628,9 @@ export default function SpendWiseCentralPage() {
             const country = String(row['Country'] || '').trim();
 
             if (!supplierId || !name) { errors.push(`Suppliers Row ${index + 2}: Missing SupplierId or Name`); return; }
-            if (suppliers.some(s => s.supplierId === supplierId) || newSuppliersArr.some(s => s.supplierId === supplierId)) return;
+            if (suppliers.some(s => s.supplierId === supplierId) || newSuppliersArr.some(s => s.supplierId === supplierId)) {
+                 errors.push(`Suppliers Row ${index + 2}: SupplierId "${supplierId}" already exists. Skipped.`); return;
+            }
             const fullAddress = [streetAddress, city, stateOrProvince, postalCode, country].filter(Boolean).join(', ');
             newSuppliersArr.push({ id: `s_excel_${Date.now()}_${index}`, supplierId, name, description, streetAddress, city, stateOrProvince, postalCode, country, address: fullAddress });
           } catch (err) { errors.push(`Suppliers Row ${index + 2}: ${err instanceof Error ? err.message : String(err)}`); }
@@ -651,7 +665,7 @@ export default function SpendWiseCentralPage() {
       const successMessage = `Successfully imported: ${newPartsArr.length} parts, ${newSuppliersArr.length} suppliers, ${newAssociations.length} associations.`;
       if (errors.length > 0) {
         console.warn('Excel Upload Errors:', errors.slice(0, 10));
-        toast({ variant: "destructive", title: "Partially Successful", description: `${successMessage} ${errors.length} errors occurred. Check console.`, duration: 5000 });
+        toast({ variant: "destructive", title: "Partially Successful", description: `${successMessage} ${errors.length} errors occurred (e.g., duplicates skipped). Check console.`, duration: 7000 });
       } else {
         toast({ title: "Excel Upload Complete", description: successMessage });
       }
@@ -671,8 +685,8 @@ export default function SpendWiseCentralPage() {
       if (!response.ok) throw new Error(`Sample file not found (status: ${response.status})`);
       const arrayBuffer = await response.arrayBuffer();
       const file = new File([arrayBuffer], 'Spend Analysis.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      await handleProcessExcelWorkbook(file);
-      toast({ title: "Sample Data Loaded!", description: "Successfully loaded sample data from built-in Excel file." });
+      await handleProcessExcelWorkbook(file); // This now correctly handles duplicates
+      // toast({ title: "Sample Data Loaded!", description: "Successfully loaded sample data from built-in Excel file." }); // Toast handled by handleProcessExcelWorkbook
     } catch (error) {
       console.error('Error loading sample data:', error);
       toast({ variant: "destructive", title: "Sample Data Error", description: `Could not load sample data. ${error instanceof Error ? error.message : String(error)}` });
@@ -772,7 +786,7 @@ export default function SpendWiseCentralPage() {
   const spendByPartData: SpendDataPoint[] = useMemo(() => {
     return partsWithSpend
       .map(part => ({
-        name: part.partNumber,
+        name: part.partNumber, // This could lead to "duplicate" names if partNumbers aren't unique across *all* part objects
         spend: part.annualSpend,
       }))
       .sort((a,b) => b.spend - a.spend)
@@ -813,6 +827,33 @@ export default function SpendWiseCentralPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
 
+  const handleTariffSliderChange = (value: number[]) => {
+    setTariffRateMultiplierPercent(value[0]);
+  };
+
+  const handleTariffInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(event.target.value, 10);
+    if (!isNaN(value) && value >= 0 && value <= 300) {
+      setTariffRateMultiplierPercent(value);
+    } else if (event.target.value === "") {
+        setTariffRateMultiplierPercent(0); // Or handle as per desired behavior for empty input
+    }
+  };
+
+  const handleLogisticsSliderChange = (value: number[]) => {
+    setTotalLogisticsCostPercent(value[0]);
+  };
+
+  const handleLogisticsInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = parseInt(event.target.value, 10);
+      if (!isNaN(value) && value >= 50 && value <= 200) {
+          setTotalLogisticsCostPercent(value);
+      } else if (event.target.value === "") {
+           setTotalLogisticsCostPercent(50); // Or a min value if preferred
+      }
+  };
+
+
   return (
     <TooltipProvider>
       <div className="flex flex-col min-h-screen bg-background">
@@ -828,52 +869,90 @@ export default function SpendWiseCentralPage() {
             Spend by TADA
           </h1>
             <div className="flex-grow flex items-center space-x-4 ml-4">
-              <div className="flex items-center space-x-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center space-x-1">
                     <Home className="h-4 w-4 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent><p>Application Home Country (for base calculations)</p></TooltipContent>
-                </Tooltip>
-                 <Select value={appHomeCountry} onValueChange={setAppHomeCountry}>
-                    <SelectTrigger className="w-[100px] h-8 text-xs">
-                        <SelectValue placeholder="Home Country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {uniqueSupplierCountriesForApp.map(country => (
-                            <SelectItem key={country} value={country} className="text-xs">{country}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Shield className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="tariffRateMultiplierSlider" className="text-xs text-muted-foreground whitespace-nowrap">Tariff Mult:</Label>
-                 <Slider
-                  id="tariffRateMultiplierSlider"
-                  min={0} 
-                  max={300} 
-                  step={1}
-                  value={[tariffRateMultiplierPercent]}
-                  onValueChange={(value) => setTariffRateMultiplierPercent(value[0])}
-                  className="w-24 h-2"
-                />
-                <span className="text-xs text-foreground w-8 text-right">{tariffRateMultiplierPercent}%</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <PercentCircle className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="logisticsCostSlider" className="text-xs text-muted-foreground whitespace-nowrap">Logistics:</Label>
-                <Slider
-                  id="logisticsCostSlider"
-                  min={50}
-                  max={200}
-                  step={1}
-                  value={[totalLogisticsCostPercent]}
-                  onValueChange={(value) => setTotalLogisticsCostPercent(value[0])}
-                  className="w-24 h-2"
-                />
-                 <span className="text-xs text-foreground w-8 text-right">{totalLogisticsCostPercent}%</span>
-              </div>
+                    <Select value={appHomeCountry} onValueChange={setAppHomeCountry}>
+                        <SelectTrigger className="w-[100px] h-8 text-xs">
+                            <SelectValue placeholder="Home Country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {uniqueSupplierCountriesForApp.map(country => (
+                                <SelectItem key={country} value={country} className="text-xs">{country}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">
+                    Application Home Country: Suppliers outside this country are considered foreign for tariff calculations. Changes affect Total Annual Spend.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center space-x-2">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <Label htmlFor="tariffRateMultiplierSlider" className="text-xs text-muted-foreground whitespace-nowrap">Tariff Mult:</Label>
+                    <Slider
+                      id="tariffRateMultiplierSlider"
+                      min={0} 
+                      max={300} 
+                      step={1}
+                      value={[tariffRateMultiplierPercent]}
+                      onValueChange={handleTariffSliderChange}
+                      className="w-24 h-2"
+                    />
+                    <Input 
+                        type="number" 
+                        value={tariffRateMultiplierPercent} 
+                        onChange={handleTariffInputChange}
+                        className="w-16 h-7 text-xs text-right px-1"
+                        min="0"
+                        max="300"
+                    />
+                    <span className="text-xs text-foreground">%</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">
+                    Tariff Multiplier: Adjusts the base tariff rate (currently {BASE_TARIFF_RATE * 100}%) applied to imported parts. 100% = base rate.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                 <TooltipTrigger asChild>
+                  <div className="flex items-center space-x-2">
+                    <PercentCircle className="h-4 w-4 text-muted-foreground" />
+                    <Label htmlFor="logisticsCostSlider" className="text-xs text-muted-foreground whitespace-nowrap">Logistics:</Label>
+                    <Slider
+                      id="logisticsCostSlider"
+                      min={50}
+                      max={200}
+                      step={1}
+                      value={[totalLogisticsCostPercent]}
+                      onValueChange={handleLogisticsSliderChange}
+                      className="w-24 h-2"
+                    />
+                    <Input 
+                        type="number" 
+                        value={totalLogisticsCostPercent} 
+                        onChange={handleLogisticsInputChange}
+                        className="w-16 h-7 text-xs text-right px-1"
+                        min="50"
+                        max="200"
+                    />
+                    <span className="text-xs text-foreground">%</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">
+                    Global Logistics Cost Multiplier: Adjusts each part's freight & OHD cost. 100% = part's defined rate.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
             </div>
 
             <div className="ml-auto flex items-center space-x-2">
@@ -910,7 +989,7 @@ export default function SpendWiseCentralPage() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Upload Excel Workbook</p>
+                  <p>Upload Excel Workbook (Parts, Suppliers, Mix)</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -919,7 +998,7 @@ export default function SpendWiseCentralPage() {
                 suppliers={suppliers}
                 partCategoryMappings={partCategoryMappings}
                 partSupplierAssociations={partSupplierAssociations}
-                tariffChargePercent={tariffRateMultiplierPercent} // This is the multiplier
+                tariffChargePercent={tariffRateMultiplierPercent} 
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
                 homeCountry={appHomeCountry}
                 totalAnnualSpend={totalAnnualSpend}
@@ -936,7 +1015,7 @@ export default function SpendWiseCentralPage() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Clear All Data</p>
+                  <p>Clear All Application Data</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -973,7 +1052,7 @@ export default function SpendWiseCentralPage() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Generate Sample Data</p>
+                  <p>Generate Sample Data (AI)</p>
                 </TooltipContent>
               </Tooltip>
               <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
@@ -1152,7 +1231,7 @@ export default function SpendWiseCentralPage() {
                 Upload Excel Workbook
               </DialogTitle>
               <DialogDescription>
-                Upload a single Excel file (.xlsx, .xls) with up to 3 sheets: "Parts", "Suppliers", and "Supplier Mix" (or "SupplierMix", "SourceMix").
+                Upload a single Excel file (.xlsx, .xls) with up to 3 sheets: "Parts", "Suppliers", and "Supplier Mix" (or "SupplierMix", "SourceMix"). Duplicate PartNumbers or SupplierIds will be skipped.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -1191,6 +1270,7 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
+    
 
     
 

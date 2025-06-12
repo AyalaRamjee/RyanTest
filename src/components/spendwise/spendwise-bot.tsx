@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise'; // PartCommodityMapping removed
+import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,7 +23,6 @@ interface SpendWiseBotProps {
   parts: Part[];
   suppliers: Supplier[];
   partCategoryMappings: PartCategoryMapping[];
-  // partCommodityMappings removed
   partSupplierAssociations: PartSupplierAssociation[];
   tariffChargePercent: number;
   totalLogisticsCostPercent: number;
@@ -32,7 +31,6 @@ interface SpendWiseBotProps {
   totalParts: number;
   totalSuppliers: number;
   totalCategories: number;
-  // totalCommodities removed
 }
 
 interface Message {
@@ -45,7 +43,6 @@ export default function SpendWiseBot({
   parts,
   suppliers,
   partCategoryMappings,
-  // partCommodityMappings, removed
   partSupplierAssociations,
   tariffChargePercent,
   totalLogisticsCostPercent,
@@ -54,7 +51,6 @@ export default function SpendWiseBot({
   totalParts,
   totalSuppliers,
   totalCategories,
-  // totalCommodities, removed
 }: SpendWiseBotProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -78,21 +74,20 @@ export default function SpendWiseBot({
     setIsLoading(true);
 
     try {
+      // Send the parts data as is, without converting freightOhdCost to a percentage string
       const inputForAI = {
         question: userMessage.text,
-        partsData: JSON.stringify(parts.map(({ id, freightOhdCost, ...rest}) => ({...rest, freightOhdCostPercent: (freightOhdCost * 100).toFixed(2) + '%'}))),
+        partsData: JSON.stringify(parts), // Send the original parts array
         suppliersData: JSON.stringify(suppliers),
         partCategoryMappingsData: JSON.stringify(partCategoryMappings),
-        // partCommodityMappingsData removed
         partSupplierAssociationsData: JSON.stringify(partSupplierAssociations),
-        tariffPercent: tariffChargePercent,
+        tariffPercent: tariffChargePercent, 
         logisticsPercent: totalLogisticsCostPercent,
         homeCountry: homeCountry,
         totalAnnualSpend: totalAnnualSpend,
         totalParts,
         totalSuppliers,
         totalCategories,
-        // totalCommodities removed
       };
       
       const response = await querySpendData(inputForAI);
@@ -100,17 +95,25 @@ export default function SpendWiseBot({
       setMessages(prev => [...prev, botMessage]);
 
     } catch (error) {
-      console.error("Error querying spend data:", error);
-      const errorMessage: Message = { id: Date.now().toString() + '_error', sender: 'bot', text: "Sorry, I encountered an error. Please try again." };
+      console.error("Error querying spend data with AI:", error);
+      let detailMessage = "Could not get a response from the AI assistant.";
+      if (error instanceof Error && error.message) {
+        detailMessage = error.message.includes("DEADLINE_EXCEEDED") 
+            ? "The request to the AI assistant timed out. Please try again." 
+            : error.message.length > 100 ? detailMessage : error.message; 
+      }
+      const errorMessage: Message = { id: Date.now().toString() + '_error', sender: 'bot', text: `Sorry, I encountered an error. ${detailMessage}` };
       setMessages(prev => [...prev, errorMessage]);
-      toast({ variant: "destructive", title: "Bot Error", description: "Could not get a response from the AI." });
+      toast({ variant: "destructive", title: "Bot Error", description: detailMessage, duration: 7000 });
     } finally {
       setIsLoading(false);
     }
   };
   
   const openBot = () => {
-    setMessages([]);
+    setMessages([
+      { id: 'initial_bot_msg', sender: 'bot', text: 'Hello! Ask me anything about your current spend data.' }
+    ]);
     setIsOpen(true);
   }
 
@@ -181,3 +184,5 @@ export default function SpendWiseBot({
     </>
   );
 }
+
+    
