@@ -20,14 +20,17 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, PercentCircle, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, PieChart as PieChartLucideIcon } from "lucide-react";
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, PieChart as PieChartLucideIcon, ListChecks } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import * as XLSX from 'xlsx';
 import { PieChart as RechartsPieChart, Pie, Cell, Legend as RechartsLegend, ResponsiveContainer, Tooltip as RechartsTooltipComponent } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { ChartContainer } from '@/components/ui/chart';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+
 
 export interface SpendDataPoint {
   name: string;
@@ -45,8 +48,8 @@ const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
 const DEFAULT_HOME_COUNTRY = "USA";
 const BASE_TARIFF_RATE = 0.05; // 5% base tariff
 
-const HEADER_HEIGHT_PX = 128; 
-const SUMMARY_STATS_HEIGHT_PX = 100; 
+const HEADER_HEIGHT_PX = 128;
+const SUMMARY_STATS_HEIGHT_PX = 100;
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
 const PIE_COLORS_PARTS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--chart-1) / 0.7)", "hsl(var(--chart-2) / 0.7)", "hsl(var(--chart-3) / 0.7)", "hsl(var(--chart-4) / 0.7)", "hsl(var(--chart-5) / 0.7)"];
@@ -86,6 +89,10 @@ export default function SpendWiseCentralPage() {
   const [formattedDateTime, setFormattedDateTime] = useState<string>('');
 
   const [appHomeCountry, setAppHomeCountry] = useState<string>(DEFAULT_HOME_COUNTRY);
+
+  const [partsWithoutSuppliers, setPartsWithoutSuppliers] = useState<Part[]>([]);
+  const [suppliersWithoutParts, setSuppliersWithoutParts] = useState<Supplier[]>([]);
+  const [validationPerformed, setValidationPerformed] = useState<boolean>(false);
 
   const uniqueSupplierCountriesForApp = useMemo(() => {
     const countries = Array.from(new Set(suppliers.map(s => s.country).filter(Boolean)));
@@ -207,6 +214,7 @@ export default function SpendWiseCentralPage() {
       setPartCategoryMappings(newPartCategoryMappings);
       setPartSupplierAssociations(newPartSupplierAssociations);
       setCurrentFilename(filename);
+      setValidationPerformed(false); // Reset validation state on new data load
 
       toast({ title: "Success", description: `Configuration from "${filename}" loaded.` });
     } catch (error) {
@@ -225,12 +233,12 @@ export default function SpendWiseCentralPage() {
       parseAndSetXmlData(storedXmlData, filenameToLoad);
     } else {
       setCurrentFilename(DEFAULT_XML_FILENAME);
-      if (!parts.length && !suppliers.length) { 
+      if (!parts.length && !suppliers.length) {
          handleLoadSampleData();
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parseAndSetXmlData]); 
+  }, [parseAndSetXmlData]);
 
   useEffect(() => {
     let xmlStringGen = '<SpendData>\n';
@@ -376,6 +384,7 @@ export default function SpendWiseCentralPage() {
       setSuppliers(newSuppliersArr);
       setPartCategoryMappings(newPartCategoryMappingsArr);
       setPartSupplierAssociations(newPartSupplierAssociationsArr);
+      setValidationPerformed(false);
 
       toast({ title: "Success", description: "Sample data generated successfully!" });
       setIsGenerateDataDialogOpen(false);
@@ -402,6 +411,7 @@ export default function SpendWiseCentralPage() {
       freightOhdCost: 0.00,
     };
     setParts(prev => [...prev, newPart]);
+    setValidationPerformed(false);
 
     const defaultCategory = partCategoryMappings.length > 0 ? partCategoryMappings[0].categoryName : "Default Category";
 
@@ -428,6 +438,7 @@ export default function SpendWiseCentralPage() {
       longitude: undefined,
     };
     setSuppliers(prev => [...prev, newSupplier]);
+    setValidationPerformed(false);
     toast({ title: "Supplier Added", description: `"${newSupplier.name}" added successfully.` });
   }, [suppliers, toast]);
 
@@ -440,6 +451,7 @@ export default function SpendWiseCentralPage() {
       case 'sourcemix': isProcessingSetter = setIsUploadingSourceMixCsv; break;
     }
     if (isProcessingSetter) isProcessingSetter(true);
+    setValidationPerformed(false);
 
     return new Promise<void>((resolve, reject) => {
       const reader = new FileReader();
@@ -483,7 +495,7 @@ export default function SpendWiseCentralPage() {
                 const [partNumber, name, priceStr, annualDemandStr, freightOhdCostStr] = columns;
                 const price = parseFloat(priceStr);
                 const annualDemand = parseInt(annualDemandStr, 10);
-                const freightOhdCost = parseFloat(freightOhdCostStr) / 100; 
+                const freightOhdCost = parseFloat(freightOhdCostStr) / 100;
                 if (!partNumber || !name || isNaN(price) || isNaN(annualDemand) || isNaN(freightOhdCost)) { errors.push(`Row ${i+1}: Invalid data for PartNumber, Name, Price, AnnualDemand, or FreightOhdCost.`); skippedCount++; continue; }
                 if (parts.some(p => p.partNumber === partNumber)) { errors.push(`Row ${i+1}: PartNumber "${partNumber}" already exists. Skipped.`); skippedCount++; continue; }
                 newPartsArr.push({ id: `p_csv_${Date.now()}_${i}`, partNumber, name, price, annualDemand, freightOhdCost });
@@ -568,10 +580,11 @@ export default function SpendWiseCentralPage() {
     await processCsvUpload(file, 'sourcemix');
     setIsSourceMixUploadDialogOpen(false);
   }, [processCsvUpload]);
-  
+
   const handleProcessExcelWorkbook = useCallback(async (file: File) => {
     setIsUploadingExcel(true);
-    
+    setValidationPerformed(false);
+
     try {
       const fileBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
         const reader = new FileReader();
@@ -581,14 +594,14 @@ export default function SpendWiseCentralPage() {
       });
 
       const workbook = XLSX.read(fileBuffer, { cellStyles: true, cellFormulas: true, cellDates: true, cellNF: true, sheetStubs: true });
-      
+
       const errors: string[] = [];
       const newPartsArr: Part[] = [];
       const newSuppliersArr: Supplier[] = [];
       const newAssociations: PartSupplierAssociation[] = [];
 
       const findActualSheetName = (searchNames: string[]) => {
-        return Object.keys(workbook.Sheets).find(actualSheetName => 
+        return Object.keys(workbook.Sheets).find(actualSheetName =>
           searchNames.some(searchName => actualSheetName.trim().toLowerCase() === searchName.toLowerCase())
         );
       };
@@ -607,7 +620,7 @@ export default function SpendWiseCentralPage() {
             if (typeof freightOhdCostRaw === 'string' && freightOhdCostRaw.includes('%')) {
                 freightOhdCost = parseFloat(freightOhdCostRaw.replace('%','')) / 100;
             } else {
-                freightOhdCost = parseFloat(freightOhdCostRaw) / 100; 
+                freightOhdCost = parseFloat(freightOhdCostRaw) / 100;
             }
 
             if (!partNumber || !name || isNaN(price) || isNaN(annualDemand) || isNaN(freightOhdCost)) {
@@ -644,7 +657,7 @@ export default function SpendWiseCentralPage() {
           } catch (err) { errors.push(`Suppliers Row ${index + 2}: ${err instanceof Error ? err.message : String(err)}`); }
         });
       }
-      
+
       const supplierMixSheetName = findActualSheetName(['Supplier Mix', 'SupplierMix', 'SUPPLIER MIX', 'supplier mix', 'Source Mix', 'SourceMix']);
       if (supplierMixSheetName) {
         const mixData = XLSX.utils.sheet_to_json(workbook.Sheets[supplierMixSheetName]);
@@ -693,14 +706,14 @@ export default function SpendWiseCentralPage() {
       if (!response.ok) throw new Error(`Sample file not found (status: ${response.status})`);
       const arrayBuffer = await response.arrayBuffer();
       const file = new File([arrayBuffer], 'Spend Analysis.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      await handleProcessExcelWorkbook(file); 
+      await handleProcessExcelWorkbook(file);
     } catch (error) {
       console.error('Error loading sample data:', error);
       toast({ variant: "destructive", title: "Sample Data Error", description: `Could not load sample data. ${error instanceof Error ? error.message : String(error)}` });
     } finally {
       setIsLoadingSampleData(false);
     }
-  }, [toast, handleProcessExcelWorkbook]); 
+  }, [toast, handleProcessExcelWorkbook]);
 
 
   const handleClearAllData = useCallback(() => {
@@ -709,17 +722,19 @@ export default function SpendWiseCentralPage() {
     setPartCategoryMappings([]);
     setPartSupplierAssociations([]);
     setTariffRateMultiplierPercent(100);
+    // totalLogisticsCostPercent is no longer in UI, but resetting its state might be good practice
     setTotalLogisticsCostPercent(100);
     setAppHomeCountry(DEFAULT_HOME_COUNTRY);
+    setValidationPerformed(false);
 
     if (typeof window !== 'undefined' && currentFilename) {
       localStorage.removeItem(APP_CONFIG_DATA_KEY_PREFIX + currentFilename);
     }
-    
+
     setCurrentFilename(DEFAULT_XML_FILENAME);
     if (typeof window !== 'undefined') {
       localStorage.setItem(LAST_LOADED_FILENAME_KEY, DEFAULT_XML_FILENAME);
-      localStorage.removeItem(APP_CONFIG_DATA_KEY_PREFIX + DEFAULT_XML_FILENAME); 
+      localStorage.removeItem(APP_CONFIG_DATA_KEY_PREFIX + DEFAULT_XML_FILENAME);
     }
 
     toast({ title: "All Data Cleared", description: "Application data has been reset to default." });
@@ -733,7 +748,7 @@ export default function SpendWiseCentralPage() {
   const calculateSpendForPart = useCallback((
     part: Part,
     currentTariffMultiplierPercent: number,
-    currentTotalLogisticsCostPercent: number, 
+    currentTotalLogisticsCostPercent: number,
     localSuppliers: Supplier[],
     localPartSupplierAssociations: PartSupplierAssociation[],
     homeCountryParam: string
@@ -793,7 +808,7 @@ export default function SpendWiseCentralPage() {
   const spendByPartData: SpendDataPoint[] = useMemo(() => {
     return partsWithSpend
       .map(part => ({
-        name: part.partNumber, 
+        name: part.partNumber,
         spend: part.annualSpend,
       }))
       .sort((a,b) => b.spend - a.spend)
@@ -827,12 +842,12 @@ export default function SpendWiseCentralPage() {
     const hasExistingData = parts.length > 0 || suppliers.length > 0;
     const lastFile = typeof window !== 'undefined' ? localStorage.getItem(LAST_LOADED_FILENAME_KEY) : null;
     const defaultDataExists = typeof window !== 'undefined' ? localStorage.getItem(APP_CONFIG_DATA_KEY_PREFIX + DEFAULT_XML_FILENAME) : null;
-    
+
     if (!hasExistingData && (!lastFile || lastFile === DEFAULT_XML_FILENAME) && !defaultDataExists) {
         handleLoadSampleData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
   const handleTariffSliderChange = useCallback((value: number[]) => {
     setTariffRateMultiplierPercent(value[0]);
@@ -843,10 +858,10 @@ export default function SpendWiseCentralPage() {
     if (!isNaN(value) && value >= 0 && value <= 300) {
       setTariffRateMultiplierPercent(value);
     } else if (event.target.value === "") {
-        setTariffRateMultiplierPercent(0); 
+        setTariffRateMultiplierPercent(0);
     }
   }, []);
-  
+
   const handleValidateData = () => {
     toast({
       title: "Validation Placeholder",
@@ -854,6 +869,24 @@ export default function SpendWiseCentralPage() {
       duration: 3000,
     });
   };
+
+  const handleRunValidationChecks = () => {
+    const partsMissingSuppliers = parts.filter(part =>
+      !partSupplierAssociations.some(assoc => assoc.partId === part.id)
+    );
+    setPartsWithoutSuppliers(partsMissingSuppliers);
+
+    const suppliersMissingParts = suppliers.filter(supplier =>
+      !partSupplierAssociations.some(assoc => assoc.supplierId === supplier.id)
+    );
+    setSuppliersWithoutParts(suppliersMissingParts);
+    setValidationPerformed(true);
+    toast({
+      title: "Validation Complete",
+      description: `Found ${partsMissingSuppliers.length} parts without suppliers and ${suppliersMissingParts.length} suppliers without parts.`,
+    });
+  };
+
 
   return (
     <TooltipProvider>
@@ -875,7 +908,7 @@ export default function SpendWiseCentralPage() {
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-1">
                       <Home className="h-4 w-4 text-muted-foreground" />
-                      <Select value={appHomeCountry} onValueChange={setAppHomeCountry}>
+                      <Select value={appHomeCountry} onValueChange={(value) => {setAppHomeCountry(value); setValidationPerformed(false);}}>
                           <SelectTrigger className="w-[100px] h-8 text-xs">
                               <SelectValue placeholder="Home Country" />
                           </SelectTrigger>
@@ -895,23 +928,23 @@ export default function SpendWiseCentralPage() {
                 </Tooltip>
               </div>
               <div className="flex items-center space-x-4">
-                <Tooltip>
+                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center space-x-2">
                       <Shield className="h-4 w-4 text-muted-foreground" />
                       <Label htmlFor="tariffRateMultiplierSlider" className="text-xs text-muted-foreground whitespace-nowrap">Tariff Mult:</Label>
                       <Slider
                         id="tariffRateMultiplierSlider"
-                        min={0} 
-                        max={300} 
+                        min={0}
+                        max={300}
                         step={1}
                         value={[tariffRateMultiplierPercent]}
                         onValueChange={handleTariffSliderChange}
                         className="w-24 h-2"
                       />
-                      <Input 
-                          type="number" 
-                          value={tariffRateMultiplierPercent} 
+                      <Input
+                          type="number"
+                          value={tariffRateMultiplierPercent}
                           onChange={handleTariffInputChange}
                           className="w-16 h-7 text-xs text-right px-1"
                           min="0"
@@ -940,11 +973,11 @@ export default function SpendWiseCentralPage() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={handleLoadSampleData} 
-                    disabled={isLoadingSampleData || isUploadingExcel} 
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleLoadSampleData}
+                    disabled={isLoadingSampleData || isUploadingExcel}
                     aria-label="Load Sample Data"
                     className="bg-blue-50 hover:bg-blue-100 dark:bg-blue-900 dark:hover:bg-blue-800 border-blue-200 dark:border-blue-700"
                   >
@@ -980,7 +1013,7 @@ export default function SpendWiseCentralPage() {
                 suppliers={suppliers}
                 partCategoryMappings={partCategoryMappings}
                 partSupplierAssociations={partSupplierAssociations}
-                tariffChargePercent={tariffRateMultiplierPercent} 
+                tariffChargePercent={tariffRateMultiplierPercent}
                 totalLogisticsCostPercent={totalLogisticsCostPercent}
                 homeCountry={appHomeCountry}
                 totalAnnualSpend={totalAnnualSpend}
@@ -989,7 +1022,7 @@ export default function SpendWiseCentralPage() {
                 totalCategories={totalCategories}
               />
               <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".xml" style={{ display: 'none' }} />
-              
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="outline" size="icon" onClick={handleClearAllData} aria-label="Clear All Data">
@@ -1022,7 +1055,7 @@ export default function SpendWiseCentralPage() {
                   <p>Download Configuration (XML)</p>
                 </TooltipContent>
               </Tooltip>
-              
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} disabled={isGeneratingData} aria-label="Generate Sample Data">
@@ -1089,16 +1122,16 @@ export default function SpendWiseCentralPage() {
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
               </TabsTrigger>
               <TabsTrigger value="update-suppliers" className="flex items-center gap-1 tabs-trigger-active-underline">
-                <Building className="h-3.5 w-3.5" /> 2. Suppliers
+                <Building className="h-3.5 w-3.5" /> 2. Add/Update Suppliers
               </TabsTrigger>
               <TabsTrigger value="part-supplier-mapping" className="flex items-center gap-1 tabs-trigger-active-underline">
-                <ArrowRightLeft className="h-3.5 w-3.5" /> 3. Source & Mix
+                <ArrowRightLeft className="h-3.5 w-3.5" /> 3. Update Source Mix
               </TabsTrigger>
               <TabsTrigger value="upload-part-category" className="flex items-center gap-1 tabs-trigger-active-underline">
-                <FolderTree className="h-3.5 w-3.5" /> 4. Part Category
+                <FolderTree className="h-3.5 w-3.5" /> 4. Add/Update Categories
               </TabsTrigger>
-              <TabsTrigger value="summary" className="flex items-center gap-1 tabs-trigger-active-underline">
-                <Globe className="h-3.5 w-3.5" /> 5. Summary
+              <TabsTrigger value="validate-spend" className="flex items-center gap-1 tabs-trigger-active-underline">
+                <ListChecks className="h-3.5 w-3.5" /> 5. Validate Spend
               </TabsTrigger>
               <TabsTrigger value="what-if-analysis" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <HelpCircle className="h-3.5 w-3.5" /> 6. What-if Analysis
@@ -1110,17 +1143,17 @@ export default function SpendWiseCentralPage() {
                 <div className="md:col-span-3">
                   <UpdatePartsTab
                     parts={parts}
-                    setParts={setParts}
+                    setParts={(value) => { setParts(value); setValidationPerformed(false); }}
                     onAddPart={handleAddPart}
                     onOpenUploadDialog={() => setIsPartsUploadDialogOpen(true)}
                     partsWithSpend={partsWithSpend}
                     suppliers={suppliers}
                     partSupplierAssociations={partSupplierAssociations}
                     partCategoryMappings={partCategoryMappings}
-                    calculateSpendForSummary={calculateSpendForPart} 
-                    homeCountry={appHomeCountry} 
-                    tariffChargePercent={tariffRateMultiplierPercent} 
-                    totalLogisticsCostPercent={totalLogisticsCostPercent} 
+                    calculateSpendForSummary={calculateSpendForPart}
+                    homeCountry={appHomeCountry}
+                    tariffChargePercent={tariffRateMultiplierPercent}
+                    totalLogisticsCostPercent={totalLogisticsCostPercent}
                   />
                 </div>
                 <div className="md:col-span-7">
@@ -1179,7 +1212,7 @@ export default function SpendWiseCentralPage() {
             <TabsContent value="update-suppliers" className="mt-4">
               <UpdateSuppliersTab
                 suppliers={suppliers}
-                setSuppliers={setSuppliers}
+                setSuppliers={(value) => { setSuppliers(value); setValidationPerformed(false); }}
                 onAddSupplier={handleAddSupplier}
                 onOpenUploadDialog={() => setIsSuppliersUploadDialogOpen(true)}
               />
@@ -1189,7 +1222,7 @@ export default function SpendWiseCentralPage() {
                 parts={parts}
                 suppliers={suppliers}
                 partSupplierAssociations={partSupplierAssociations}
-                setPartSupplierAssociations={setPartSupplierAssociations}
+                setPartSupplierAssociations={(value) => { setPartSupplierAssociations(value); setValidationPerformed(false); }}
                 onOpenUploadDialog={() => setIsSourceMixUploadDialogOpen(true)}
               />
             </TabsContent>
@@ -1200,20 +1233,73 @@ export default function SpendWiseCentralPage() {
                 spendByCategoryData={spendByCategoryData}
                 partsPerCategoryData={partsPerCategoryData}
                 onOpenUploadDialog={() => setIsCategoryUploadDialogOpen(true)}
-                setPartCategoryMappings={setPartCategoryMappings}
+                setPartCategoryMappings={(value) => { setPartCategoryMappings(value); setValidationPerformed(false); }}
               />
             </TabsContent>
-            <TabsContent value="summary" className="mt-4">
-              <SummaryTab 
-                suppliers={suppliers}
-                parts={parts} 
-                partsWithSpend={partsWithSpend} 
-                partSupplierAssociations={partSupplierAssociations}
-                spendByCategoryData={spendByCategoryData}
-              />
+            <TabsContent value="validate-spend" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <ListChecks className="mr-2 h-5 w-5 text-primary" />
+                    Data Validation Checks
+                  </CardTitle>
+                  <CardDescription>
+                    Review data consistency between parts and suppliers. Click the button below to perform checks.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex justify-end">
+                    <Button onClick={handleRunValidationChecks}>Run Validation Checks</Button>
+                  </div>
+
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2">Parts without Suppliers ({partsWithoutSuppliers.length})</h3>
+                    {!validationPerformed ? (
+                      <p className="text-sm text-muted-foreground">Click "Run Validation Checks" to see results.</p>
+                    ) : partsWithoutSuppliers.length === 0 ? (
+                      <p className="text-sm text-green-600 flex items-center"><CheckCircle className="mr-2 h-4 w-4"/>All parts have at least one supplier.</p>
+                    ) : (
+                      <ScrollArea className="h-40 border rounded-md p-2 bg-muted/20">
+                        <ul className="space-y-1 text-xs">
+                          {partsWithoutSuppliers.map(part => (
+                            <li key={part.id} className="flex justify-between items-center p-1.5 bg-card rounded shadow-sm">
+                              <div>
+                                <span className="font-medium">{part.name}</span> <span className="text-muted-foreground">({part.partNumber})</span>
+                              </div>
+                              <Badge variant="destructive" className="text-2xs">No Supplier</Badge>
+                            </li>
+                          ))}
+                        </ul>
+                      </ScrollArea>
+                    )}
+                  </section>
+
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2">Suppliers without Parts ({suppliersWithoutParts.length})</h3>
+                     {!validationPerformed ? (
+                      <p className="text-sm text-muted-foreground">Click "Run Validation Checks" to see results.</p>
+                    ) : suppliersWithoutParts.length === 0 ? (
+                      <p className="text-sm text-green-600 flex items-center"><CheckCircle className="mr-2 h-4 w-4"/>All suppliers are associated with at least one part.</p>
+                    ) : (
+                      <ScrollArea className="h-40 border rounded-md p-2 bg-muted/20">
+                        <ul className="space-y-1 text-xs">
+                          {suppliersWithoutParts.map(supplier => (
+                            <li key={supplier.id} className="flex justify-between items-center p-1.5 bg-card rounded shadow-sm">
+                              <div>
+                                <span className="font-medium">{supplier.name}</span> <span className="text-muted-foreground">({supplier.supplierId})</span>
+                              </div>
+                              <Badge variant="destructive" className="text-2xs">No Parts Assigned</Badge>
+                            </li>
+                          ))}
+                        </ul>
+                      </ScrollArea>
+                    )}
+                  </section>
+                </CardContent>
+              </Card>
             </TabsContent>
             <TabsContent value="what-if-analysis" className="mt-4">
-              <WhatIfAnalysisTab 
+              <WhatIfAnalysisTab
                 parts={parts}
                 suppliers={suppliers}
                 partCategoryMappings={partCategoryMappings}
@@ -1319,8 +1405,3 @@ export default function SpendWiseCentralPage() {
     
 
     
-
-    
-
-    
-
