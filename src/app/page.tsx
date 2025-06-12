@@ -649,6 +649,7 @@ export default function SpendWiseCentralPage() {
       const newPartsArr: Part[] = [];
       const newSuppliersArr: Supplier[] = [];
       const newAssociations: PartSupplierAssociation[] = [];
+      const newCategoryMappings: PartCategoryMapping[] = [];
 
       const findActualSheetName = (searchNames: string[]) => {
         return Object.keys(workbook.Sheets).find(actualSheetName =>
@@ -729,11 +730,54 @@ export default function SpendWiseCentralPage() {
         });
       }
 
-      if (newPartsArr.length > 0) setParts(prev => [...prev, ...newPartsArr]);
-      if (newSuppliersArr.length > 0) setSuppliers(prev => [...prev, ...newSuppliersArr]);
-      if (newAssociations.length > 0) setPartSupplierAssociations(prev => [...prev, ...newAssociations]);
 
-      const successMessage = `Successfully imported: ${newPartsArr.length} parts, ${newSuppliersArr.length} suppliers, ${newAssociations.length} associations.`;
+
+    // NEW: Process Parts Categories sheet
+    const partsCategoriesSheetName = findActualSheetName(['Parts Categories', 'PartCategories', 'PARTS CATEGORIES', 'parts categories', 'Part Categories']);
+    if (partsCategoriesSheetName) {
+      const categoriesData = XLSX.utils.sheet_to_json(workbook.Sheets[partsCategoriesSheetName]);
+      const allPartsForCategories = [...parts, ...newPartsArr];
+      categoriesData.forEach((row: any, index) => {
+        try {
+          const partNumber = String(row['PartNumber'] || '').trim();
+          const categoryName = String(row['CategoryName'] || '').trim();
+          
+          if (!partNumber || !categoryName) { 
+            errors.push(`Categories Row ${index + 2}: Missing PartNumber or CategoryName`); 
+            return; 
+          }
+          
+          const foundPart = allPartsForCategories.find(p => p.partNumber === partNumber);
+          if (!foundPart) { 
+            errors.push(`Categories Row ${index + 2}: PartNumber "${partNumber}" not found`); 
+            return; 
+          }
+          
+          // Check if this mapping already exists
+          const exists = partCategoryMappings.some(m => m.partId === foundPart.id && m.categoryName === categoryName) || 
+                        newCategoryMappings.some(m => m.partId === foundPart.id && m.categoryName === categoryName);
+          if (exists) {
+            errors.push(`Categories Row ${index + 2}: Mapping between "${partNumber}" and "${categoryName}" already exists. Skipped.`);
+            return;
+          }
+          
+          newCategoryMappings.push({ 
+            id: `pcm_excel_${Date.now()}_${index}`, 
+            partId: foundPart.id, 
+            categoryName 
+          });
+        } catch (err) { 
+          errors.push(`Categories Row ${index + 2}: ${err instanceof Error ? err.message : String(err)}`); 
+        }
+      });
+    }
+
+    if (newPartsArr.length > 0) setParts(prev => [...prev, ...newPartsArr]);      if (newSuppliersArr.length > 0) setSuppliers(prev => [...prev, ...newSuppliersArr]);
+      if (newAssociations.length > 0) setPartSupplierAssociations(prev => [...prev, ...newAssociations]);
+          if (newCategoryMappings.length > 0) setPartCategoryMappings(prev => [...prev, ...newCategoryMappings]); // NEW: Update categories
+
+
+      const successMessage = `Successfully imported: ${newPartsArr.length} parts, ${newSuppliersArr.length} suppliers, ${newAssociations.length} associations, ${newCategoryMappings.length} category mappings.`;
       if (errors.length > 0) {
         console.warn('Excel Upload Errors:', errors.slice(0, 10));
         toast({ variant: "destructive", title: "Partially Successful", description: `${successMessage} ${errors.length} errors occurred (e.g., duplicates skipped). Check console.`, duration: 7000 });
@@ -747,7 +791,7 @@ export default function SpendWiseCentralPage() {
     } finally {
       setIsUploadingExcel(false);
     }
-  }, [parts, suppliers, partSupplierAssociations, toast, setParts, setSuppliers, setPartSupplierAssociations, resetValidationStates]);
+  }, [parts, suppliers, partSupplierAssociations, partCategoryMappings, toast, setParts, setSuppliers, setPartSupplierAssociations, setPartCategoryMappings, resetValidationStates]);
 
   const handleLoadSampleData = useCallback(async () => {
     setIsLoadingSampleData(true);
@@ -1693,7 +1737,7 @@ export default function SpendWiseCentralPage() {
                 Upload Excel Workbook
               </DialogTitle>
               <DialogDescription>
-                Upload a single Excel file (.xlsx, .xls) with up to 3 sheets: "Parts", "Suppliers", and "Supplier Mix" (or "SupplierMix", "SourceMix"). Duplicate PartNumbers or SupplierIds will be skipped.
+                Upload a single Excel file (.xlsx, .xls) with up to 4 sheets: "Parts", "Suppliers", "Supplier Mix" (or "SupplierMix", "SourceMix"), and "Parts Categories" (or "PartCategories"). Duplicate PartNumbers or SupplierIds will be skipped.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">

@@ -1,14 +1,13 @@
-
 import React, { useState, useRef, useMemo } from 'react';
 import type { Part, PartCategoryMapping } from '@/types/spendwise';
 import type { SpendDataPoint, CountDataPoint } from '@/app/page';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UploadCloud, FolderTree, Search, Plus, Trash2, Package, Target, Palette, TrendingUp, Hash, Info, PieChartIcon } from "lucide-react";
+import { UploadCloud, FolderTree, Search, Plus, Trash2, Package, Target, Palette, TrendingUp, Hash, Info, Activity } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Pie, PieChart, Cell, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ScatterChart, Scatter as RechartsScatter, ZAxis, Tooltip as RechartsTooltip, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 
 // Simple Badge component
@@ -46,14 +45,20 @@ const CATEGORY_COLORS = [
   '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
 ];
 
-const PIE_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
-
-const spendByCategoryChartConfig = {
-  spend: { label: "Spend ($)" },
-} satisfies import("@/components/ui/chart").ChartConfig;
+const BUBBLE_COLORS = [
+  "hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", 
+  "hsl(var(--chart-4))", "hsl(var(--chart-5))", "#3b82f6", "#8b5cf6", 
+  "#10b981", "#f59e0b", "#ef4444"
+];
 
 const partsPerCategoryChartConfig = {
   count: { label: "# Parts", color: "hsl(var(--chart-4))" },
+} satisfies import("@/components/ui/chart").ChartConfig;
+
+const bubbleChartConfig = {
+  numParts: { label: "Number of Parts" },
+  avgSpend: { label: "Avg. Spend/Part" },
+  totalSpend: { label: "Total Spend (Bubble Size)" },
 } satisfies import("@/components/ui/chart").ChartConfig;
 
 export default function UploadPartCategoryTab({ 
@@ -70,7 +75,7 @@ export default function UploadPartCategoryTab({
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [hoveredMapping, setHoveredMapping] = useState<string | null>(null);
-  const [createdCategories, setCreatedCategories] = useState<string[]>([]); // Track manually created categories
+  const [createdCategories, setCreatedCategories] = useState<string[]>([]);
   const dragCounterRef = useRef(0);
 
   // Get unique categories with their parts
@@ -115,12 +120,39 @@ export default function UploadPartCategoryTab({
     );
   }, [parts, searchTerm]);
 
+  // Create bubble chart data
+  const bubbleChartData = useMemo(() => {
+    if (spendByCategoryData.length === 0 || partsPerCategoryData.length === 0) {
+      return [];
+    }
+
+    return spendByCategoryData.map((spendItem, index) => {
+      const partsItem = partsPerCategoryData.find(p => p.name === spendItem.name);
+      const numParts = partsItem ? partsItem.count : 1;
+      const avgSpend = numParts > 0 ? spendItem.spend / numParts : 0;
+      
+      return {
+        name: spendItem.name,
+        numParts: numParts,
+        avgSpend: avgSpend,
+        totalSpend: spendItem.spend,
+        fill: BUBBLE_COLORS[index % BUBBLE_COLORS.length]
+      };
+    }).filter(item => item.numParts > 0); // Only show categories with parts
+  }, [spendByCategoryData, partsPerCategoryData]);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
   };
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-US').format(value);
+  };
+
+  const formatYAxisTick = (value: number) => {
+    if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+    if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+    return `$${value.toFixed(0)}`;
   };
 
   const getPartCategoryCount = (partId: string) => {
@@ -516,61 +548,83 @@ export default function UploadPartCategoryTab({
             Category Analytics
           </h3>
 
-          {/* Spend by Category Chart - MOVED HERE */}
+          {/* Spend by Category Bubble Chart - UPDATED */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center">
-                <PieChartIcon className="mr-1.5 h-4 w-4" />
-                $ Spend by Category
+                <Activity className="mr-1.5 h-4 w-4" />
+                Category Spend Analysis
               </CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild>
-                   <span className="text-xs text-muted-foreground cursor-default flex items-center">Spend distribution <Info className="ml-1 h-3 w-3" /></span>
+                   <span className="text-xs text-muted-foreground cursor-default flex items-center">
+                     X: # Parts, Y: Avg Spend/Part, Size: Total Spend <Info className="ml-1 h-3 w-3" />
+                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Distribution of spend across part categories (Adjusted by Tariff & Logistics).</p>
+                  <p className="text-xs">Bubble chart showing category relationships: X-axis is number of parts, Y-axis is average spend per part, bubble size represents total category spend.</p>
                 </TooltipContent>
               </Tooltip>
             </CardHeader>
             <CardContent className="pt-0">
-              {spendByCategoryData.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3">No category spend data.</p>
+              {bubbleChartData.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-8">No category data for bubble chart.</p>
               ) : (
-                <ChartContainer config={spendByCategoryChartConfig} className="min-h-[180px] w-full aspect-square">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart accessibilityLayer>
-                      <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent hideLabel formatter={(value, name, props) => <div className="text-xs"><span className="font-medium">{props.payload?.name}</span>: {formatCurrency(value as number)}</div>} />}
+                <ChartContainer config={bubbleChartConfig} className="min-h-[200px] w-full">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        type="number" 
+                        dataKey="numParts" 
+                        name="Number of Parts" 
+                        tickFormatter={formatNumber} 
+                        tick={{ fontSize: 10 }}
+                        domain={['dataMin - 1', 'dataMax + 1']}
                       />
-                      <Pie data={spendByCategoryData} dataKey="spend" nameKey="name" cx="50%" cy="50%" outerRadius={60} labelLine={false}
-                          label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                              const RADIAN = Math.PI / 180;
-                              const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                              const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                              const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                              return (percent as number) * 100 > 5 ? (
-                                <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-[8px]">
-                                  {`${((percent as number) * 100).toFixed(0)}%`}
-                                </text>
-                              ) : null;
-                            }}
-                      >
-                        {spendByCategoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Legend content={({ payload }) => (
-                          <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 mt-2 text-[10px]">
-                            {payload?.map((entry, index) => (
-                              <div key={`item-${index}`} className="flex items-center">
-                                <span style={{ backgroundColor: entry.color }} className="inline-block w-2 h-2 rounded-full mr-1"></span>
-                                {entry.value} ({formatCurrency(entry.payload?.payload?.spend as number || 0)})
+                      <YAxis 
+                        type="number" 
+                        dataKey="avgSpend" 
+                        name="Avg. Spend/Part" 
+                        tickFormatter={formatYAxisTick} 
+                        tick={{ fontSize: 10 }}
+                        domain={['dataMin * 0.9', 'dataMax * 1.1']}
+                      />
+                      <ZAxis 
+                        type="number" 
+                        dataKey="totalSpend" 
+                        range={[100, 1000]} 
+                        name="Total Spend" 
+                      />
+                      <RechartsTooltip
+                        cursor={{ strokeDasharray: '3 3' }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="rounded-lg border bg-background p-2.5 shadow-xl text-xs">
+                                <p className="font-medium mb-1" style={{color: data.fill}}>
+                                  📁 {data.name}
+                                </p>
+                                <p>Parts: {formatNumber(data.numParts)}</p>
+                                <p>Avg Spend/Part: {formatCurrency(data.avgSpend)}</p>
+                                <p>Total Spend: {formatCurrency(data.totalSpend)}</p>
                               </div>
-                            ))}
-                          </div>
-                        )} />
-                    </PieChart>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <RechartsScatter 
+                        name="Categories" 
+                        data={bubbleChartData} 
+                        shape="circle"
+                      >
+                        {bubbleChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </RechartsScatter>
+                    </ScatterChart>
                   </ResponsiveContainer>
                 </ChartContainer>
               )}
