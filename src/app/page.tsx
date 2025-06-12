@@ -43,8 +43,8 @@ const APP_CONFIG_DATA_KEY_PREFIX = "spendwise_config_";
 const DEFAULT_HOME_COUNTRY = "USA";
 const BASE_TARIFF_RATE = 0.05; // 5% base tariff
 
-const HEADER_HEIGHT_PX = 64;
-const SUMMARY_STATS_HEIGHT_PX = 122; 
+const HEADER_HEIGHT_PX = 128; // h-32 (16 * 8 = 128)
+const SUMMARY_STATS_HEIGHT_PX = 100; // Adjusted based on new card content height, visually check & tweak
 const TABSLIST_STICKY_TOP_PX = HEADER_HEIGHT_PX + SUMMARY_STATS_HEIGHT_PX;
 
 export default function SpendWiseCentralPage() {
@@ -418,6 +418,8 @@ export default function SpendWiseCentralPage() {
       postalCode: "90210",
       country: "USA",
       address: "123 Main St, Anytown, CA 90210, USA",
+      latitude: undefined,
+      longitude: undefined,
     };
     setSuppliers(prev => [...prev, newSupplier]);
     toast({ title: "Supplier Added", description: `"${newSupplier.name}" added successfully.` });
@@ -685,8 +687,7 @@ export default function SpendWiseCentralPage() {
       if (!response.ok) throw new Error(`Sample file not found (status: ${response.status})`);
       const arrayBuffer = await response.arrayBuffer();
       const file = new File([arrayBuffer], 'Spend Analysis.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      await handleProcessExcelWorkbook(file); // This now correctly handles duplicates
-      // toast({ title: "Sample Data Loaded!", description: "Successfully loaded sample data from built-in Excel file." }); // Toast handled by handleProcessExcelWorkbook
+      await handleProcessExcelWorkbook(file); 
     } catch (error) {
       console.error('Error loading sample data:', error);
       toast({ variant: "destructive", title: "Sample Data Error", description: `Could not load sample data. ${error instanceof Error ? error.message : String(error)}` });
@@ -776,17 +777,18 @@ export default function SpendWiseCentralPage() {
     return value.toFixed(2);
   };
 
-  const summaryStats = [
-    { Icon: Briefcase, label: "Total Parts", value: totalParts },
-    { Icon: Users, label: "Total Suppliers", value: totalSuppliers },
-    { Icon: FolderTree, label: "Categories", value: totalCategories },
-    { Icon: DollarSignIcon, label: "$ Spend/Year", value: formatCurrencyDisplay(totalAnnualSpend) },
-  ];
+  const summaryStatsData = useMemo(() => [
+    { Icon: Briefcase, fullLabel: "Total Parts", value: totalParts, oneWordLabel: "Parts" },
+    { Icon: Users, fullLabel: "Total Suppliers", value: totalSuppliers, oneWordLabel: "Suppliers" },
+    { Icon: FolderTree, fullLabel: "Total Categories", value: totalCategories, oneWordLabel: "Categories" },
+    { Icon: DollarSignIcon, fullLabel: "Total Annual Spend", value: formatCurrencyDisplay(totalAnnualSpend), oneWordLabel: "Spend" },
+  ], [totalParts, totalSuppliers, totalCategories, totalAnnualSpend]);
+
 
   const spendByPartData: SpendDataPoint[] = useMemo(() => {
     return partsWithSpend
       .map(part => ({
-        name: part.partNumber, // This could lead to "duplicate" names if partNumbers aren't unique across *all* part objects
+        name: part.partNumber, 
         spend: part.annualSpend,
       }))
       .sort((a,b) => b.spend - a.spend)
@@ -836,7 +838,7 @@ export default function SpendWiseCentralPage() {
     if (!isNaN(value) && value >= 0 && value <= 300) {
       setTariffRateMultiplierPercent(value);
     } else if (event.target.value === "") {
-        setTariffRateMultiplierPercent(0); // Or handle as per desired behavior for empty input
+        setTariffRateMultiplierPercent(0); 
     }
   };
 
@@ -849,7 +851,7 @@ export default function SpendWiseCentralPage() {
       if (!isNaN(value) && value >= 50 && value <= 200) {
           setTotalLogisticsCostPercent(value);
       } else if (event.target.value === "") {
-           setTotalLogisticsCostPercent(50); // Or a min value if preferred
+           setTotalLogisticsCostPercent(50); 
       }
   };
 
@@ -858,7 +860,7 @@ export default function SpendWiseCentralPage() {
     <TooltipProvider>
       <div className="flex flex-col min-h-screen bg-background">
         <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
-          <div className="container mx-auto flex h-16 items-center space-x-4 px-4 sm:px-6 lg:px-8">
+          <div className="container mx-auto flex h-32 items-center space-x-4 px-4 sm:px-6 lg:px-8"> {/* Header height h-32 */}
           <img
             src="/TADA_TM-2023_Color-White-Logo.svg"
             alt="TADA Logo"
@@ -868,91 +870,95 @@ export default function SpendWiseCentralPage() {
           <h1 className="text-xl font-headline font-semibold text-foreground whitespace-nowrap">
             Spend by TADA
           </h1>
-            <div className="flex-grow flex items-center space-x-4 ml-4">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center space-x-1">
-                    <Home className="h-4 w-4 text-muted-foreground" />
-                    <Select value={appHomeCountry} onValueChange={setAppHomeCountry}>
-                        <SelectTrigger className="w-[100px] h-8 text-xs">
-                            <SelectValue placeholder="Home Country" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {uniqueSupplierCountriesForApp.map(country => (
-                                <SelectItem key={country} value={country} className="text-xs">{country}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs max-w-xs">
-                    Application Home Country: Suppliers outside this country are considered foreign for tariff calculations. Changes affect Total Annual Spend.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center space-x-2">
-                    <Shield className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="tariffRateMultiplierSlider" className="text-xs text-muted-foreground whitespace-nowrap">Tariff Mult:</Label>
-                    <Slider
-                      id="tariffRateMultiplierSlider"
-                      min={0} 
-                      max={300} 
-                      step={1}
-                      value={[tariffRateMultiplierPercent]}
-                      onValueChange={handleTariffSliderChange}
-                      className="w-24 h-2"
-                    />
-                    <Input 
-                        type="number" 
-                        value={tariffRateMultiplierPercent} 
-                        onChange={handleTariffInputChange}
-                        className="w-16 h-7 text-xs text-right px-1"
-                        min="0"
-                        max="300"
-                    />
-                    <span className="text-xs text-foreground">%</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs max-w-xs">
-                    Tariff Multiplier: Adjusts the base tariff rate (currently {BASE_TARIFF_RATE * 100}%) applied to imported parts. 100% = base rate.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                 <TooltipTrigger asChild>
-                  <div className="flex items-center space-x-2">
-                    <PercentCircle className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="logisticsCostSlider" className="text-xs text-muted-foreground whitespace-nowrap">Logistics:</Label>
-                    <Slider
-                      id="logisticsCostSlider"
-                      min={50}
-                      max={200}
-                      step={1}
-                      value={[totalLogisticsCostPercent]}
-                      onValueChange={handleLogisticsSliderChange}
-                      className="w-24 h-2"
-                    />
-                    <Input 
-                        type="number" 
-                        value={totalLogisticsCostPercent} 
-                        onChange={handleLogisticsInputChange}
-                        className="w-16 h-7 text-xs text-right px-1"
-                        min="50"
-                        max="200"
-                    />
-                    <span className="text-xs text-foreground">%</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs max-w-xs">
-                    Global Logistics Cost Multiplier: Adjusts each part's freight & OHD cost. 100% = part's defined rate.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
+            <div className="flex-grow flex flex-col space-y-2 ml-4"> {/* Changed to flex-col */}
+              <div className="flex items-center space-x-4"> {/* Row 1: Home Country & Logistics */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center space-x-1">
+                      <Home className="h-4 w-4 text-muted-foreground" />
+                      <Select value={appHomeCountry} onValueChange={setAppHomeCountry}>
+                          <SelectTrigger className="w-[100px] h-8 text-xs">
+                              <SelectValue placeholder="Home Country" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              {uniqueSupplierCountriesForApp.map(country => (
+                                  <SelectItem key={country} value={country} className="text-xs">{country}</SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs max-w-xs">
+                      Application Home Country: Suppliers outside this country are considered foreign for tariff calculations. Changes affect Total Annual Spend.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center space-x-2">
+                      <PercentCircle className="h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor="logisticsCostSlider" className="text-xs text-muted-foreground whitespace-nowrap">Logistics:</Label>
+                      <Slider
+                        id="logisticsCostSlider"
+                        min={50}
+                        max={200}
+                        step={1}
+                        value={[totalLogisticsCostPercent]}
+                        onValueChange={handleLogisticsSliderChange}
+                        className="w-24 h-2"
+                      />
+                      <Input 
+                          type="number" 
+                          value={totalLogisticsCostPercent} 
+                          onChange={handleLogisticsInputChange}
+                          className="w-16 h-7 text-xs text-right px-1"
+                          min="50"
+                          max="200"
+                      />
+                      <span className="text-xs text-foreground">%</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs max-w-xs">
+                      Global Logistics Cost Multiplier: Adjusts each part's freight & OHD cost. 100% = part's defined rate.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex items-center space-x-4"> {/* Row 2: Tariff */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center space-x-2">
+                      <Shield className="h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor="tariffRateMultiplierSlider" className="text-xs text-muted-foreground whitespace-nowrap">Tariff Mult:</Label>
+                      <Slider
+                        id="tariffRateMultiplierSlider"
+                        min={0} 
+                        max={300} 
+                        step={1}
+                        value={[tariffRateMultiplierPercent]}
+                        onValueChange={handleTariffSliderChange}
+                        className="w-24 h-2"
+                      />
+                      <Input 
+                          type="number" 
+                          value={tariffRateMultiplierPercent} 
+                          onChange={handleTariffInputChange}
+                          className="w-16 h-7 text-xs text-right px-1"
+                          min="0"
+                          max="300"
+                      />
+                      <span className="text-xs text-foreground">%</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs max-w-xs">
+                      Tariff Multiplier: Adjusts the base tariff rate (currently {BASE_TARIFF_RATE * 100}%) applied to imported parts. 100% = base rate.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             </div>
 
             <div className="ml-auto flex items-center space-x-2">
@@ -1076,18 +1082,27 @@ export default function SpendWiseCentralPage() {
         </header>
 
         <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8 pb-16">
-          <section aria-labelledby="summary-stats-title" className={`sticky top-16 z-40 bg-background shadow-sm -mt-1`}>
+          <section aria-labelledby="summary-stats-title" className={`sticky z-40 bg-background shadow-sm mt-0.5`} style={{top: `${HEADER_HEIGHT_PX}px`}}> {/* Adjusted top and mt */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 p-2">
-              {summaryStats.map(stat => (
-                <Card key={stat.label} className="shadow-lg">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                    <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
-                    <stat.Icon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent className="pt-1 pb-2">
-                    <div className="text-xl font-bold">{stat.value}</div>
-                  </CardContent>
-                </Card>
+              {summaryStatsData.map(stat => (
+                <Tooltip key={stat.fullLabel}>
+                  <TooltipTrigger asChild>
+                    <Card className="shadow-lg">
+                      <CardHeader className="flex flex-col items-center justify-center pt-3 pb-1 text-center">
+                        <stat.Icon className="h-5 w-5 mb-1 text-primary" />
+                        <CardTitle className="text-xs font-semibold tracking-tight">
+                          {stat.oneWordLabel}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0 pb-3 text-center">
+                        <div className="text-lg font-bold">{stat.value}</div>
+                      </CardContent>
+                    </Card>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{stat.fullLabel}</p>
+                  </TooltipContent>
+                </Tooltip>
               ))}
             </div>
           </section>
@@ -1270,6 +1285,8 @@ export default function SpendWiseCentralPage() {
     </TooltipProvider>
   );
 }
+    
+
     
 
     
