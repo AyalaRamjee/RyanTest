@@ -12,11 +12,12 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { HelpCircle, Info, Percent, DollarSign, Trash2, PlusCircle, ChevronsUpDown, TrendingUp, Save, Upload, Edit3, Layers, BarChart3, Maximize, Minimize, Filter, PackageSearch, Palette, MapPin, Activity, Settings2, FileJson } from "lucide-react";
+import { HelpCircle, Info, Percent, DollarSign, Trash2, PlusCircle, ChevronsUpDown, TrendingUp, Save, Upload, Edit3, Layers, BarChart3, Maximize, Minimize, Filter, PackageSearch, Palette, MapPin, Activity, Settings2, FileJson, UserPlus } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltipComponent, Cell } from 'recharts';
-import { ChartContainer } from "@/components/ui/chart";
+import { ChartContainer } from '@/components/ui/chart';
+import CreateWorkspaceDialog from './create-workspace-dialog';
 
 
 interface WhatIfAnalysisTabProps {
@@ -112,6 +113,8 @@ export default function WhatIfAnalysisTab({
   const [savedScenarioNames, setSavedScenarioNames] = useState<string[]>([]);
   const [selectedScenarioToLoad, setSelectedScenarioToLoad] = useState<string>("");
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isCreateWorkspaceDialogOpen, setIsCreateWorkspaceDialogOpen] = useState(false);
+
 
   useEffect(() => {
     setAnalysisHomeCountry(defaultAnalysisHomeCountry);
@@ -128,7 +131,7 @@ export default function WhatIfAnalysisTab({
   const partsForSelect = useMemo(() => parts.map(p => ({ value: p.id, label: `${p.partNumber} - ${p.name}` })).sort((a,b) => a.label.localeCompare(b.label)), [parts]);
   
   const uniqueSupplierCountriesForAnalysis = useMemo(() => {
-    const countries = Array.from(new Set(suppliers.map(s => s.country)));
+    const countries = Array.from(new Set(suppliers.map(s => s.country).filter(Boolean)));
     if (defaultAnalysisHomeCountry && !countries.includes(defaultAnalysisHomeCountry)) {
         countries.push(defaultAnalysisHomeCountry);
     }
@@ -676,6 +679,13 @@ export default function WhatIfAnalysisTab({
                     </ScrollArea>
                 )}
                 </div>
+                 <Button 
+                    onClick={() => setIsCreateWorkspaceDialogOpen(true)} 
+                    variant="outline" 
+                    className="w-full mt-4 text-xs h-9"
+                >
+                    <UserPlus className="mr-2 h-4 w-4" /> Create Workspace
+                </Button>
             </CardContent>
           </Card>
         </div>
@@ -845,34 +855,12 @@ export default function WhatIfAnalysisTab({
           </CardContent>
         </Card>
       </div>
-
-      <Dialog open={isSaveScenarioDialogOpen} onOpenChange={setIsSaveScenarioDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isEditMode ? "Edit Scenario" : "Save New Scenario"}</DialogTitle>
-            <DialogDescription>
-              {isEditMode ? `Update the name and description for "${currentScenarioName}". Current settings will be saved.` : "Enter a name and description for your new scenario."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label htmlFor="scenarioName">Scenario Name</Label>
-              <Input id="scenarioName" value={currentScenarioName} onChange={(e) => setCurrentScenarioName(e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="scenarioDescription">Description (Optional)</Label>
-              <Input id="scenarioDescription" value={currentScenarioDescription} onChange={(e) => setCurrentScenarioDescription(e.target.value)} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsSaveScenarioDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveScenario}>Save Scenario</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <CreateWorkspaceDialog 
+            isOpen={isCreateWorkspaceDialogOpen} 
+            onClose={() => setIsCreateWorkspaceDialogOpen(false)}
+            uniqueSupplierCountries={uniqueSupplierCountriesForAnalysis}
+        />
     </TooltipProvider>
   );
 }
 
-
-    

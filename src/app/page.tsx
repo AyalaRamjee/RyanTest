@@ -8,7 +8,7 @@ import UpdateSuppliersTab from "@/components/spendwise/update-suppliers";
 import PartSupplierMappingTab from "@/components/spendwise/part-supplier-mapping";
 import UploadPartCategoryTab from "@/components/spendwise/upload-part-category";
 import WhatIfAnalysisTab from "@/components/spendwise/what-if-analysis-tab";
-import ReviewSummaryTab from "@/components/spendwise/review-summary-tab"; // New Import
+import ReviewSummaryTab from "@/components/spendwise/review-summary-tab";
 import GenerateDataDialog from "@/components/spendwise/generate-data-dialog";
 import UploadCsvDialog from "@/components/spendwise/upload-csv-dialog";
 import SpendWiseBot from "@/components/spendwise/spendwise-bot";
@@ -20,7 +20,7 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/context/theme-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, ListChecks, Search, ExternalLink, AlertTriangle, BarChart3 } from "lucide-react"; // Added BarChart3
+import { Package, Building, ArrowRightLeft, FolderTree, Sun, Moon, Sparkles, Loader2, Briefcase, Users, DollarSignIcon, Globe, Shield, Lightbulb, MessageCircle, Wand2, FileX2, ArrowUpToLine, ArrowDownToLine, FileSpreadsheet, HelpCircle, Home, Info, CheckCircle, ListChecks, Search, ExternalLink, AlertTriangle, BarChart3 } from "lucide-react";
 import type { Part, Supplier, PartCategoryMapping, PartSupplierAssociation } from '@/types/spendwise';
 import { generateSpendData } from '@/ai/flows/generate-spend-data-flow';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -269,7 +269,7 @@ export default function SpendWiseCentralPage() {
       console.error("Error processing XML data:", error);
       toast({ variant: "destructive", title: "Error Loading Data", description: "Could not process the XML data." });
     }
-  }, [toast, resetValidationStates]); // Removed escapeXml as it's not used here.
+  }, [toast, resetValidationStates]);
 
   useEffect(() => {
     const lastLoadedFile = typeof window !== 'undefined' ? localStorage.getItem(LAST_LOADED_FILENAME_KEY) : null;
@@ -1286,7 +1286,7 @@ export default function SpendWiseCentralPage() {
           </section>
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="w-full mt-0">
-             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-7 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}> {/* Updated grid-cols */}
+             <TabsList className={`sticky z-30 bg-background pt-1 pb-2 shadow-sm grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-7 text-xs`} style={{top: `${TABSLIST_STICKY_TOP_PX}px`}}>
               <TabsTrigger value="update-parts" className="flex items-center gap-1 tabs-trigger-active-underline">
                 <Package className="h-3.5 w-3.5" /> 1. Add/Update Parts
               </TabsTrigger>
@@ -1306,7 +1306,7 @@ export default function SpendWiseCentralPage() {
                 <HelpCircle className="h-3.5 w-3.5" /> 6. What-if Analysis
               </TabsTrigger>
                <TabsTrigger value="review-summary" className="flex items-center gap-1 tabs-trigger-active-underline">
-                <BarChart3 className="h-3.5 w-3.5" /> 7. Review Summary
+                <BarChart3 className="h-3.5 w-3.5" /> 7. Review Spend
               </TabsTrigger>
             </TabsList>
 
@@ -1359,7 +1359,7 @@ export default function SpendWiseCentralPage() {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center">
                        <ListChecks className="mr-2 h-5 w-5 text-primary" />
-                       <CardTitle>Data Validation Checks</CardTitle>
+                       <CardTitle>Validate Spend Network</CardTitle>
                     </div>
                     <Button onClick={handleRunValidationChecks} size="sm">
                         <CheckCircle className="mr-1.5 h-4 w-4" /> Run Validation Checks
