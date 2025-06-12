@@ -1186,14 +1186,6 @@ export default function SpendWiseCentralPage() {
                 </TooltipTrigger>
                 <TooltipContent><p>About this Application</p></TooltipContent>
               </Tooltip>
-               <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={handleRunValidationChecks} className="h-8">
-                        <CheckCircle className="h-4 w-4 mr-1.5" /> Validate Data
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>Run data consistency checks</p></TooltipContent>
-              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -1212,7 +1204,7 @@ export default function SpendWiseCentralPage() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Load Sample Data (Excel)</p>
+                  <p>Load Sample Data</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -1276,21 +1268,6 @@ export default function SpendWiseCentralPage() {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Download Configuration (XML)</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={() => setIsGenerateDataDialogOpen(true)} disabled={isGeneratingData} aria-label="Generate Sample Data">
-                    {isGeneratingData ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Wand2 className="h-5 w-5" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Generate Sample Data (AI)</p>
                 </TooltipContent>
               </Tooltip>
               <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'tada')}>
