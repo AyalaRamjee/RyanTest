@@ -1,5 +1,5 @@
 
-"use client";
+"use client"; // This file is a client component in Next.js 13+ with the app directory enabled.
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
